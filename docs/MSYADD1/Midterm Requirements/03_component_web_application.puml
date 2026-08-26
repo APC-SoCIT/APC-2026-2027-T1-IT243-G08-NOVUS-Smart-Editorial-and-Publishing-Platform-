@@ -1,0 +1,56 @@
+@startuml NOVUS_Component_Diagram_WebApplication
+' =====================================================================
+' NOVUS — Level 3a: Component Diagram — Vue.js Web Application
+' Adds the global Notification Panel component (UC-10.2, UC-10.2.1,
+' UC-10.3, UC-10.3.1) reachable from every authenticated screen.
+' =====================================================================
+!if %variable_exists("RELATIVE_INCLUDE")
+  !include ./C4_Component.puml
+!else
+  !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!endif
+
+LAYOUT_WITH_LEGEND()
+title Figure 3. Component Diagram — Vue.js Web Application
+
+Person(staff, "Editorial & Admin Staff")
+Person(readerside, "Reader / Subscriber")
+
+Container_Boundary(spa, "Web Application (Vue.js SPA)") {
+  Component(router, "Vue Router", "Vue Router", "Directs navigation based on the authenticated user's role.")
+  Component(authStore, "Auth & Session Store", "Pinia / Vuex", "Manages JWT tokens, session state, and role-based (RBAC) permissions.")
+
+  Component(publicPortal, "Public Portal", "Vue Components", "Registration, login, browse featured content, bookmark/share. (UC-6.1, UC-6.2, UC-7.1-7.1.2)")
+  Component(subPortal, "Subscriber Portal", "Vue Components", "Subscribe, purchase, billing, premium articles, digital issue downloads. (UC-6.3-6.5, UC-8.1-8.2, UC-9.1-9.5)")
+  Component(editorialWorkspace, "Editorial Workspace", "Vue Components", "Pipeline dashboard, drafting, revisions, design uploads, reports. (UC-1.1-1.11, UC-2.1-2.5, UC-3.1-3.3)")
+  Component(adminConsole, "Admin Console", "Vue Components", "Theme/layout, integrations, maintenance mode, staff & roles. (UC-4.1-4.3, UC-5.1-5.2.3)")
+  Component(notifPanel, "Notification Panel", "Vue Component (Global)", "Bell-icon badge, notification list, mark read/unread, notification-channel preferences. Mounted on every authenticated screen. (UC-10.2, UC-10.2.1, UC-10.3, UC-10.3.1) [NEW]")
+
+  Component(apiClient, "API Service Client", "Axios", "Wraps and authenticates all REST calls to the API Application.")
+}
+
+Container_Ext(api, "API Application", "Django REST Framework", "Backend business logic")
+
+Rel(readerside, router, "Navigates")
+Rel(staff, router, "Navigates")
+
+Rel(router, publicPortal, "Routes unauthenticated / reader traffic")
+Rel(router, subPortal, "Routes subscriber traffic")
+Rel(router, editorialWorkspace, "Routes editorial-staff traffic")
+Rel(router, adminConsole, "Routes admin traffic")
+Rel(router, authStore, "Reads role & session state")
+Rel(notifPanel, authStore, "Reads current user identity")
+Rel(router, notifPanel, "Mounts globally alongside the active portal")
+
+Rel(publicPortal, apiClient, "Sends requests")
+Rel(subPortal, apiClient, "Sends requests")
+Rel(editorialWorkspace, apiClient, "Sends requests")
+Rel(adminConsole, apiClient, "Sends requests")
+Rel(notifPanel, apiClient, "Fetches notifications, marks read, saves preferences")
+Rel(authStore, apiClient, "Attaches JWT to outgoing requests")
+
+Rel(apiClient, api, "Makes API calls", "JSON / HTTPS / REST")
+Rel(api, apiClient, "Returns data incl. unread notification count", "JSON")
+
+SHOW_LEGEND()
+@enduml

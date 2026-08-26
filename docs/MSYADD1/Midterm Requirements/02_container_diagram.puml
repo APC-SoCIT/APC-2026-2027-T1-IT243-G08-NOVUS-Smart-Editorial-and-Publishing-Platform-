@@ -1,0 +1,51 @@
+@startuml NOVUS_Container_Diagram
+' =====================================================================
+' NOVUS — Level 2: Container Diagram
+' Adds the Object Storage container (Cloudflare R2, used by Upload
+' Magazine Design / Download Digital Issues) and makes the Resend
+' notification-delivery relationship explicit for Module 10.
+' =====================================================================
+!if %variable_exists("RELATIVE_INCLUDE")
+  !include ./C4_Container.puml
+!else
+  !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!endif
+
+LAYOUT_WITH_LEGEND()
+title Figure 2. Container Diagram — NOVUS Editorial & Publishing Management System
+
+Person(staff, "Editorial & Admin Staff", "Writer, Editor, Graphics Designer, Publisher, Admin")
+Person(readerside, "Reader / Subscriber", "Unregistered Reader, Registered Reader, Subscriber")
+
+System_Boundary(novus_boundary, "NOVUS Platform") {
+  Container(spa, "Web Application", "Vue.js SPA — hosted on Vercel", "Delivers role-based portals (Public, Subscriber, Editorial Workspace, Admin Console) and the global Notification Panel as a Single Page Application.")
+  Container(api, "API Application", "Django REST Framework — hosted on Render", "Owns all business logic and validation: authentication/RBAC, editorial pipeline, publication, reports, platform settings, user privileges, accounts, premium content, payments, and notification orchestration.")
+  ContainerDb(db, "Primary Database", "PostgreSQL — hosted on Render", "Stores articles/bundles, revisions, users & roles, subscriptions, payment ledgers, platform configuration, notification records, and notification preferences.")
+  Container(storage, "Object Storage", "Cloudflare R2 (S3-compatible)", "Stores magazine design files, digital issue PDFs, article media, and user-uploaded assets (avatars).")
+}
+
+System_Ext(paymongo, "PayMongo", "Payment Gateway")
+System_Ext(resend, "Resend", "Email / Notification Delivery Service")
+System_Ext(claude, "Anthropic Claude API", "AI Evaluation Engine")
+
+Rel(staff, spa, "Uses", "HTTPS")
+Rel(readerside, spa, "Uses", "HTTPS")
+
+Rel(spa, api, "Calls", "JSON / HTTPS / REST")
+Rel(api, spa, "Returns data incl. notification badge counts", "JSON")
+
+Rel(api, db, "Reads from and writes to", "SQL / TLS, Django ORM")
+
+Rel(api, storage, "Uploads / retrieves files (designs, issues, media)", "S3 API / HTTPS")
+
+Rel(api, paymongo, "Submits payment & subscription transactions", "HTTPS / REST")
+Rel(paymongo, api, "Sends payment webhook (success/fail token)", "HTTPS")
+
+Rel(api, resend, "Dispatches transactional emails & notification digests (UC-10.1.1)", "HTTPS / REST")
+Rel(resend, api, "Sends delivery-status webhook", "HTTPS")
+
+Rel(api, claude, "Requests article evaluation (UC-1.11)", "HTTPS / REST")
+Rel(claude, api, "Returns quality score & recommendation", "JSON")
+
+SHOW_LEGEND()
+@enduml

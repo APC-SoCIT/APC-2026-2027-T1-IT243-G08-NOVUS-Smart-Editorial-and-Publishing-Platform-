@@ -1,0 +1,82 @@
+@startuml NOVUS_Component_Diagram_APIApplication
+' =====================================================================
+' NOVUS — Level 3b: Component Diagram — Django API Application
+' Adds the new Notification Controller (Module 10: UC-10.1, UC-10.1.1,
+' UC-10.2, UC-10.2.1, UC-10.3, UC-10.3.1), which is invoked by every
+' controller that the use-case source names as a notification trigger
+' (Editorial Workflow, Publication, User Privileges, Auth), and which
+' owns the Resend integration for the email channel.
+' =====================================================================
+!if %variable_exists("RELATIVE_INCLUDE")
+  !include ./C4_Component.puml
+!else
+  !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!endif
+
+LAYOUT_WITH_LEGEND()
+title Figure 4. Component Diagram — Django API Application
+
+Container_Ext(spa, "Web Application", "Vue.js SPA")
+ContainerDb_Ext(db, "Primary Database", "PostgreSQL")
+Container_Ext(storage, "Object Storage", "Cloudflare R2")
+System_Ext(paymongo, "PayMongo", "Payment Gateway")
+System_Ext(resend, "Resend", "Email / Notification Delivery Service")
+System_Ext(claude, "Anthropic Claude API", "AI Evaluation Engine")
+
+Container_Boundary(api, "API Application (Django REST Framework)") {
+  Component(authCtrl, "Auth Controller", "DRF ViewSet + SimpleJWT", "Registration, login/SSO, sessions, account security. (UC-6.1-6.5, UC-5.2.3)")
+  Component(editorialCtrl, "Editorial Workflow Controller", "DRF ViewSet", "Submit/draft/edit/withdraw articles, revisions, AI override, workflow status, design uploads. (UC-1.1-1.10)")
+  Component(aiOrch, "AI Orchestration Module", "Service Class", "Builds evaluation requests and parses AI results. (UC-1.11)")
+  Component(pubCtrl, "Publication Controller", "DRF ViewSet", "Issue formats, scheduling, live publishing, archiving. (UC-2.1-2.5)")
+  Component(reportCtrl, "Reports Controller", "DRF ViewSet", "Revenue, pipeline, and AI evaluation reports; export. (UC-3.1-3.3)")
+  Component(settingsCtrl, "Platform Settings Controller", "DRF ViewSet", "Theme/layout, integrations, maintenance mode. (UC-4.1-4.3)")
+  Component(userCtrl, "User Privileges Controller", "DRF ViewSet", "Staff accounts, directory, roles, suspension, forced reset. (UC-5.1-5.2.3)")
+  Component(contentCtrl, "Content & Premium Controller", "DRF ViewSet", "Browse, bookmark, share, premium article/issue access. (UC-7.1-7.1.2, UC-8.1-8.2)")
+  Component(paymentCtrl, "PayMongo Service Handler", "Service Class", "Subscriptions, one-time purchases, billing, cancellation. (UC-9.1-9.5)")
+  Component(notifCtrl, "Notification Controller", "DRF ViewSet + Service Class", "Creates & routes notifications (in-app/email), serves the Notification Panel, and persists channel preferences. (UC-10.1, UC-10.1.1, UC-10.2, UC-10.2.1, UC-10.3, UC-10.3.1) [NEW]")
+  Component(dal, "Data Access Layer", "Django ORM", "Encapsulates PostgreSQL persistence for every module above.")
+  Component(fileClient, "File Storage Client", "boto3 / S3 SDK", "Uploads and retrieves objects from Cloudflare R2.")
+}
+
+Rel(spa, authCtrl, "Auth requests", "JSON/HTTPS")
+Rel(spa, editorialCtrl, "Pipeline requests", "JSON/HTTPS")
+Rel(spa, pubCtrl, "Publication requests", "JSON/HTTPS")
+Rel(spa, reportCtrl, "Report requests", "JSON/HTTPS")
+Rel(spa, settingsCtrl, "Settings requests", "JSON/HTTPS")
+Rel(spa, userCtrl, "User-privilege requests", "JSON/HTTPS")
+Rel(spa, contentCtrl, "Content requests", "JSON/HTTPS")
+Rel(spa, paymentCtrl, "Payment requests", "JSON/HTTPS")
+Rel(spa, notifCtrl, "Fetch/mark notifications, save preferences", "JSON/HTTPS")
+
+Rel(editorialCtrl, aiOrch, "Includes: Generate Article Evaluation", "UC-1.11")
+Rel(aiOrch, claude, "Submits draft content", "HTTPS/REST")
+Rel(claude, aiOrch, "Returns score & recommendation", "JSON")
+
+Rel(editorialCtrl, notifCtrl, "Triggers: revision requested, design uploaded", "UC-1.4, UC-1.8")
+Rel(pubCtrl, notifCtrl, "Triggers: subscriber notifications", "UC-2.3.1")
+Rel(userCtrl, notifCtrl, "Triggers: new-user credentials, forced password reset", "UC-5.1, UC-5.2.3")
+Rel(authCtrl, notifCtrl, "Triggers: registration verification email", "UC-6.1")
+Rel(notifCtrl, resend, "Includes: Deliver Email Notification", "UC-10.1.1 / HTTPS/REST")
+Rel(resend, notifCtrl, "Delivery-status webhook", "HTTPS")
+
+Rel(paymentCtrl, paymongo, "Submits transaction", "HTTPS/REST")
+Rel(paymongo, paymentCtrl, "Payment webhook (success/fail token)", "HTTPS")
+
+Rel(editorialCtrl, fileClient, "Stores magazine design files", "UC-1.8")
+Rel(contentCtrl, fileClient, "Serves digital issue downloads", "UC-8.1")
+Rel(authCtrl, fileClient, "Stores profile photo uploads", "UC-6.4")
+
+Rel(authCtrl, dal, "Reads/writes")
+Rel(editorialCtrl, dal, "Reads/writes")
+Rel(pubCtrl, dal, "Reads/writes")
+Rel(reportCtrl, dal, "Reads")
+Rel(settingsCtrl, dal, "Reads/writes")
+Rel(userCtrl, dal, "Reads/writes")
+Rel(contentCtrl, dal, "Reads/writes")
+Rel(paymentCtrl, dal, "Reads/writes")
+Rel(notifCtrl, dal, "Reads/writes notification records & preferences")
+Rel(fileClient, storage, "Uploads/retrieves objects", "S3 API")
+Rel(dal, db, "SQL", "Django ORM / TLS")
+
+SHOW_LEGEND()
+@enduml
