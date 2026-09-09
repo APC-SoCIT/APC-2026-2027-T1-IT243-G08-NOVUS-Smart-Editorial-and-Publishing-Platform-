@@ -11,7 +11,9 @@ load_dotenv(BASE_DIR / '.env')
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="insecure-dev-key-change-me")
+import os
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "insecure-dev-key-change-me")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
