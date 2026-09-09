@@ -6,9 +6,12 @@ import WriterDashboard from '../views/WriterDashboard.vue'
 import ArticleComposeView from '../views/ArticleComposeView.vue'
 import EditorDashboard from '../views/EditorDashboard.vue'
 import ArticleReviewView from '../views/ArticleReviewView.vue'
+import PublisherDashboard from '../views/PublisherDashboard.vue'
+import ReaderHome from '../views/ReaderHome.vue'
+import ReaderArticle from '../views/ReaderArticle.vue'
 
 const routes = [
-  { path: '/', redirect: '/login' },
+  { path: '/', redirect: '/read' },
   { path: '/login', component: ReaderLoginView },
   { path: '/staff/login', component: StaffLoginView },
   { path: '/writer', component: WriterDashboard, meta: { requiresAuth: true } },
@@ -16,6 +19,9 @@ const routes = [
   { path: '/writer/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true } },
   { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true } },
   { path: '/editor/review/:id', component: ArticleReviewView, meta: { requiresAuth: true } },
+  { path: '/publisher', component: PublisherDashboard, meta: { requiresAuth: true } },
+  { path: '/read', component: ReaderHome },
+  { path: '/read/:id', component: ReaderArticle },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
