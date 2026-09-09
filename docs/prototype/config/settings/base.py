@@ -5,6 +5,9 @@ import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env')
+
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -108,9 +111,20 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 ANTHROPIC_EVAL_MODEL = env("ANTHROPIC_EVAL_MODEL", default="claude-haiku-4-5-20251001")
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+
+import os
+import dj_database_url
+
+if os.environ.get("DATABASE_URL"):
+    DATABASES = {
+        "default": dj_database_url.parse(
+            os.environ["DATABASE_URL"], conn_max_age=600, ssl_require=True
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
