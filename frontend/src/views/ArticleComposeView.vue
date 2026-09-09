@@ -5,6 +5,7 @@ import { EditorContent, useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import api from '../services/api'
+import EvaluationPanel from '../components/EvaluationPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,6 +16,9 @@ const saving = ref(false)
 const submitting = ref(false)
 const message = ref('')
 const error = ref('')
+const evaluation = ref(null)
+const returnedByAi = ref(false)
+const status = ref('DRAFTING')
 
 const editor = useEditor({
   content: '',
@@ -27,6 +31,9 @@ onMounted(async () => {
   const { data } = await api.get(`/editorial/articles/${articleId.value}/`)
   title.value = data.title
   category.value = data.category
+  status.value = data.status
+  evaluation.value = data.latest_evaluation
+  returnedByAi.value = data.returned_by_ai
   editor.value?.commands.setContent(data.body)
 })
 
@@ -78,6 +85,11 @@ const active = (n, a) => editor.value?.isActive(n, a)
       <h2>{{ articleId ? 'EDIT SUBMISSION' : 'NEW SUBMISSION' }}</h2>
       <router-link to="/writer" class="back">Back to dashboard</router-link>
     </header>
+
+    <EvaluationPanel
+      :evaluation="evaluation"
+      :returned-by-ai="returnedByAi"
+      :threshold="70" />
 
     <label>HEADLINE</label>
     <input v-model="title" class="title-in" placeholder="Enter your headline" />

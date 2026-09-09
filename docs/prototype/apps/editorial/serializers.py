@@ -4,7 +4,7 @@ from .models import Article, RevisionNote
 
 
 class RevisionNoteSerializer(serializers.ModelSerializer):
-    editor_name = serializers.CharField(source="editor.get_full_name", read_only=True)
+    editor_name = serializers.SerializerMethodField()
 
     class Meta:
         model = RevisionNote
@@ -13,6 +13,10 @@ class RevisionNoteSerializer(serializers.ModelSerializer):
             "note_type", "instruction", "priority", "created_at",
         ]
         read_only_fields = ["id", "editor", "editor_name", "created_at"]
+
+    def get_editor_name(self, obj):
+        """Null editor means the note came from the AI gate, not a person."""
+        return obj.editor.get_full_name() if obj.editor else None
 
 
 class ArticleListSerializer(serializers.ModelSerializer):
@@ -26,7 +30,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         model = Article
         fields = [
             "id", "title", "status", "category", "writer", "writer_name",
-            "editor", "latest_score", "created_at", "updated_at",
+            "editor", "latest_score", "returned_by_ai", "created_at", "updated_at",
         ]
 
     def get_latest_score(self, obj):
@@ -44,12 +48,12 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "body", "category", "tags", "status",
             "writer", "writer_name", "editor", "published_at",
-            "withdrawal_reason", "revision_notes", "latest_evaluation",
+            "withdrawal_reason", "returned_by_ai", "revision_notes", "latest_evaluation",
             "created_at", "updated_at",
         ]
         read_only_fields = [
             "id", "status", "writer", "editor", "published_at",
-            "withdrawal_reason", "created_at", "updated_at",
+            "withdrawal_reason", "returned_by_ai", "created_at", "updated_at",
         ]
 
     def get_latest_evaluation(self, obj):

@@ -25,6 +25,11 @@ onMounted(async () => {
   }
 })
 
+function open(a) {
+  if (['DRAFTING', 'REVISION_REQUESTED'].includes(a.status)) {
+    router.push(`/writer/compose/${a.id}`)
+  }
+}
 function signOut() {
   auth.logout()
   router.push('/staff/login')
@@ -49,7 +54,9 @@ function signOut() {
     <p v-if="loading">Loading…</p>
     <p v-else-if="!articles.length" class="empty">No articles yet.</p>
     <ul v-else>
-      <li v-for="a in articles" :key="a.id">
+      <li v-for="a in articles" :key="a.id"
+          :class="{ clickable: ['DRAFTING','REVISION_REQUESTED'].includes(a.status) }"
+          @click="open(a)">
         <span class="t">{{ a.title }}</span>
         <em>{{ a.status }}</em>
         <b v-if="a.latest_score">{{ a.latest_score }}</b>
@@ -69,6 +76,8 @@ h2 { margin: 0; letter-spacing: 1px; }
 .card b { display: block; font-size: 30px; }
 .card span { font-size: 11px; color: #888; letter-spacing: .5px; }
 ul { list-style: none; padding: 0; }
+li.clickable { cursor: pointer; }
+li.clickable:hover { background: #fafafa; }
 li { display: flex; justify-content: space-between; align-items: center; gap: 12px;
      border-bottom: 1px solid #eee; padding: 13px 0; }
 .t { flex: 1; }

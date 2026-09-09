@@ -88,3 +88,61 @@ class TestEditorialPipelineEndToEnd:
         publisher_client = auth_client(publisher)
         response = publisher_client.post(f"/api/editorial/articles/{article_id}/publish/")
         assert response.status_code == status.HTTP_409_CONFLICT
+
+
+@pytest.mark.django_db
+class TestAIPreScreeningGate:
+    """UC-1.5: submissions below the passing score are returned to the Writer
+    with the AI's suggestions as revision notes; the Editor can still see them."""
+
+    def _draft(self, client):
+        r = client.post("/api/editorial/articles/", {
+            "title": "Gate Test", "body": "Body text " * 50, "category": "Tech"})
+        return r.data["id"]
+
+    def test_passing_score_reaches_the_editor(self, auth_client, writer, monkeypatch):
+        monkeypatch.setattr("apps.editorial.views.evaluate_article", lambda a: {
+            "grammar_score": 90, "readability_score": 85, "overall_score": 88,
+            "recommendation": "APPROVE", "summary": "Solid.", "suggestions": [],
+            "raw_response": {}, "ai_model": "stub"})
+        client = auth_client(writer)
+        aid = self._draft(client)
+        r = client.post(f"/api/editorial/articles/{aid}/submit/")
+        assert r.data["gate"] == "PASSED"
+        assert Article.objects.get(id=aid).status == Article.Status.UNDER_REVIEW
+
+    def test_failing_score_returns_to_writer_with_notes(self, auth_client, writer, monkeypatch):
+        monkeypatch.setattr("apps.editorial.views.evaluate_article", lambda a: {
+            "grammar_score": 50, "readability_score": 55, "overall_score": 52,
+            "recommendation": "REJECT", "summary": "Needs work.",
+            "suggestions": [{"section": "Intro", "note_type": "STRUCTURE",
+                             "instruction": "Lead with the main claim.",
+                             "priority": "HIGH"}],
+            "raw_response": {}, "ai_model": "stub"})
+        client = auth_client(writer)
+        aid = self._draft(client)
+        r = client.post(f"/api/editorial/articles/{aid}/submit/")
+        assert r.data["gate"] == "RETURNED"
+
+        article = Article.objects.get(id=aid)
+        assert article.status == Article.Status.REVISION_REQUESTED
+        notes = article.revision_notes.filter(editor__isnull=True)
+        assert notes.count() == 1
+        assert notes.first().priority == "HIGH"
+
+    def test_editor_can_still_see_an_ai_returned_article(
+        self, auth_client, writer, editor, monkeypatch
+    ):
+        monkeypatch.setattr("apps.editorial.views.evaluate_article", lambda a: {
+            "grammar_score": 40, "readability_score": 40, "overall_score": 40,
+            "recommendation": "REJECT", "summary": "", "suggestions": [],
+            "raw_response": {}, "ai_model": "stub"})
+        wc = auth_client(writer)
+        aid = self._draft(wc)
+        wc.post(f"/api/editorial/articles/{aid}/submit/")
+
+        ec = auth_client(editor)
+        listed = ec.get("/api/editorial/articles/")
+        match = [a for a in listed.data["results"] if a["id"] == aid]
+        assert match, "Editor must be able to see AI-returned articles"
+        assert match[0]["returned_by_ai"] is True

@@ -128,3 +128,9 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+
+# UC-1.5 pre-screening gate. A submission scoring below this is returned to the
+# Writer with the AI's suggestions as revision notes; at or above it, the
+# article reaches the Editor's queue. Business rule, not a technical constant --
+# an Editor can still override the verdict under UC-1.8.
+AI_PASSING_SCORE = 70

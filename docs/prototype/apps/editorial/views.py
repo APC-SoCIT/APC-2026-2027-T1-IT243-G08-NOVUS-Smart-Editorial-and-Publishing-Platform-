@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -11,7 +12,7 @@ from apps.ai_eval.services import evaluate_article
 from apps.common.permissions import role_permission
 from apps.publishing.services import publish_article
 
-from .models import Article
+from .models import Article, RevisionNote
 
 logger = logging.getLogger(__name__)
 from .serializers import (
@@ -37,7 +38,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Article.objects.select_related("writer", "editor").prefetch_related("evaluations")
+        qs = (Article.objects.select_related("writer", "editor")
+              .prefetch_related("evaluations", "revision_notes")
+              .order_by("-updated_at"))
         if user.role == user.Role.WRITER:
             return qs.filter(writer=user)
         # Editor / Publisher / Admin see the full pipeline; Reader/Subscriber
@@ -83,16 +86,43 @@ class ArticleViewSet(viewsets.ModelViewSet):
         try:
             result = evaluate_article(article)
             evaluation = ArticleEvaluation.objects.create(article=article, **result)
-            payload = ArticleEvaluationSerializer(evaluation).data
-        except Exception as exc:
+        except Exception:
             logger.exception("Evaluation failed for article %s", article.pk)
-            evaluation = None
-            payload = {"detail": "Evaluation unavailable; article sent for manual review.",
-                       "overall_score": None}
+            # No score means no gate: send it on for manual review rather than
+            # auto-rejecting work the system failed to assess.
+            article.status = Article.Status.UNDER_REVIEW
+            article.save(update_fields=["status", "updated_at"])
+            return Response(
+                {"detail": "Evaluation unavailable; sent for manual review.",
+                 "gate": "BYPASSED", "overall_score": None},
+                status=status.HTTP_201_CREATED,
+            )
 
-        article.status = Article.Status.UNDER_REVIEW
-        article.save(update_fields=["status", "updated_at"])
+        # AI pre-screening gate. Below the threshold the article goes back to the
+        # Writer with the AI's suggestions recorded as revision notes; at or above
+        # it, the article reaches the Editor with its evaluation attached.
+        threshold = settings.AI_PASSING_SCORE
+        passed = evaluation.overall_score >= threshold
 
+        article.returned_by_ai = not passed
+        if passed:
+            article.status = Article.Status.UNDER_REVIEW
+        else:
+            article.status = Article.Status.REVISION_REQUESTED
+            for s_ in evaluation.suggestions:
+                RevisionNote.objects.create(
+                    article=article,
+                    editor=None,
+                    section=s_.get("section", ""),
+                    note_type=s_.get("note_type", "STRUCTURE"),
+                    instruction=s_.get("instruction", "")[:500],
+                    priority=s_.get("priority", "MEDIUM"),
+                )
+        article.save(update_fields=["status", "returned_by_ai", "updated_at"])
+
+        payload = ArticleEvaluationSerializer(evaluation).data
+        payload["gate"] = "PASSED" if passed else "RETURNED"
+        payload["threshold"] = threshold
         return Response(payload, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="request-revision")
