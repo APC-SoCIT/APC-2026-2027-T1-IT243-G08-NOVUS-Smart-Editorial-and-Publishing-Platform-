@@ -10,4 +10,4 @@ class ArticleEvaluationAdmin(admin.ModelAdmin):
         "is_overridden", "created_at",
     ]
     list_filter = ["recommendation", "is_overridden"]
-    readonly_fields = ["raw_response", "created_at", "updated_at"]
+    readonly_fields = ["raw_response", "suggestions", "created_at", "updated_at"]

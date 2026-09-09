@@ -1,3 +1,5 @@
+import logging
+
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -10,6 +12,8 @@ from apps.common.permissions import role_permission
 from apps.publishing.services import publish_article
 
 from .models import Article
+
+logger = logging.getLogger(__name__)
 from .serializers import (
     ArticleCreateSerializer,
     ArticleDetailSerializer,
@@ -75,13 +79,21 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.status = Article.Status.AWAITING_EVALUATION
         article.save(update_fields=["status", "updated_at"])
 
-        result = evaluate_article(article)  # calls Claude — see apps/ai_eval/services.py
-        evaluation = ArticleEvaluation.objects.create(article=article, **result)
+        # UC-1.4 E1: an evaluation failure must not strand the article.
+        try:
+            result = evaluate_article(article)
+            evaluation = ArticleEvaluation.objects.create(article=article, **result)
+            payload = ArticleEvaluationSerializer(evaluation).data
+        except Exception as exc:
+            logger.exception("Evaluation failed for article %s", article.pk)
+            evaluation = None
+            payload = {"detail": "Evaluation unavailable; article sent for manual review.",
+                       "overall_score": None}
 
         article.status = Article.Status.UNDER_REVIEW
         article.save(update_fields=["status", "updated_at"])
 
-        return Response(ArticleEvaluationSerializer(evaluation).data, status=status.HTTP_201_CREATED)
+        return Response(payload, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="request-revision")
     def request_revision(self, request, pk=None):

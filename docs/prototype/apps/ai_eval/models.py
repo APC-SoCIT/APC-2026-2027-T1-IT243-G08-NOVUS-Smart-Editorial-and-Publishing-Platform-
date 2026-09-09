@@ -23,6 +23,14 @@ class ArticleEvaluation(TimeStampedModel):
     overall_score = models.PositiveSmallIntegerField()
     recommendation = models.CharField(max_length=10, choices=Recommendation.choices)
 
+    # UC-1.5: the AI returns a narrative brief alongside the scores, per the
+    # system context diagram ("scores submissions and generates narrative
+    # editorial briefs"). `suggestions` is shaped to map 1:1 onto RevisionNote
+    # so the Editor's composer can prefill from it (UC-1.7), and degrades to an
+    # empty list when unavailable (UC-1.7 alternate flow "No AI Feedback").
+    summary = models.TextField(blank=True)
+    suggestions = models.JSONField(default=list, blank=True)
+
     raw_response = models.JSONField(default=dict, blank=True)
     ai_model = models.CharField(max_length=50, default="claude-haiku-4-5-20251001")
 

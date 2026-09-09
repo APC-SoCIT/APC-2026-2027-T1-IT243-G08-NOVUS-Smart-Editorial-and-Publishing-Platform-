@@ -36,6 +36,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
     revision_notes = RevisionNoteSerializer(many=True, read_only=True)
+    latest_evaluation = serializers.SerializerMethodField()
     writer_name = serializers.CharField(source="writer.get_full_name", read_only=True)
 
     class Meta:
@@ -43,12 +44,20 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "body", "category", "tags", "status",
             "writer", "writer_name", "editor", "published_at",
-            "withdrawal_reason", "revision_notes", "created_at", "updated_at",
+            "withdrawal_reason", "revision_notes", "latest_evaluation",
+            "created_at", "updated_at",
         ]
         read_only_fields = [
             "id", "status", "writer", "editor", "published_at",
             "withdrawal_reason", "created_at", "updated_at",
         ]
+
+    def get_latest_evaluation(self, obj):
+        """UC-1.5: the narrative brief is shown to the Editor as draft notes and
+        to the Writer as read-only guidance."""
+        from apps.ai_eval.serializers import ArticleEvaluationSerializer
+        latest = obj.evaluations.order_by("-created_at").first()
+        return ArticleEvaluationSerializer(latest).data if latest else None
 
 
 class ArticleCreateSerializer(serializers.ModelSerializer):

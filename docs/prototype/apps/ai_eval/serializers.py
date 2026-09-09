@@ -10,7 +10,8 @@ class ArticleEvaluationSerializer(serializers.ModelSerializer):
         model = ArticleEvaluation
         fields = [
             "id", "article", "grammar_score", "readability_score", "overall_score",
-            "recommendation", "ai_model", "is_overridden", "override_reason",
+            "recommendation", "summary", "suggestions", "ai_model",
+            "is_overridden", "override_reason",
             "overridden_by", "overridden_by_name", "overridden_at", "created_at",
         ]
         read_only_fields = fields
