@@ -57,6 +57,11 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
         fields = ["id", "title", "body", "category", "tags"]
+        extra_kwargs = {
+            "body": {"required": False, "allow_blank": True},
+            "category": {"required": False, "allow_blank": True},
+            "tags": {"required": False, "allow_blank": True},
+        }
 
     def create(self, validated_data):
         validated_data["writer"] = self.context["request"].user

@@ -294,3 +294,27 @@ code {
     border-right-color: var(--border);
   }
 }
+
+.prose-area { outline: none; min-height: 300px; }
+.prose-area p { margin: 0 0 12px; line-height: 1.6; }
+.prose-area h2 { font-size: 22px; margin: 20px 0 8px; }
+.prose-area h3 { font-size: 18px; margin: 16px 0 8px; }
+.prose-area ul, .prose-area ol { padding-left: 22px; margin: 0 0 12px; }
+.prose-area blockquote { border-left: 3px solid #ddd; margin: 0 0 12px; padding-left: 12px; color: #555; }
+.prose-area p.is-editor-empty:first-child::before {
+  content: 'Start writing…'; color: #aaa; float: left; height: 0; pointer-events: none;
+}
+
+.prose-area { outline: none; min-height: 300px; }
+.prose-area p { margin: 0 0 12px; line-height: 1.6; }
+.prose-area h2 { font-size: 22px; margin: 20px 0 8px; }
+.prose-area h3 { font-size: 18px; margin: 16px 0 8px; }
+.prose-area ul, .prose-area ol { padding-left: 22px; margin: 0 0 12px; }
+.prose-area blockquote { border-left: 3px solid #ddd; margin: 0 0 12px; padding-left: 12px; color: #555; }
+
+.prose-area { outline: none; min-height: 300px; }
+.prose-area p { margin: 0 0 12px; line-height: 1.6; }
+.prose-area h2 { font-size: 22px; margin: 20px 0 8px; }
+.prose-area h3 { font-size: 18px; margin: 16px 0 8px; }
+.prose-area ul, .prose-area ol { padding-left: 22px; margin: 0 0 12px; }
+.prose-area blockquote { border-left: 3px solid #ddd; margin: 0 0 12px; padding-left: 12px; color: #555; }

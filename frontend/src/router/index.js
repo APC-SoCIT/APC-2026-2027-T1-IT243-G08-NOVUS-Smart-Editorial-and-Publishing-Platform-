@@ -3,12 +3,15 @@ import { useAuthStore } from '../stores/auth'
 import ReaderLoginView from '../views/ReaderLoginView.vue'
 import StaffLoginView from '../views/StaffLoginView.vue'
 import WriterDashboard from '../views/WriterDashboard.vue'
+import ArticleComposeView from '../views/ArticleComposeView.vue'
 
 const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', component: ReaderLoginView },
   { path: '/staff/login', component: StaffLoginView },
   { path: '/writer', component: WriterDashboard, meta: { requiresAuth: true } },
+  { path: '/writer/compose', component: ArticleComposeView, meta: { requiresAuth: true } },
+  { path: '/writer/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

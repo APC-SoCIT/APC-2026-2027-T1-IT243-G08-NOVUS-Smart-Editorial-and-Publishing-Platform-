@@ -8,6 +8,7 @@ import json
 
 import anthropic
 from django.conf import settings
+from django.utils.html import strip_tags
 
 EVAL_SYSTEM_PROMPT = """You are an editorial quality evaluator for BOSS \
 Magazine PH, a Filipino lifestyle publication. Score the submitted article \
@@ -32,7 +33,7 @@ def evaluate_article(article) -> dict:
         model=settings.ANTHROPIC_EVAL_MODEL,
         max_tokens=300,
         system=EVAL_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": f"Title: {article.title}\n\n{article.body}"}],
+        messages=[{"role": "user", "content": f"Title: {article.title}\n\n{strip_tags(article.body)}"}],
     )
     text = message.content[0].text.strip()
     text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()

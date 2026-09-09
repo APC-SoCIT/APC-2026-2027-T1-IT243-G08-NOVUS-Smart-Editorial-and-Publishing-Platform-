@@ -44,7 +44,7 @@ function signOut() {
       <div class="card"><b>{{ counts.revision }}</b><span>REVISION</span></div>
       <div class="card"><b>{{ counts.approved }}</b><span>APPROVED</span></div>
     </div>
-
+<router-link to="/writer/compose" class="new-btn">+ New Submission</router-link>
     <h3>My latest activity</h3>
     <p v-if="loading">Loading…</p>
     <p v-else-if="!articles.length" class="empty">No articles yet.</p>
@@ -74,4 +74,6 @@ li { display: flex; justify-content: space-between; align-items: center; gap: 12
 .t { flex: 1; }
 em { font-size: 11px; color: #888; font-style: normal; }
 .empty { color: #888; }
+.new-btn { display: block; text-align: center; padding: 12px; background: #1a2744;
+           color: #fff; border-radius: 6px; text-decoration: none; font-weight: 600; margin-bottom: 20px; }
 </style>
