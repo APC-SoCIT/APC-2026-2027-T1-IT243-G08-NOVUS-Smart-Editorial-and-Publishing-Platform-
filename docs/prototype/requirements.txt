@@ -1,0 +1,14 @@
+Django==5.1.4
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.6.0
+django-environ==0.11.2
+dj-database-url==2.3.0
+psycopg[binary]==3.2.4
+anthropic==0.40.0
+gunicorn==23.0.0
+whitenoise==6.8.2
+
+# Phase 2 (uncomment when you wire these up):
+# django-storages[s3]==1.14.4   # Cloudflare R2 (S3-compatible)
+# resend==2.5.1                  # transactional email
