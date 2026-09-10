@@ -176,9 +176,18 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
-        """UC-1.6 Verify Update Workflow Status — Editor approves a
-        non-overridden AI-evaluated article for the Publisher/Designer."""
+        """UC-1.9 Approve Article. An article the pre-screening gate returned
+        cannot be approved here — UC-1.8 Override AI is the only route, and it
+        requires a written justification so the decision is auditable."""
         article = self.get_object()
+
+        latest = article.evaluations.order_by("-created_at").first()
+        if article.returned_by_ai and not (latest and latest.is_overridden):
+            return Response(
+                {"detail": "This article was returned by pre-screening. "
+                           "Use Override AI to approve it with a justification."},
+                status=status.HTTP_409_CONFLICT,
+            )
         article.status = Article.Status.APPROVED
         article.editor = request.user
         article.save(update_fields=["status", "editor", "updated_at"])

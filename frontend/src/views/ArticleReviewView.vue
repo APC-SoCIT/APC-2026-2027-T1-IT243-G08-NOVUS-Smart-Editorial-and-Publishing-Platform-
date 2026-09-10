@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
@@ -20,6 +20,12 @@ const error = ref('')
 const showComposer = ref(false)
 const notes = ref([])
 const overrideOpen = ref(false)
+
+// An article the gate returned can only be approved through Override AI,
+// which forces a written justification (UC-1.8).
+const wasReturned = computed(() =>
+  article.value?.returned_by_ai
+  && !article.value?.latest_evaluation?.is_overridden)
 const withdrawOpen = ref(false)
 const confirmApprove = ref(false)
 const withdrawReason = ref('')
@@ -85,6 +91,11 @@ const submitOverride = () => act(() => {
     <p class="byline">
       {{ article.writer_name }} · {{ article.category || 'Uncategorised' }} ·
       <b>{{ article.status.replace('_', ' ') }}</b>
+    </p>
+
+    <p v-if="wasReturned" class="gatenote">
+      Pre-screening returned this article. Approving it requires an override
+      with a written justification, which is recorded against the evaluation.
     </p>
 
     <EvaluationPanel
@@ -191,10 +202,13 @@ const submitOverride = () => act(() => {
       <template v-else>
         <button class="ghost" @click="withdrawOpen = true">Withdraw</button>
         <button class="ghost" @click="startRevision">Request Revisions</button>
-        <button v-if="article.latest_evaluation" class="ghost" @click="overrideOpen = true">
-          Override AI
+        <button v-if="article.latest_evaluation"
+                :class="wasReturned ? 'primary' : 'ghost'"
+                @click="overrideOpen = true">
+          {{ wasReturned ? 'Override AI and Approve' : 'Override AI' }}
         </button>
-        <button class="primary" :disabled="busy" @click="confirmApprove = true">Approve</button>
+        <button v-if="!wasReturned" class="primary" :disabled="busy"
+                @click="confirmApprove = true">Approve</button>
       </template>
     </div>
   </div>
@@ -235,5 +249,8 @@ textarea { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 5px
 .warn { flex: 1; padding: 12px; border: 0; background: #b5651d; color: #fff;
         border-radius: 6px; font-weight: 600; cursor: pointer; }
 button:disabled { opacity: .55; }
+.gatenote { background: #fdf6e8; border: 1px solid #f0d9b5; color: #8a6321;
+            padding: 11px 14px; border-radius: 8px; font-size: 13px;
+            line-height: 1.6; margin: 0 0 16px; }
 .err { color: #c00; font-size: 13px; margin-top: 14px; }
 </style>
