@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import StaffLayout from '../components/StaffLayout.vue'
 import DesignReview from '../components/DesignReview.vue'
 import PipelinePanel from '../components/PipelinePanel.vue'
+import FilterBar from '../components/FilterBar.vue'
 import AssignArticle from '../components/AssignArticle.vue'
 
 const auth = useAuthStore()
@@ -20,9 +21,16 @@ const assigned = computed(() =>
 const approved = computed(() =>
   articles.value.filter(a => ['APPROVED', 'PUBLISHED'].includes(a.status)))
 
+const filters = ref({})
+
 async function load() {
-  const { data } = await api.get('/editorial/articles/')
+  const { data } = await api.get('/editorial/articles/', { params: filters.value })
   articles.value = data.results ?? data
+}
+
+function applyFilters(f) {
+  filters.value = f
+  load()
 }
 
 onMounted(async () => {
@@ -47,6 +55,11 @@ const scoreClass = (s) => s === null ? 'none' : s >= 70 ? 'good' : 'bad'
     <PipelinePanel />
 
     <AssignArticle @assigned="load" />
+
+    <FilterBar
+      :statuses="['ASSIGNED','DRAFTING','UNDER_REVIEW','REVISION_REQUESTED',
+                   'APPROVED','PUBLISHED','WITHDRAWN']"
+      @change="applyFilters" />
 
     <p v-if="!assigned.length" class="empty">No open assignments.</p>
     <ul v-else class="assigned">

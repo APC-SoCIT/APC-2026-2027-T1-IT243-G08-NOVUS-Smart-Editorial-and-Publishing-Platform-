@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import FilterBar from '../components/FilterBar.vue'
 import StaffLayout from '../components/StaffLayout.vue'
 
 const auth = useAuthStore()
@@ -48,6 +49,12 @@ function signOut() {
       <div class="card"><b>{{ counts.approved }}</b><span>APPROVED</span></div>
     </div>
 <router-link to="/writer/compose" class="new-btn">+ New Submission</router-link>
+    <FilterBar
+      :statuses="['ASSIGNED','DRAFTING','UNDER_REVIEW',
+                   'REVISION_REQUESTED','APPROVED','PUBLISHED']"
+      :show-overdue="false"
+      @change="applyFilters" />
+
     <h3>My latest activity</h3>
     <p v-if="loading">Loading…</p>
     <p v-else-if="!articles.length" class="empty">No articles yet.</p>

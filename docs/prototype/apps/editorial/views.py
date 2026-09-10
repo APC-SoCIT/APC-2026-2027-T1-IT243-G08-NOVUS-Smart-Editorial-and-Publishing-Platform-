@@ -50,12 +50,51 @@ class ArticleViewSet(viewsets.ModelViewSet):
               .prefetch_related("evaluations", "revision_notes")
               .order_by("-updated_at"))
         if user.role == user.Role.WRITER:
-            return qs.filter(writer=user)
+            return self._apply_filters(qs.filter(writer=user))
         if user.role == user.Role.GRAPHIC_DESIGNER:
             # UC-1.12: a Designer lays out finalised copy only. Drafts and
             # articles still under review are not theirs to see.
-            return qs.filter(status__in=[Article.Status.APPROVED,
-                                         Article.Status.PUBLISHED])
+            qs = qs.filter(status__in=[Article.Status.APPROVED,
+                                       Article.Status.PUBLISHED])
+        return self._apply_filters(qs)
+
+    def _apply_filters(self, qs):
+        """UC-1.16: search and narrow the pipeline. Applied after the role
+        scope so filtering can never widen what a user is permitted to see."""
+        from django.db.models import Q
+
+        p = self.request.query_params
+
+        term = (p.get("q") or "").strip()
+        if term:
+            qs = qs.filter(
+                Q(title__icontains=term)
+                | Q(excerpt__icontains=term)
+                | Q(writer__first_name__icontains=term)
+                | Q(writer__last_name__icontains=term)
+            )
+
+        if p.get("status"):
+            qs = qs.filter(status__in=p["status"].split(","))
+        if p.get("category"):
+            qs = qs.filter(category=p["category"])
+        if p.get("writer"):
+            qs = qs.filter(writer_id=p["writer"])
+        if p.get("issue"):
+            qs = qs.filter(issue_id=p["issue"])
+
+        if p.get("overdue") == "true":
+            from django.utils import timezone
+            qs = qs.filter(
+                deadline__lt=timezone.now().date(),
+                status__in=[Article.Status.ASSIGNED, Article.Status.DRAFTING,
+                            Article.Status.REVISION_REQUESTED],
+            )
+
+        allowed = {"updated_at", "-updated_at", "deadline", "-deadline",
+                   "created_at", "-created_at", "title", "-title"}
+        ordering = p.get("sort")
+        return qs.order_by(ordering) if ordering in allowed else qs
         # Editor / Publisher / Admin see the full pipeline; Reader/Subscriber
         # never hit this queryset — they're routed to apps.content instead.
         return qs
