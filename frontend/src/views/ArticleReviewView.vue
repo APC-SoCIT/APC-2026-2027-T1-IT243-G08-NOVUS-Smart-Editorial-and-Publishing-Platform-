@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
 import IssueAssign from '../components/IssueAssign.vue'
+import MessageThread from '../components/MessageThread.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -104,6 +105,8 @@ const submitOverride = () => act(() => {
       :article-id="article.id"
       :current-issue="article.issue"
       @assigned="load" />
+
+    <MessageThread :article-id="article.id" />
 
     <p v-if="error" class="err">{{ error }}</p>
 

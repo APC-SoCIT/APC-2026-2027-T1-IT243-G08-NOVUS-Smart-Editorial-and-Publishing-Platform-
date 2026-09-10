@@ -7,6 +7,7 @@ import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
+import MessageThread from '../components/MessageThread.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -225,6 +226,8 @@ const active = (n, a) => editor.value?.isActive(n, a)
 
     <p v-if="error" class="err">{{ error }}</p>
     <p v-if="message" class="ok">{{ message }}</p>
+
+    <MessageThread v-if="articleId" :article-id="articleId" />
 
     <div v-if="withdrawOpen" class="withdraw">
       <h5>Withdraw this article</h5>
