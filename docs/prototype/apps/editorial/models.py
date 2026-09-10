@@ -65,6 +65,44 @@ class Article(TimeStampedModel):
     )
     deadline = models.DateField(null=True, blank=True)
 
+    # --- Web presentation ---------------------------------------------------
+    # Photography is editorial, not design: the Writer supplies it and the
+    # Editor may replace it. The Designer composes with these images for the
+    # print replica but does not source them. All optional — opinion pieces
+    # and short news often run text-only.
+    hero_image = models.ImageField(upload_to="articles/%Y/%m/", null=True, blank=True)
+    hero_caption = models.CharField(max_length=255, blank=True)
+    excerpt = models.CharField(
+        max_length=300, blank=True,
+        help_text="Standfirst shown under the headline and on cards.",
+    )
+    slug = models.SlugField(max_length=220, unique=True, null=True, blank=True)
+
+    # Promoted to the homepage hero. Requires an image — a featured article
+    # without one renders as an empty banner.
+    is_featured = models.BooleanField(default=False)
+
+    def save(self, *args, **kwargs):
+        if not self.slug and self.title:
+            from django.utils.text import slugify
+            base = slugify(self.title)[:200] or "article"
+            slug, n = base, 2
+            while Article.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}-{n}"
+                n += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+    @property
+    def word_count(self):
+        from django.utils.html import strip_tags
+        return len(strip_tags(self.body or "").split())
+
+    @property
+    def reading_time(self):
+        """Minutes, at 200 wpm — the convention most publications use."""
+        return max(1, round(self.word_count / 200))
+
     @property
     def is_overdue(self):
         """Drives the overdue counts on the pipeline dashboards."""
@@ -115,3 +153,23 @@ class RevisionNote(TimeStampedModel):
 
     def __str__(self):
         return f"RevisionNote<{self.article_id}> {self.note_type}"
+
+
+class ArticleImage(TimeStampedModel):
+    """Images used inside an article body, and handed to the Designer for the
+    print replica. Uploaded by the Writer or Editor during composition."""
+
+    article = models.ForeignKey(
+        Article, on_delete=models.CASCADE, related_name="images"
+    )
+    image = models.ImageField(upload_to="articles/%Y/%m/")
+    caption = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Image for {self.article_id}"

@@ -9,6 +9,7 @@ class IssueListSerializer(serializers.ModelSerializer):
     approved_articles = serializers.IntegerField(read_only=True)
     is_ready = serializers.BooleanField(read_only=True)
     has_approved_design = serializers.SerializerMethodField()
+    replica_available = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Issue
@@ -16,7 +17,7 @@ class IssueListSerializer(serializers.ModelSerializer):
             "id", "number", "title", "target_release_date", "cover_image",
             "status", "scheduled_for", "published_at",
             "total_articles", "approved_articles", "is_ready",
-            "has_approved_design", "created_at",
+            "has_approved_design", "replica_available", "created_at",
         ]
         read_only_fields = ["id", "status", "scheduled_for", "published_at", "created_at"]
 
@@ -27,11 +28,12 @@ class IssueListSerializer(serializers.ModelSerializer):
 class IssueDetailSerializer(IssueListSerializer):
     articles = serializers.SerializerMethodField()
     blocking_reasons = serializers.SerializerMethodField()
+    replica_warnings = serializers.SerializerMethodField()
     design = serializers.SerializerMethodField()
 
     class Meta(IssueListSerializer.Meta):
         fields = IssueListSerializer.Meta.fields + [
-            "articles", "blocking_reasons", "design",
+            "articles", "blocking_reasons", "replica_warnings", "design",
         ]
 
     def get_articles(self, obj):
@@ -42,6 +44,9 @@ class IssueDetailSerializer(IssueListSerializer):
 
     def get_blocking_reasons(self, obj):
         return obj.blocking_reasons()
+
+    def get_replica_warnings(self, obj):
+        return obj.replica_warnings()
 
     def get_design(self, obj):
         from apps.design.serializers import MagazineDesignSerializer

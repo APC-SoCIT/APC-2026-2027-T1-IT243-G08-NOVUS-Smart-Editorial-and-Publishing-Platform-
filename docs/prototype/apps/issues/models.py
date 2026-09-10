@@ -71,13 +71,18 @@ class Issue(TimeStampedModel):
 
     @property
     def is_ready(self):
-        """UC-2.5 precondition: every assigned article approved, a layout
-        approved, and at least one article in the issue."""
+        """UC-2.5 precondition. The web edition needs approved copy only —
+        an approved layout gates the downloadable replica (UC-8.1), not the
+        articles, which publish as responsive web pages regardless."""
         return (
             self.total_articles > 0
             and self.approved_articles == self.total_articles
-            and self.approved_design is not None
         )
+
+    @property
+    def replica_available(self):
+        """True when subscribers can download the print-style PDF."""
+        return self.approved_design is not None
 
     def blocking_reasons(self):
         """Human-readable reasons publication is blocked (UC-2.5 E1), so the
@@ -90,6 +95,12 @@ class Issue(TimeStampedModel):
             reasons.append(
                 f"{outstanding} of {self.total_articles} articles are not yet approved."
             )
-        if self.approved_design is None:
-            reasons.append("No magazine layout has been approved.")
         return reasons
+
+    def replica_warnings(self):
+        """Not blocking — the issue can publish to the web without a layout,
+        but subscribers get no downloadable replica."""
+        if self.approved_design is None:
+            return ["No approved layout, so this issue will publish to the "
+                    "web without a downloadable digital edition."]
+        return []

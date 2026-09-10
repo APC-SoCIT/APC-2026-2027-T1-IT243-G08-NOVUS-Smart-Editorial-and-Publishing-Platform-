@@ -1,6 +1,13 @@
 from rest_framework import serializers
 
-from .models import Article, RevisionNote
+from .models import Article, ArticleImage, RevisionNote
+
+
+class ArticleImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ArticleImage
+        fields = ["id", "article", "image", "caption", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class RevisionNoteSerializer(serializers.ModelSerializer):
@@ -50,7 +57,9 @@ class ArticleListSerializer(serializers.ModelSerializer):
     writer_name = serializers.CharField(source="writer.get_full_name", read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
     days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
+    reading_time = serializers.IntegerField(read_only=True)
     latest_score = serializers.SerializerMethodField()
+    image_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Article
@@ -58,6 +67,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
             "id", "title", "status", "category", "writer", "writer_name",
             "editor", "latest_score", "returned_by_ai", "issue",
             "deadline", "is_overdue", "days_to_deadline", "brief",
+            "hero_image", "excerpt", "slug", "reading_time",
+            "is_featured", "image_count",
             "created_at", "updated_at",
         ]
 
@@ -65,9 +76,15 @@ class ArticleListSerializer(serializers.ModelSerializer):
         latest = obj.evaluations.order_by("-created_at").first()
         return latest.overall_score if latest else None
 
+    def get_image_count(self, obj):
+        """Shown on the Designer handoff screen."""
+        return obj.images.count() + (1 if obj.hero_image else 0)
+
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
     revision_notes = RevisionNoteSerializer(many=True, read_only=True)
+    images = ArticleImageSerializer(many=True, read_only=True)
+    reading_time = serializers.IntegerField(read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
     days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
     latest_evaluation = serializers.SerializerMethodField()
@@ -80,6 +97,8 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
             "writer", "writer_name", "editor", "published_at",
             "withdrawal_reason", "returned_by_ai", "issue",
             "deadline", "is_overdue", "days_to_deadline", "brief",
+            "hero_image", "hero_caption", "excerpt", "slug",
+            "reading_time", "is_featured", "images",
             "assigned_by", "revision_notes",
             "latest_evaluation",
             "created_at", "updated_at",
@@ -102,11 +121,15 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Article
-        fields = ["id", "title", "body", "category", "tags"]
+        fields = ["id", "title", "body", "category", "tags",
+                  "excerpt", "hero_image", "hero_caption"]
         extra_kwargs = {
             "body": {"required": False, "allow_blank": True},
             "category": {"required": False, "allow_blank": True},
             "tags": {"required": False, "allow_blank": True},
+            "excerpt": {"required": False, "allow_blank": True},
+            "hero_caption": {"required": False, "allow_blank": True},
+            "hero_image": {"required": False, "allow_null": True},
         }
 
     def create(self, validated_data):

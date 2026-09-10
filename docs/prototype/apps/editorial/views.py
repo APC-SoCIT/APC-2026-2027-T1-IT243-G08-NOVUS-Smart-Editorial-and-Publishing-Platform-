@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -12,15 +13,18 @@ from apps.ai_eval.services import evaluate_article
 from apps.common.permissions import role_permission
 from apps.publishing.services import NotReady, publish_article
 
-from .models import Article, RevisionNote
+from .models import Article, ArticleImage, RevisionNote
 
 logger = logging.getLogger(__name__)
 from .serializers import (
     ArticleCreateSerializer,
+    ArticleImageSerializer,
+    AssignArticleSerializer,
     ArticleDetailSerializer,
     ArticleListSerializer,
     OverrideSerializer,
     RequestRevisionSerializer,
+    WithdrawSerializer,
 )
 
 
@@ -35,6 +39,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
     """
 
     http_method_names = ["get", "post", "patch", "head", "options"]
+    # Hero images arrive as multipart alongside the text fields.
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         user = self.request.user
@@ -64,7 +70,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return [role_permission("WRITER")()]
         if self.action == "request_revision":
             return [role_permission("EDITOR")()]
-        if self.action in ("approve", "override", "assign_to_issue"):
+        if self.action in ("approve", "override", "assign_to_issue", "assign"):
             return [role_permission("EDITOR")()]
         if self.action == "publish":
             return [role_permission("PUBLISHER")()]
@@ -173,6 +179,50 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.save(update_fields=["status", "editor", "updated_at"])
         return Response(ArticleDetailSerializer(article).data)
 
+    @action(detail=False, methods=["post"])
+    def assign(self, request):
+        """UC-1.1 Assign Article. Creates the record in ASSIGNED status and
+        hands it to the named Writer with a brief and a deadline."""
+        serializer = AssignArticleSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        article = serializer.save()
+        return Response(ArticleDetailSerializer(article).data,
+                        status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def withdraw(self, request, pk=None):
+        """UC-1.10 Withdraw Article. Removes an unpublished article from the
+        active pipeline and corrects any issue it belonged to."""
+        article = self.get_object()
+
+        if article.status == Article.Status.PUBLISHED:
+            return Response(
+                {"detail": "A published article cannot be withdrawn; "
+                           "archive its issue instead."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if article.status == Article.Status.WITHDRAWN:
+            return Response({"detail": "Already withdrawn."},
+                            status=status.HTTP_409_CONFLICT)
+
+        if (request.user.role == request.user.Role.WRITER
+                and article.writer_id != request.user.id):
+            return Response({"detail": "Not your article."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        serializer = WithdrawSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # UC-1.10 A1: leaving it in an issue would corrupt the readiness count.
+        article.issue = None
+        article.status = Article.Status.WITHDRAWN
+        article.withdrawal_reason = serializer.validated_data["reason"]
+        article.save(update_fields=["issue", "status", "withdrawal_reason",
+                                    "updated_at"])
+        return Response(ArticleDetailSerializer(article).data)
+
     @action(detail=True, methods=["post"], url_path="assign-issue")
     def assign_to_issue(self, request, pk=None):
         """UC-1.11 Assign Article to Issue. Only approved articles can be
@@ -219,3 +269,21 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return Response({"detail": exc.reasons[0], "reasons": exc.reasons},
                             status=status.HTTP_409_CONFLICT)
         return Response(ArticleDetailSerializer(article).data)
+
+
+class ArticleImageViewSet(viewsets.ModelViewSet):
+    """Inline article images (UC-1.2). Uploaded by the Writer while composing
+    or by the Editor during review; handed to the Designer for the replica."""
+
+    serializer_class = ArticleImageSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    http_method_names = ["get", "post", "delete", "head", "options"]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = ArticleImage.objects.select_related("article")
+        article = self.request.query_params.get("article")
+        return qs.filter(article_id=article) if article else qs
+
+    def perform_create(self, serializer):
+        serializer.save(uploaded_by=self.request.user)
