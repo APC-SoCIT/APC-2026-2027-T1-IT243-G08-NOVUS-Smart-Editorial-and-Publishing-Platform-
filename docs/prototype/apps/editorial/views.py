@@ -107,8 +107,13 @@ class ArticleViewSet(viewsets.ModelViewSet):
         return ArticleDetailSerializer
 
     def get_permissions(self):
-        if self.action in ("create", "partial_update"):
+        if self.action == "create":
             return [role_permission("WRITER")()]
+        if self.action == "partial_update":
+            # editor_image_edit: an Editor may correct photography and
+            # metadata on an article under review; a Writer may edit
+            # their own draft. Both routes are scoped by get_queryset.
+            return [permissions.IsAuthenticated()]
         if self.action == "request_revision":
             return [role_permission("EDITOR")()]
         if self.action in ("approve", "override", "assign_to_issue",
@@ -531,4 +536,29 @@ class ArticleImageViewSet(viewsets.ModelViewSet):
         return qs.filter(article_id=article) if article else qs
 
     def perform_create(self, serializer):
-        serializer.save(uploaded_by=self.request.user)
+        """Only the authoring Writer or an Editor may attach images. The
+        endpoint previously accepted any authenticated user, which would have
+        let a reader post to it."""
+        from rest_framework.exceptions import PermissionDenied
+
+        article = serializer.validated_data["article"]
+        user = self.request.user
+        allowed = (
+            user.role in (user.Role.EDITOR, user.Role.ADMIN)
+            or article.writer_id == user.id
+        )
+        if not allowed:
+            raise PermissionDenied("You cannot add images to this article.")
+        serializer.save(uploaded_by=user)
+
+    def perform_destroy(self, instance):
+        from rest_framework.exceptions import PermissionDenied
+
+        user = self.request.user
+        allowed = (
+            user.role in (user.Role.EDITOR, user.Role.ADMIN)
+            or instance.article.writer_id == user.id
+        )
+        if not allowed:
+            raise PermissionDenied("You cannot remove images from this article.")
+        instance.delete()

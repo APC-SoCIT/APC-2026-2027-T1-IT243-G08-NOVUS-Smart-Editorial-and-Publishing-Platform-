@@ -7,6 +7,7 @@ import IssueAssign from '../components/IssueAssign.vue'
 import MessageThread from '../components/MessageThread.vue'
 import StatusTimeline from '../components/StatusTimeline.vue'
 import VersionHistory from '../components/VersionHistory.vue'
+import ImageManager from '../components/ImageManager.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
@@ -122,6 +123,8 @@ const submitOverride = () => act(() => {
       :current-issue="article.issue"
       @assigned="load" />
 
+    <ImageManager :article="article" @changed="load" />
+
     <VersionHistory :versions="article.versions || []"
                     :current-title="article.title"
                     :current-body="article.body" />
@@ -205,10 +208,10 @@ const submitOverride = () => act(() => {
       <template v-else>
         <button class="ghost" @click="withdrawOpen = true">Withdraw</button>
         <button class="ghost" @click="startRevision">Request Revisions</button>
-        <button v-if="article.latest_evaluation"
-                :class="wasReturned ? 'primary' : 'ghost'"
-                @click="overrideOpen = true">
-          {{ wasReturned ? 'Override AI and Approve' : 'Override AI' }}
+        <!-- Only offered when the gate returned the article: there is
+             nothing to override on a verdict that already passed. -->
+        <button v-if="wasReturned" class="primary" @click="overrideOpen = true">
+          Override AI and Approve
         </button>
         <button v-if="!wasReturned" class="primary" :disabled="busy"
                 @click="confirmApprove = true">Approve</button>

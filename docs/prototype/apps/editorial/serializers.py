@@ -150,7 +150,7 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
         fields = ["id", "title", "body", "category", "tags",
-                  "excerpt", "hero_image", "hero_caption"]
+                  "excerpt", "hero_image", "hero_caption", "is_featured"]
         extra_kwargs = {
             "body": {"required": False, "allow_blank": True},
             "category": {"required": False, "allow_blank": True},
@@ -158,6 +158,7 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
             "excerpt": {"required": False, "allow_blank": True},
             "hero_caption": {"required": False, "allow_blank": True},
             "hero_image": {"required": False, "allow_null": True},
+            "is_featured": {"required": False},
         }
 
     def create(self, validated_data):

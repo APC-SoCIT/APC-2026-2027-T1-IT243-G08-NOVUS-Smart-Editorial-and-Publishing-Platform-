@@ -4,7 +4,12 @@ import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import StaffLayout from '../components/StaffLayout.vue'
+import SlideOver from '../components/SlideOver.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import UiBadge from '../components/ui/UiBadge.vue'
+import UiEmpty from '../components/ui/UiEmpty.vue'
+import UiSkeleton from '../components/ui/UiSkeleton.vue'
+import UiButton from '../components/ui/UiButton.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -12,16 +17,24 @@ const router = useRouter()
 const issues = ref([])
 const standalone = ref([])
 const loading = ref(true)
+const tab = ref('prep')
 const error = ref('')
 const busy = ref(null)
 
-const creating = ref(false)
+const newOpen = ref(false)
 const form = ref({ number: '', title: '', target_release_date: '' })
-const pending = ref(null)
+const pendingArticle = ref(null)
 
+const prep = computed(() => issues.value.filter(i =>
+  !['PUBLISHED', 'ARCHIVED'].includes(i.status)))
+const ready = computed(() => prep.value.filter(i => i.is_ready))
 const live = computed(() => issues.value.filter(i => i.status === 'PUBLISHED'))
-const inProgress = computed(() =>
-  issues.value.filter(i => !['PUBLISHED', 'ARCHIVED'].includes(i.status)))
+
+const TABS = computed(() => [
+  { key: 'prep',   label: 'In preparation', count: prep.value.length },
+  { key: 'single', label: 'Single articles', count: standalone.value.length },
+  { key: 'live',   label: 'Published',      count: live.value.length },
+])
 
 async function load() {
   const [i, a] = await Promise.all([
@@ -31,18 +44,19 @@ async function load() {
   issues.value = i.data.results ?? i.data
   standalone.value = (a.data.results ?? a.data)
     .filter(x => x.status === 'APPROVED' && !x.issue)
-  loading.value = false
 }
 
 onMounted(async () => {
-  if (!auth.user) await auth.fetchUser()
-  await load()
+  try {
+    if (!auth.user) await auth.fetchUser()
+    await load()
+  } finally { loading.value = false }
 })
 
 async function createIssue() {
   error.value = ''
   if (!form.value.number || !form.value.title) {
-    error.value = 'Issue number and title are required.'
+    error.value = 'An issue number and title are required.'
     return
   }
   try {
@@ -52,172 +66,265 @@ async function createIssue() {
       target_release_date: form.value.target_release_date || null,
     })
     form.value = { number: '', title: '', target_release_date: '' }
-    creating.value = false
+    newOpen.value = false
     await load()
   } catch (e) {
     error.value = e.response?.data?.number?.[0] || 'Could not create the issue.'
   }
 }
 
-async function publishStandalone(a) {
+async function publishSingle() {
+  const a = pendingArticle.value
+  pendingArticle.value = null
   error.value = ''
-  busy.value = `a${a.id}`
+  busy.value = a.id
   try { await api.post(`/editorial/articles/${a.id}/publish/`); await load() }
   catch (e) { error.value = e.response?.data?.detail || 'Publishing failed.' }
   finally { busy.value = null }
 }
-
-function signOut() { auth.logout(); router.push('/staff/login') }
 
 const pct = (i) => i.total_articles
   ? Math.round((i.approved_articles / i.total_articles) * 100) : 0
 </script>
 
 <template>
-  <StaffLayout title="Publishing pipeline" subtitle="Issues, releases, and standalone articles">
-    <p v-if="error" class="err" role="alert">{{ error }}</p>
+  <StaffLayout title="Publishing" subtitle="Issues, releases, and standalone articles">
 
-    <ConfirmDialog
-      :open="!!pending"
-      title="Publish this article?"
-      :message="pending ? `&quot;${pending.title}&quot; goes live on the reader portal immediately.` : ''"
-      confirm-label="Publish"
-      :busy="!!busy"
-      :points="[
-        'It is not part of an issue, so it publishes on its own.',
-        'The writer is notified.',
-      ]"
-      @confirm="() => { const a = pending; pending = null; publishStandalone(a) }"
-      @cancel="pending = null" />
+    <template #action>
+      <UiButton variant="primary" @click="newOpen = true">+ New issue</UiButton>
+    </template>
 
-    <div class="head">
-      <h3>Issues in preparation</h3>
-      <button class="new" @click="creating = !creating">
-        {{ creating ? 'Cancel' : '+ New Issue' }}
-      </button>
+    <p v-if="error" class="alert" role="alert">{{ error }}</p>
+
+    <div class="toolbar">
+      <nav class="tabs" role="tablist" aria-label="Publishing groups">
+        <button v-for="t in TABS" :key="t.key" role="tab"
+                :aria-selected="tab === t.key" :class="{ on: tab === t.key }"
+                @click="tab = t.key">
+          {{ t.label }}<span class="count">{{ t.count }}</span>
+        </button>
+      </nav>
     </div>
 
-    <div v-if="creating" class="form">
-      <div class="row">
-        <label>NUMBER<input v-model="form.number" type="number" placeholder="13" /></label>
-        <label class="grow">TITLE<input v-model="form.title" placeholder="The April Issue" /></label>
-        <label>TARGET DATE<input v-model="form.target_release_date" type="date" /></label>
-      </div>
-      <button class="primary" @click="createIssue">Create Issue</button>
-    </div>
+    <UiSkeleton v-if="loading" :rows="3" label="Loading issues" />
 
-    <p v-if="loading">Loading…</p>
-    <p v-else-if="!inProgress.length" class="empty">No issues in preparation.</p>
+    <!-- issues in preparation -->
+    <template v-else-if="tab === 'prep'">
+      <UiEmpty v-if="!prep.length" icon="□" title="No issues in preparation"
+               body="Create an issue, then an editor assigns approved articles to it.">
+        <template #action>
+          <UiButton variant="primary" @click="newOpen = true">Create an issue</UiButton>
+        </template>
+      </UiEmpty>
 
-    <div v-for="i in inProgress" :key="i.id" class="issue"
-         @click="router.push(`/publisher/issue/${i.id}`)">
-      <div class="itop">
-        <div>
-          <span class="num">Issue #{{ i.number }}</span>
-          <span class="title">{{ i.title }}</span>
-        </div>
-        <span class="badge" :class="i.is_ready ? 'ready' : 'wip'">
-          {{ i.is_ready ? 'Ready to publish' : 'In preparation' }}
-        </span>
-      </div>
-      <div class="bar">
-        <div class="track"><i :style="{ width: pct(i) + '%' }"
-             :class="{ full: i.is_ready }"></i></div>
-        <small>{{ i.approved_articles }} of {{ i.total_articles }} articles ready</small>
-      </div>
-      <div class="flags">
-        <span :class="i.has_approved_design ? 'ok' : 'no'">
-          {{ i.has_approved_design ? '✓' : '○' }} Layout approved
-        </span>
-        <span v-if="i.target_release_date" class="date">
-          Target {{ i.target_release_date }}
-        </span>
-      </div>
-    </div>
+      <ul v-else class="rows">
+        <li v-for="i in prep" :key="i.id" class="issue" tabindex="0" role="button"
+            @click="router.push(`/publisher/issue/${i.id}`)"
+            @keyup.enter="router.push(`/publisher/issue/${i.id}`)">
+          <div class="itop">
+            <div>
+              <span class="num">Issue {{ i.number }}</span>
+              <span class="t">{{ i.title }}</span>
+            </div>
+            <UiBadge :tone="i.is_ready ? 'ok' : 'neutral'">
+              {{ i.is_ready ? 'Ready to publish' : 'In preparation' }}
+            </UiBadge>
+          </div>
 
-    <template v-if="standalone.length">
-      <h3>Standalone articles</h3>
-      <p class="note">
-        Approved articles not assigned to an issue. These publish on their own.
-      </p>
-      <ul>
-        <li v-for="a in standalone" :key="a.id">
+          <div class="bar">
+            <div class="track">
+              <i :style="{ width: pct(i) + '%' }" :class="{ full: i.is_ready }"></i>
+            </div>
+            <span class="cnt">
+              {{ i.approved_articles }} of {{ i.total_articles }} articles approved
+            </span>
+          </div>
+
+          <div class="flags">
+            <span :class="i.replica_available ? 'yes' : 'no'">
+              {{ i.replica_available ? '✓' : '○' }} Digital edition
+            </span>
+            <span v-if="i.target_release_date" class="date">
+              Target {{ i.target_release_date }}
+            </span>
+          </div>
+        </li>
+      </ul>
+    </template>
+
+    <!-- standalone -->
+    <template v-else-if="tab === 'single'">
+      <UiEmpty v-if="!standalone.length" icon="○" title="No standalone articles"
+               body="Approved articles not assigned to an issue appear here and publish on their own." />
+      <ul v-else class="rows">
+        <li v-for="a in standalone" :key="a.id" class="row">
           <div class="meta">
             <span class="t">{{ a.title }}</span>
-            <em>{{ a.writer_name }} · {{ a.category || 'Uncategorised' }}</em>
+            <span class="sub">{{ a.writer_name }} · {{ a.category || 'Uncategorised' }}</span>
           </div>
-          <button class="pub" :disabled="busy === `a${a.id}`"
-                  @click="pending = a">
-            {{ busy === `a${a.id}` ? 'Publishing…' : 'Publish' }}
-          </button>
+          <UiButton variant="primary" size="sm" :loading="busy === a.id"
+                    @click="pendingArticle = a">Publish</UiButton>
         </li>
       </ul>
     </template>
 
-    <template v-if="live.length">
-      <h3>Published issues</h3>
-      <ul>
-        <li v-for="i in live" :key="i.id">
+    <!-- published -->
+    <template v-else>
+      <UiEmpty v-if="!live.length" icon="★" title="Nothing published yet"
+               body="Published issues appear here and on the public archive." />
+      <ul v-else class="rows">
+        <li v-for="i in live" :key="i.id" class="row" tabindex="0" role="button"
+            @click="router.push(`/publisher/issue/${i.id}`)"
+            @keyup.enter="router.push(`/publisher/issue/${i.id}`)">
           <div class="meta">
-            <span class="t">Issue #{{ i.number }} · {{ i.title }}</span>
-            <em>{{ i.total_articles }} articles</em>
+            <span class="t">Issue {{ i.number }} — {{ i.title }}</span>
+            <span class="sub">{{ i.total_articles }} articles · published</span>
           </div>
-          <router-link :to="`/publisher/issue/${i.id}`" class="view">View</router-link>
+          <UiBadge tone="ok">Live</UiBadge>
         </li>
       </ul>
     </template>
+
+    <template #rail>
+      <div class="glance">
+        <h2>At a glance</h2>
+        <dl>
+          <div><dt>In preparation</dt><dd>{{ prep.length }}</dd></div>
+          <div :class="{ ok: ready.length }">
+            <dt>Ready to publish</dt><dd>{{ ready.length }}</dd>
+          </div>
+          <div><dt>Standalone waiting</dt><dd>{{ standalone.length }}</dd></div>
+          <div><dt>Published</dt><dd>{{ live.length }}</dd></div>
+        </dl>
+      </div>
+
+      <div v-if="ready.length" class="glance">
+        <h2>Ready now</h2>
+        <ul class="ready">
+          <li v-for="i in ready" :key="i.id" tabindex="0" role="button"
+              @click="router.push(`/publisher/issue/${i.id}`)"
+              @keyup.enter="router.push(`/publisher/issue/${i.id}`)">
+            <span class="rt">Issue {{ i.number }} — {{ i.title }}</span>
+            <span class="rs">{{ i.total_articles }} articles</span>
+          </li>
+        </ul>
+      </div>
+    </template>
   </StaffLayout>
+
+  <SlideOver :open="newOpen" title="New issue"
+             subtitle="Give the issue a number, a title, and a target release date."
+             @close="newOpen = false">
+    <label>ISSUE NUMBER
+      <input v-model="form.number" type="number" placeholder="14" />
+    </label>
+    <label>TITLE
+      <input v-model="form.title" placeholder="The April Issue" />
+    </label>
+    <label>TARGET RELEASE DATE
+      <input v-model="form.target_release_date" type="date" />
+    </label>
+    <p class="hint">
+      Editors assign approved articles to this issue. It can be published once
+      every assigned article is approved.
+    </p>
+    <p v-if="error" class="ferr" role="alert">{{ error }}</p>
+    <UiButton variant="primary" full @click="createIssue">Create issue</UiButton>
+  </SlideOver>
+
+  <ConfirmDialog
+    :open="!!pendingArticle"
+    title="Publish this article?"
+    :message="pendingArticle
+      ? `“${pendingArticle.title}” goes live on the reader portal immediately.`
+      : ''"
+    confirm-label="Publish"
+    :points="[
+      'It is not part of an issue, so it publishes on its own.',
+      'The writer is notified.',
+    ]"
+    @confirm="publishSingle"
+    @cancel="pendingArticle = null" />
 </template>
 
 <style scoped>
-header { display: flex; justify-content: space-between; align-items: center; }
-h2 { margin: 0; letter-spacing: 1px; }
-.hactions { display: flex; gap: 10px; align-items: center; }
-.out { border: 1px solid #ccc; background: #fff; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-.hi { color: #555; }
-.head { display: flex; justify-content: space-between; align-items: center; margin-top: 26px; }
-h3 { margin: 26px 0 10px; font-size: 15px; }
-.head h3 { margin: 0; }
-.new { border: 1px solid #ccc; background: #fff; border-radius: 6px;
-       padding: 7px 14px; font-size: 13px; cursor: pointer; }
-.form { border: 1px solid #e6e6e6; border-radius: 8px; padding: 16px;
-        background: #fafafa; margin: 12px 0 18px; }
-.row { display: flex; gap: 12px; }
-.row label { font-size: 11px; color: #555; letter-spacing: .5px; }
-.row label.grow { flex: 1; }
-input { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px;
-        font-size: 13px; margin-top: 5px; }
-.primary { width: 100%; margin-top: 12px; padding: 11px; border: 0; background: #1a2744;
-           color: #fff; border-radius: 6px; font-weight: 600; cursor: pointer; }
-.issue { border: 1px solid #eee; border-radius: 10px; padding: 16px;
-         margin-bottom: 10px; cursor: pointer; }
-.issue:hover { border-color: #ccc; }
-.itop { display: flex; justify-content: space-between; align-items: flex-start; }
-.num { display: block; font-size: 12px; color: #888; }
-.title { font-weight: 600; font-size: 16px; }
-.badge { font-size: 11px; padding: 4px 11px; border-radius: 12px; }
-.badge.ready { background: #eaf7f0; color: #1c6b45; }
-.badge.wip { background: #eef2f7; color: #445; }
+.alert { background: var(--bad-bg); border: 1px solid var(--bad-line);
+         color: var(--bad); padding: var(--s-4) var(--s-5);
+         border-radius: var(--r-md); font-size: 15px; margin: 0 0 var(--s-4); }
+
+.toolbar { margin-bottom: var(--s-5); }
+.tabs { display: flex; gap: var(--s-1); }
+.tabs button { display: inline-flex; align-items: center; gap: 8px;
+               background: none; border: 0; border-radius: var(--r-sm);
+               padding: 10px 16px; font-size: 15px; font-weight: 500;
+               color: var(--nv-text-muted); cursor: pointer;
+               transition: background var(--dur-fast) var(--ease-out); }
+.tabs button:hover { background: #eef0f3; color: var(--nv-text); }
+.tabs button.on { background: var(--nv-navy-2); color: #fff; font-weight: 600; }
+.count { font-size: 13px; font-weight: 700; padding: 1px 8px;
+         border-radius: var(--r-full); background: #e4e7ec; color: var(--nv-text-muted); }
+.tabs button.on .count { background: rgba(255,255,255,.22); color: #fff; }
+
+.rows { list-style: none; margin: 0; padding: 0;
+        display: flex; flex-direction: column; gap: 10px; }
+
+.issue { background: var(--nv-surface); border: 1px solid var(--nv-line);
+         border-radius: var(--r-md); padding: 18px; cursor: pointer;
+         transition: border-color var(--dur-fast) var(--ease-out),
+                     box-shadow var(--dur-fast) var(--ease-out); }
+.issue:hover { border-color: var(--nv-line-strong); box-shadow: var(--shadow-sm); }
+.itop { display: flex; justify-content: space-between; align-items: flex-start;
+        gap: var(--s-4); }
+.num { display: block; font-size: 13px; color: var(--nv-text-muted); }
+.t { font-size: 17px; font-weight: 600; color: var(--nv-text); }
+
 .bar { margin-top: 14px; }
-.track { height: 7px; background: #eee; border-radius: 4px; overflow: hidden; }
-.track i { display: block; height: 100%; background: #4a7fb5; }
-.track i.full { background: #2e9e63; }
-.bar small { display: block; margin-top: 6px; font-size: 12px; color: #888; }
-.flags { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; }
-.flags .ok { color: #1c6b45; }
-.flags .no { color: #999; }
-.flags .date { color: #888; margin-left: auto; }
-.note { margin: 0 0 10px; font-size: 12px; color: #888; }
-ul { list-style: none; padding: 0; margin: 0; }
-li { display: flex; justify-content: space-between; align-items: center;
-     border: 1px solid #eee; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
-.meta { display: flex; flex-direction: column; gap: 3px; }
-.t { font-weight: 600; font-size: 14px; }
-em { font-size: 12px; color: #888; font-style: normal; }
-.pub { border: 0; background: #1a2744; color: #fff; padding: 9px 18px;
-       border-radius: 6px; font-weight: 600; cursor: pointer; }
-.pub:disabled { opacity: .55; }
-.view { font-size: 13px; color: #4a7fb5; }
-.empty { color: #888; font-size: 14px; }
-.err { color: #c00; font-size: 13px; }
+.track { height: 8px; background: #eef1f4; border-radius: 4px; overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--nv-accent);
+           transition: width var(--dur-base) var(--ease-out); }
+.track i.full { background: var(--ok); }
+.cnt { display: block; margin-top: 7px; font-size: 14px; color: var(--nv-text-muted); }
+
+.flags { display: flex; gap: var(--s-5); margin-top: 12px; font-size: 14px; }
+.flags .yes { color: var(--ok); }
+.flags .no { color: var(--nv-text-faint); }
+.flags .date { color: var(--nv-text-muted); margin-left: auto; }
+
+.row { display: flex; align-items: center; gap: var(--s-4);
+       padding: 14px 18px; background: var(--nv-surface);
+       border: 1px solid var(--nv-line); border-radius: var(--r-md); }
+.meta { flex: 1; min-width: 0; }
+.meta .t { display: block; font-size: 16px; margin-bottom: 3px; }
+.sub { font-size: 14px; color: var(--nv-text-muted); }
+
+.glance { background: var(--nv-surface); border: 1px solid var(--nv-line);
+          border-radius: var(--r-md); padding: var(--s-5); }
+.glance h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+             color: var(--nv-text-faint); margin: 0 0 var(--s-4); font-weight: 600; }
+dl { margin: 0; }
+dl > div { display: flex; justify-content: space-between; align-items: baseline;
+           padding: 10px 0; border-bottom: 1px solid var(--nv-line); }
+dl > div:last-child { border-bottom: 0; }
+dt { font-size: 14px; color: var(--nv-text-muted); }
+dd { margin: 0; font-size: 20px; font-weight: 700; color: var(--nv-text);
+     font-variant-numeric: tabular-nums; }
+dl > div.ok dd { color: var(--ok); }
+
+.ready { list-style: none; margin: 0; padding: 0; }
+.ready li { padding: 9px 0; border-bottom: 1px solid var(--nv-line); cursor: pointer; }
+.ready li:last-child { border-bottom: 0; }
+.ready li:hover .rt { color: var(--nv-accent); }
+.rt { display: block; font-size: 14px; color: var(--nv-text); overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; }
+.rs { font-size: 13px; color: var(--nv-text-muted); }
+
+/* slide-over form */
+label { display: block; font-size: 13px; color: var(--nv-text-muted);
+        letter-spacing: .04em; margin-bottom: 16px; }
+label input { width: 100%; margin-top: 6px; padding: 11px 13px; font-size: 15px;
+              border: 1px solid var(--nv-line-strong); border-radius: var(--r-sm);
+              font-family: inherit; }
+.hint { font-size: 14px; color: var(--nv-text-muted); line-height: 1.6;
+        margin: 0 0 var(--s-4); }
+.ferr { color: var(--bad); font-size: 14px; margin: 0 0 var(--s-3); }
 </style>

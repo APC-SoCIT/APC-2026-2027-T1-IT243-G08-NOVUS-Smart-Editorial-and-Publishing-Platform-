@@ -4,29 +4,42 @@ import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import StaffLayout from '../components/StaffLayout.vue'
+import SlideOver from '../components/SlideOver.vue'
+import UiBadge from '../components/ui/UiBadge.vue'
+import UiEmpty from '../components/ui/UiEmpty.vue'
+import UiSkeleton from '../components/ui/UiSkeleton.vue'
+import UiButton from '../components/ui/UiButton.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 
 const designs = ref([])
-const approvedArticles = ref([])
-const loading = ref(true)
-const error = ref('')
-const ok = ref('')
-
+const articles = ref([])
 const issues = ref([])
+const loading = ref(true)
+const tab = ref('copy')
+
+const uploadOpen = ref(false)
 const issueId = ref('')
 const version = ref('v1.0')
 const notes = ref('')
 const file = ref(null)
 const uploading = ref(false)
+const error = ref('')
+const ok = ref('')
 
-const current = computed(() =>
-  designs.value.filter(d => d.status !== 'SUPERSEDED'))
-const history = computed(() =>
-  designs.value.filter(d => d.status === 'SUPERSEDED'))
-const needsRevision = computed(() =>
-  designs.value.find(d => d.status === 'REVISION_REQUESTED'))
+const current = computed(() => designs.value.filter(d => d.status !== 'SUPERSEDED'))
+const history = computed(() => designs.value.filter(d => d.status === 'SUPERSEDED'))
+const needsWork = computed(() =>
+  designs.value.filter(d => d.status === 'REVISION_REQUESTED'))
+const awaiting = computed(() =>
+  designs.value.filter(d => d.status === 'PENDING_REVIEW'))
+
+const TABS = computed(() => [
+  { key: 'copy',    label: 'Ready for layout', count: articles.value.length },
+  { key: 'mine',    label: 'My layouts',       count: current.value.length },
+  { key: 'history', label: 'Earlier versions', count: history.value.length },
+])
 
 async function load() {
   const [d, a, i] = await Promise.all([
@@ -34,18 +47,19 @@ async function load() {
     api.get('/editorial/articles/'),
     api.get('/publication/issues/'),
   ])
+  designs.value = d.data.results ?? d.data
+  articles.value = (a.data.results ?? a.data)
+    .filter(x => ['APPROVED', 'PUBLISHED'].includes(x.status))
   issues.value = (i.data.results ?? i.data)
     .filter(x => !['PUBLISHED', 'ARCHIVED'].includes(x.status))
   if (!issueId.value && issues.value.length) issueId.value = issues.value[0].id
-  designs.value = d.data.results ?? d.data
-  approvedArticles.value = (a.data.results ?? a.data)
-    .filter(x => ['APPROVED', 'PUBLISHED'].includes(x.status))
-  loading.value = false
 }
 
 onMounted(async () => {
-  if (!auth.user) await auth.fetchUser()
-  await load()
+  try {
+    if (!auth.user) await auth.fetchUser()
+    await load()
+  } finally { loading.value = false }
 })
 
 function pick(e) { file.value = e.target.files[0] || null }
@@ -53,7 +67,8 @@ function pick(e) { file.value = e.target.files[0] || null }
 async function upload() {
   error.value = ''; ok.value = ''
   if (!issueId.value) { error.value = 'Choose the issue this layout is for.'; return }
-  if (!file.value) { error.value = 'Choose a layout file first.'; return }
+  if (!file.value) { error.value = 'Choose a layout file.'; return }
+
   uploading.value = true
   const fd = new FormData()
   fd.append('issue', issueId.value)
@@ -61,152 +76,225 @@ async function upload() {
   fd.append('notes_to_editor', notes.value)
   fd.append('file', file.value)
   try {
-    await api.post('/design/designs/', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    ok.value = 'Layout submitted for editor review.'
+    await api.post('/design/designs/', fd,
+      { headers: { 'Content-Type': 'multipart/form-data' } })
     file.value = null; notes.value = ''
-    document.getElementById('layout-file').value = ''
+    uploadOpen.value = false
+    tab.value = 'mine'
     await load()
   } catch (e) {
     const d = e.response?.data
-    error.value = d?.file?.[0] || d?.non_field_errors?.[0] || d?.detail || 'Upload failed.'
+    error.value = d?.file?.[0] || d?.non_field_errors?.[0] || 'Upload failed.'
   } finally { uploading.value = false }
 }
 
-function signOut() { auth.logout(); router.push('/staff/login') }
-
-const statusLabel = {
-  PENDING_REVIEW: 'Pending editor review',
-  APPROVED: 'Approved',
-  REVISION_REQUESTED: 'Revision requested',
-  SUPERSEDED: 'Superseded',
-}
+const photos = (a) => a.image_count || 0
 </script>
 
 <template>
   <StaffLayout title="Designer workspace" subtitle="Approved copy and magazine layouts">
-    <div v-if="needsRevision" class="alert">
-      <b>Revision requested on {{ needsRevision.version }}</b>
-      <p>{{ needsRevision.revision_notes }}</p>
-      <small>Upload a corrected version below — the previous one is kept.</small>
+
+    <template #action>
+      <UiButton variant="primary" @click="uploadOpen = true">
+        + Upload layout
+      </UiButton>
+    </template>
+
+    <div v-if="needsWork.length" class="alert" role="status">
+      <b>{{ needsWork[0].issue_title }} — {{ needsWork[0].version }}
+        needs revision.</b>
+      <span>{{ needsWork[0].revision_notes }}</span>
+      <UiButton variant="warn" size="sm" @click="uploadOpen = true">
+        Upload a new version
+      </UiButton>
     </div>
 
-    <h3>Approved articles ready for layout</h3>
-    <p v-if="loading">Loading…</p>
-    <p v-else-if="!approvedArticles.length" class="empty">
-      Nothing approved yet.
-    </p>
-    <ul v-else class="arts">
-      <li v-for="a in approvedArticles" :key="a.id"
-          @click="router.push(`/designer/article/${a.id}`)">
-        <div class="meta">
-          <span class="t">{{ a.title }}</span>
-          <em>{{ a.writer_name }} · {{ a.category || 'Uncategorised' }}</em>
-        </div>
-        <span class="open">Open for layout →</span>
-      </li>
-    </ul>
-
-    <h3>Submit a layout</h3>
-    <div class="form">
-      <div class="row">
-        <label class="grow">ISSUE
-          <select v-model="issueId">
-            <option value="">Select an issue…</option>
-            <option v-for="i in issues" :key="i.id" :value="i.id">
-              Issue #{{ i.number }} — {{ i.title }}
-            </option>
-          </select>
-        </label>
-        <label>VERSION
-          <input v-model="version" placeholder="v1.0" />
-        </label>
-      </div>
-      <label>LAYOUT FILE
-        <input id="layout-file" type="file" @change="pick"
-               accept=".pdf,.indd,.ai,.psd,.png,.jpg,.jpeg" />
-      </label>
-      <small class="hint">PDF, INDD, AI, PSD or image. Max 100 MB.</small>
-      <label>NOTES TO EDITOR
-        <textarea v-model="notes" rows="3" placeholder="Anything the editor should know…"></textarea>
-      </label>
-      <p v-if="error" class="err" role="alert">{{ error }}</p>
-      <p v-if="ok" class="ok" role="status">{{ ok }}</p>
-      <button class="primary" :disabled="uploading" @click="upload">
-        {{ uploading ? 'Uploading…' : 'Submit Layout for Editor Review' }}
-      </button>
+    <div class="toolbar">
+      <nav class="tabs" role="tablist" aria-label="Designer views">
+        <button v-for="t in TABS" :key="t.key" role="tab"
+                :aria-selected="tab === t.key" :class="{ on: tab === t.key }"
+                @click="tab = t.key">
+          {{ t.label }}<span class="count">{{ t.count }}</span>
+        </button>
+      </nav>
     </div>
 
-    <h3>My submissions</h3>
-    <p v-if="!current.length" class="empty">No layouts submitted yet.</p>
-    <ul v-else class="designs">
-      <li v-for="d in current" :key="d.id">
-        <div class="meta">
-          <span class="t">{{ d.issue_title || `Issue ${d.issue}` }} · {{ d.version }}</span>
-          <em>{{ d.file_name }}</em>
-        </div>
-        <span class="badge" :class="d.status.toLowerCase()">{{ statusLabel[d.status] }}</span>
-      </li>
-    </ul>
+    <UiSkeleton v-if="loading" :rows="4" label="Loading your workspace" />
 
-    <template v-if="history.length">
-      <h3>Earlier versions</h3>
-      <ul class="designs">
-        <li v-for="d in history" :key="d.id" class="dim">
+    <!-- approved copy -->
+    <template v-else-if="tab === 'copy'">
+      <UiEmpty v-if="!articles.length" icon="○" title="No approved copy yet"
+               body="Articles appear here once an editor approves them, ready to be laid out." />
+      <ul v-else class="rows">
+        <li v-for="a in articles" :key="a.id" class="row" tabindex="0" role="button"
+            @click="router.push(`/designer/article/${a.id}`)"
+            @keyup.enter="router.push(`/designer/article/${a.id}`)">
           <div class="meta">
-            <span class="t">{{ d.issue_title || `Issue ${d.issue}` }} · {{ d.version }}</span>
-            <em>{{ d.file_name }}</em>
+            <span class="t">{{ a.title }}</span>
+            <span class="sub">
+              {{ a.writer_name }} · {{ a.category || 'Uncategorised' }}
+              · {{ a.reading_time }} min read
+            </span>
           </div>
-          <span class="badge superseded">Superseded</span>
+          <span class="photos">{{ photos(a) }} photo{{ photos(a) === 1 ? '' : 's' }}</span>
+          <span class="go" aria-hidden="true">→</span>
         </li>
       </ul>
     </template>
+
+    <!-- my layouts -->
+    <template v-else-if="tab === 'mine'">
+      <UiEmpty v-if="!current.length" icon="□" title="No layouts submitted"
+               body="Upload a layout and it goes to an editor for review.">
+        <template #action>
+          <UiButton variant="primary" @click="uploadOpen = true">Upload a layout</UiButton>
+        </template>
+      </UiEmpty>
+      <ul v-else class="rows">
+        <li v-for="d in current" :key="d.id" class="row">
+          <div class="meta">
+            <span class="t">{{ d.issue_title }} · {{ d.version }}</span>
+            <span class="sub">{{ d.file_name }}</span>
+            <p v-if="d.revision_notes" class="notes">{{ d.revision_notes }}</p>
+          </div>
+          <UiBadge :status="d.status" />
+          <a v-if="d.file" :href="d.file" target="_blank" class="open"
+             :aria-label="`Open ${d.file_name}`">Open</a>
+        </li>
+      </ul>
+    </template>
+
+    <!-- superseded -->
+    <template v-else>
+      <UiEmpty v-if="!history.length" icon="↩" title="No earlier versions"
+               body="When you upload a replacement, the previous version is kept here." />
+      <ul v-else class="rows">
+        <li v-for="d in history" :key="d.id" class="row dim">
+          <div class="meta">
+            <span class="t">{{ d.issue_title }} · {{ d.version }}</span>
+            <span class="sub">{{ d.file_name }}</span>
+          </div>
+          <UiBadge :status="d.status" />
+        </li>
+      </ul>
+    </template>
+
+    <template #rail>
+      <div class="glance">
+        <h2>At a glance</h2>
+        <dl>
+          <div><dt>Copy to lay out</dt><dd>{{ articles.length }}</dd></div>
+          <div><dt>With the editor</dt><dd>{{ awaiting.length }}</dd></div>
+          <div :class="{ warn: needsWork.length }">
+            <dt>Needs revision</dt><dd>{{ needsWork.length }}</dd>
+          </div>
+          <div><dt>Open issues</dt><dd>{{ issues.length }}</dd></div>
+        </dl>
+      </div>
+    </template>
   </StaffLayout>
+
+  <SlideOver :open="uploadOpen" title="Upload a layout"
+             subtitle="Submit a magazine layout for editor review."
+             @close="uploadOpen = false">
+    <label>ISSUE
+      <select v-model="issueId">
+        <option value="">Select an issue…</option>
+        <option v-for="i in issues" :key="i.id" :value="i.id">
+          Issue {{ i.number }} — {{ i.title }}
+        </option>
+      </select>
+    </label>
+
+    <label>VERSION
+      <input v-model="version" placeholder="v1.0" />
+    </label>
+
+    <label>LAYOUT FILE
+      <input type="file" accept=".pdf,.indd,.ai,.psd,.png,.jpg,.jpeg"
+             @change="pick" />
+    </label>
+    <p class="hint">
+      PDF, INDD, AI, PSD or image, up to 100 MB. A PDF can be read in the
+      browser by subscribers; other formats download only.
+    </p>
+
+    <label>NOTES TO EDITOR
+      <textarea v-model="notes" rows="3"
+                placeholder="Anything the editor should know about this version"></textarea>
+    </label>
+
+    <p v-if="error" class="ferr" role="alert">{{ error }}</p>
+    <UiButton variant="primary" full :loading="uploading" @click="upload">
+      Submit for editor review
+    </UiButton>
+  </SlideOver>
 </template>
 
 <style scoped>
-header { display: flex; justify-content: space-between; align-items: center; }
-h2 { margin: 0; letter-spacing: 1px; }
-.hactions { display: flex; gap: 10px; align-items: center; }
-.out { border: 1px solid #ccc; background: #fff; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-.hi { color: #555; }
-h3 { margin: 30px 0 10px; font-size: 15px; }
-.alert { background: #fff8ee; border: 1px solid #f0d9b5; border-radius: 8px;
-         padding: 14px 16px; margin-top: 18px; }
-.alert b { font-size: 14px; color: #96631a; }
-.alert p { margin: 6px 0; font-size: 13px; line-height: 1.55; }
-.alert small { font-size: 12px; color: #888; }
-ul { list-style: none; padding: 0; margin: 0; }
-.arts li { border-bottom: 1px solid #eee; padding: 12px 0; display: flex;
-           justify-content: space-between; align-items: center; cursor: pointer; }
-.arts li:hover { background: #fafafa; }
-.open { font-size: 12px; color: #4a7fb5; }
-.designs li { display: flex; justify-content: space-between; align-items: center;
-              border: 1px solid #eee; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
-.designs li.dim { opacity: .55; }
-.meta { display: flex; flex-direction: column; gap: 3px; }
-.t { font-weight: 600; font-size: 14px; }
-em { font-size: 12px; color: #888; font-style: normal; }
-.badge { font-size: 11px; padding: 4px 10px; border-radius: 12px; background: #eef2f7; color: #445; }
-.badge.pending_review { background: #eaf1fb; color: #2b5a8f; }
-.badge.approved { background: #eaf7f0; color: #1c6b45; }
-.badge.revision_requested { background: #fdf2e0; color: #96631a; }
-.badge.superseded { background: #f2f2f2; color: #888; }
-.form { border: 1px solid #e6e6e6; border-radius: 8px; padding: 16px; background: #fafafa; }
-.form label { display: block; font-size: 11px; color: #555; letter-spacing: .5px; margin-bottom: 12px; }
-.row { display: flex; gap: 12px; }
-.row label { flex: 1; }
-.row label.grow { flex: 2; }
-select { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px;
-         font-size: 13px; margin-top: 5px; }
-input, textarea { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px;
-                  font-family: inherit; font-size: 13px; margin-top: 5px; }
-.hint { display: block; font-size: 11px; color: #999; margin: -6px 0 12px; }
-.primary { width: 100%; padding: 12px; border: 0; background: #1a2744; color: #fff;
-           border-radius: 6px; font-weight: 600; cursor: pointer; }
-.primary:disabled { opacity: .55; }
-.err { color: #c00; font-size: 13px; }
-.ok { color: #0a7; font-size: 13px; }
-.empty { color: #888; font-size: 14px; }
+.alert { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap;
+         background: var(--warn-bg); border: 1px solid var(--warn-line);
+         border-radius: var(--r-md); padding: var(--s-4) var(--s-5);
+         margin-bottom: var(--s-5); font-size: 15px; color: var(--warn); }
+.alert span { flex: 1; color: #7a5a2a; }
+
+.toolbar { margin-bottom: var(--s-5); }
+.tabs { display: flex; gap: var(--s-1); }
+.tabs button { display: inline-flex; align-items: center; gap: 8px;
+               background: none; border: 0; border-radius: var(--r-sm);
+               padding: 10px 16px; font-size: 15px; font-weight: 500;
+               color: var(--nv-text-muted); cursor: pointer;
+               transition: background var(--dur-fast) var(--ease-out); }
+.tabs button:hover { background: #eef0f3; color: var(--nv-text); }
+.tabs button.on { background: var(--nv-navy-2); color: #fff; font-weight: 600; }
+.count { font-size: 13px; font-weight: 700; padding: 1px 8px;
+         border-radius: var(--r-full); background: #e4e7ec; color: var(--nv-text-muted); }
+.tabs button.on .count { background: rgba(255,255,255,.22); color: #fff; }
+
+.rows { list-style: none; margin: 0; padding: 0;
+        display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; align-items: center; gap: var(--s-4);
+       padding: 14px 18px; background: var(--nv-surface);
+       border: 1px solid var(--nv-line); border-radius: var(--r-md);
+       transition: border-color var(--dur-fast) var(--ease-out),
+                   box-shadow var(--dur-fast) var(--ease-out); }
+.row[role="button"] { cursor: pointer; }
+.row[role="button"]:hover { border-color: var(--nv-line-strong);
+                            box-shadow: var(--shadow-sm); }
+.row.dim { opacity: .6; }
+
+.meta { flex: 1; min-width: 0; }
+.t { display: block; font-size: 16px; font-weight: 600; color: var(--nv-text);
+     line-height: 1.35; margin-bottom: 3px; }
+.sub { font-size: 14px; color: var(--nv-text-muted); }
+.notes { margin: 8px 0 0; font-size: 14px; line-height: 1.55; color: var(--warn);
+         padding-left: 12px; border-left: 2px solid var(--warn-line); }
+
+.photos { font-size: 14px; color: var(--nv-text-muted); white-space: nowrap; }
+.go { color: var(--nv-text-faint); font-size: 18px; }
+.open { font-size: 14px; color: var(--nv-accent); }
+
+.glance { background: var(--nv-surface); border: 1px solid var(--nv-line);
+          border-radius: var(--r-md); padding: var(--s-5); }
+.glance h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+             color: var(--nv-text-faint); margin: 0 0 var(--s-4); font-weight: 600; }
+dl { margin: 0; }
+dl > div { display: flex; justify-content: space-between; align-items: baseline;
+           padding: 10px 0; border-bottom: 1px solid var(--nv-line); }
+dl > div:last-child { border-bottom: 0; }
+dt { font-size: 14px; color: var(--nv-text-muted); }
+dd { margin: 0; font-size: 20px; font-weight: 700; color: var(--nv-text);
+     font-variant-numeric: tabular-nums; }
+dl > div.warn dd { color: var(--warn); }
+
+label { display: block; font-size: 13px; color: var(--nv-text-muted);
+        letter-spacing: .04em; margin-bottom: 16px; }
+label input, label select, label textarea {
+  width: 100%; margin-top: 6px; padding: 11px 13px; font-size: 15px;
+  border: 1px solid var(--nv-line-strong); border-radius: var(--r-sm);
+  font-family: inherit; }
+textarea { resize: vertical; }
+.hint { font-size: 14px; color: var(--nv-text-muted); line-height: 1.6;
+        margin: -8px 0 16px; }
+.ferr { color: var(--bad); font-size: 14px; margin: 0 0 var(--s-3); }
 </style>
