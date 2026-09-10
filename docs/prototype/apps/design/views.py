@@ -35,11 +35,11 @@ class MagazineDesignViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
-        """A new version supersedes the previous pending one for the same issue,
-        so the Editor only ever reviews the current layout (UC-1.15)."""
+        """A new version supersedes any earlier open version for the same
+        issue, so the Editor only ever reviews the current layout (UC-1.15)."""
         design = serializer.save()
         (MagazineDesign.objects
-            .filter(issue_label=design.issue_label)
+            .filter(issue=design.issue)
             .exclude(pk=design.pk)
             .filter(status__in=[MagazineDesign.Status.PENDING_REVIEW,
                                 MagazineDesign.Status.REVISION_REQUESTED])

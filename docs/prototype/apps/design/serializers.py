@@ -15,7 +15,7 @@ class MagazineDesignSerializer(serializers.ModelSerializer):
     class Meta:
         model = MagazineDesign
         fields = [
-            "id", "issue_label", "version", "file", "file_name",
+            "id", "issue", "issue_title", "version", "file", "file_name",
             "designer", "designer_name", "notes_to_editor", "status",
             "reviewed_by", "reviewer_name", "reviewed_at", "revision_notes",
             "created_at",

@@ -152,54 +152,68 @@ class TestAIPreScreeningGate:
 class TestMagazineDesignFlow:
     """UC-1.12 through UC-1.15: upload, review, revise, resubmit."""
 
-    def _upload(self, client, version="v1.0", issue="Issue #12"):
+    def _issue(self, publisher, number=12):
+        from apps.issues.models import Issue
+        return Issue.objects.create(number=number, title="Test Issue",
+                                    created_by=publisher)
+
+    def _upload(self, client, issue, version="v1.0"):
         from django.core.files.uploadedfile import SimpleUploadedFile
-        f = SimpleUploadedFile("layout.pdf", b"%PDF-1.4 fake", content_type="application/pdf")
+        f = SimpleUploadedFile("layout.pdf", b"%PDF-1.4 fake",
+                               content_type="application/pdf")
         return client.post("/api/design/designs/",
-                           {"issue_label": issue, "version": version, "file": f,
+                           {"issue": issue.id, "version": version, "file": f,
                             "notes_to_editor": "First pass."},
                            format="multipart")
 
-    def test_designer_uploads_and_editor_approves(self, auth_client, make_user, editor):
+    def test_designer_uploads_and_editor_approves(
+        self, auth_client, make_user, editor, publisher
+    ):
         from apps.accounts.models import User
         designer = make_user("designer@boss.ph", User.Role.GRAPHIC_DESIGNER)
-        r = self._upload(auth_client(designer))
+        issue = self._issue(publisher)
+
+        r = self._upload(auth_client(designer), issue)
         assert r.status_code == status.HTTP_201_CREATED
         assert r.data["status"] == "PENDING_REVIEW"
 
         did = r.data["id"]
-        ec = auth_client(editor)
-        approved = ec.post(f"/api/design/designs/{did}/approve/")
+        approved = auth_client(editor).post(f"/api/design/designs/{did}/approve/")
         assert approved.status_code == status.HTTP_200_OK
         assert approved.data["status"] == "APPROVED"
 
     def test_editor_requests_revision_and_designer_resubmits(
-        self, auth_client, make_user, editor
+        self, auth_client, make_user, editor, publisher
     ):
         from apps.accounts.models import User
         from apps.design.models import MagazineDesign
         designer = make_user("designer2@boss.ph", User.Role.GRAPHIC_DESIGNER)
-        dc = auth_client(designer)
-        did = self._upload(dc).data["id"]
+        issue = self._issue(publisher, number=13)
 
-        ec = auth_client(editor)
-        r = ec.post(f"/api/design/designs/{did}/request-revision/",
-                    {"notes": "Cover typography is too tight."})
+        did = self._upload(auth_client(designer), issue).data["id"]
+
+        r = auth_client(editor).post(
+            f"/api/design/designs/{did}/request-revision/",
+            {"notes": "Cover typography is too tight."})
         assert r.data["status"] == "REVISION_REQUESTED"
 
-        # UC-1.15: resubmission is a new version; the old one is kept.
-        again = self._upload(auth_client(designer), version="v1.1")
+        # UC-1.15: resubmission is a new version and the old one is superseded,
+        # not overwritten, so the review history survives.
+        again = self._upload(auth_client(designer), issue, version="v1.1")
         assert again.status_code == status.HTTP_201_CREATED
-        assert MagazineDesign.objects.filter(issue_label="Issue #12").count() == 2
+        assert MagazineDesign.objects.filter(issue=issue).count() == 2
         assert MagazineDesign.objects.get(pk=did).status == "SUPERSEDED"
 
-    def test_rejects_unsupported_file_type(self, auth_client, make_user):
+    def test_rejects_unsupported_file_type(self, auth_client, make_user, publisher):
         from django.core.files.uploadedfile import SimpleUploadedFile
         from apps.accounts.models import User
         designer = make_user("designer3@boss.ph", User.Role.GRAPHIC_DESIGNER)
-        f = SimpleUploadedFile("notes.exe", b"nope", content_type="application/octet-stream")
+        issue = self._issue(publisher, number=14)
+
+        f = SimpleUploadedFile("notes.exe", b"nope",
+                               content_type="application/octet-stream")
         r = auth_client(designer).post("/api/design/designs/",
-            {"issue_label": "Issue #12", "version": "v1.0", "file": f}, format="multipart")
+            {"issue": issue.id, "version": "v1.0", "file": f}, format="multipart")
         assert r.status_code == status.HTTP_400_BAD_REQUEST
 
 
