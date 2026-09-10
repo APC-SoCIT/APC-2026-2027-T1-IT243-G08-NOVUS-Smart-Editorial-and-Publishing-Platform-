@@ -11,6 +11,8 @@ const password = ref('')
 const showPassword = ref(false)
 const error = ref('')
 const loading = ref(false)
+const acceptTerms = ref(false)
+const acceptMarketing = ref(false)
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -41,6 +43,10 @@ async function submit() {
   if (!emailValid.value) { error.value = 'Check your email address.'; return }
   if (password.value.length < 8) {
     error.value = 'Your password must be at least 8 characters.'
+    return
+  }
+  if (!acceptTerms.value) {
+    error.value = 'Please accept the Terms of Service and Privacy Policy to continue.'
     return
   }
 
@@ -101,7 +107,29 @@ async function submit() {
         <span>{{ strength.label }}</span>
       </div>
 
-      <p v-if="error" class="error">{{ error }}</p>
+      <fieldset class="consent">
+        <legend class="sr-only">Consent</legend>
+
+        <label class="check">
+          <input type="checkbox" v-model="acceptTerms" required />
+          <span>
+            I have read and accept the
+            <router-link to="/legal/terms" target="_blank">Terms of Service</router-link>
+            and
+            <router-link to="/legal/privacy" target="_blank">Privacy Policy</router-link>.
+          </span>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" v-model="acceptMarketing" />
+          <span>
+            Email me when a new issue is published.
+            <em>Optional — you can change this at any time.</em>
+          </span>
+        </label>
+      </fieldset>
+
+      <p v-if="error" class="error" role="alert">{{ error }}</p>
 
       <button class="go" :disabled="loading" @click="submit">
         {{ loading ? 'Creating account…' : 'Create account' }}
@@ -148,6 +176,15 @@ input:focus { outline: none; border-color: #111; }
 .bars i.on[data-lvl="4"], .bars i.on[data-lvl="5"] { background: #2e9e63; }
 .meter span { font-family: system-ui; font-size: 11px; color: #999; width: 62px;
               text-align: right; }
+.consent { border: 0; padding: 0; margin: 4px 0 16px; text-align: left; }
+.check { display: flex; gap: 10px; align-items: flex-start;
+         font-family: system-ui; font-size: 12.5px; line-height: 1.55;
+         color: #556; margin-bottom: 12px; cursor: pointer;
+         letter-spacing: normal; text-transform: none; }
+.check input { width: 16px; height: 16px; margin: 2px 0 0; flex-shrink: 0;
+               cursor: pointer; }
+.check a { color: #4a7fb5; text-decoration: underline; }
+.check em { display: block; color: #99a; font-style: normal; font-size: 11.5px; }
 .error { background: #fdeeee; border: 1px solid #f0cfcf; color: #a33;
          padding: 10px 12px; border-radius: 8px; font-size: 13px;
          font-family: system-ui; margin: 0 0 14px; text-align: left; }
