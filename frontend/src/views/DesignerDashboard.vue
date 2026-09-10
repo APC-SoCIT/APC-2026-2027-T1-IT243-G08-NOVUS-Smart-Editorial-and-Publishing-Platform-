@@ -13,7 +13,8 @@ const loading = ref(true)
 const error = ref('')
 const ok = ref('')
 
-const issueLabel = ref('Issue #12')
+const issues = ref([])
+const issueId = ref('')
 const version = ref('v1.0')
 const notes = ref('')
 const file = ref(null)
@@ -27,10 +28,14 @@ const needsRevision = computed(() =>
   designs.value.find(d => d.status === 'REVISION_REQUESTED'))
 
 async function load() {
-  const [d, a] = await Promise.all([
+  const [d, a, i] = await Promise.all([
     api.get('/design/designs/'),
     api.get('/editorial/articles/'),
+    api.get('/publication/issues/'),
   ])
+  issues.value = (i.data.results ?? i.data)
+    .filter(x => !['PUBLISHED', 'ARCHIVED'].includes(x.status))
+  if (!issueId.value && issues.value.length) issueId.value = issues.value[0].id
   designs.value = d.data.results ?? d.data
   approvedArticles.value = (a.data.results ?? a.data)
     .filter(x => ['APPROVED', 'PUBLISHED'].includes(x.status))
@@ -46,10 +51,11 @@ function pick(e) { file.value = e.target.files[0] || null }
 
 async function upload() {
   error.value = ''; ok.value = ''
+  if (!issueId.value) { error.value = 'Choose the issue this layout is for.'; return }
   if (!file.value) { error.value = 'Choose a layout file first.'; return }
   uploading.value = true
   const fd = new FormData()
-  fd.append('issue_label', issueLabel.value)
+  fd.append('issue', issueId.value)
   fd.append('version', version.value)
   fd.append('notes_to_editor', notes.value)
   fd.append('file', file.value)
@@ -110,8 +116,13 @@ const statusLabel = {
     <h3>Submit a layout</h3>
     <div class="form">
       <div class="row">
-        <label>ISSUE
-          <input v-model="issueLabel" placeholder="Issue #12" />
+        <label class="grow">ISSUE
+          <select v-model="issueId">
+            <option value="">Select an issue…</option>
+            <option v-for="i in issues" :key="i.id" :value="i.id">
+              Issue #{{ i.number }} — {{ i.title }}
+            </option>
+          </select>
         </label>
         <label>VERSION
           <input v-model="version" placeholder="v1.0" />
@@ -137,7 +148,7 @@ const statusLabel = {
     <ul v-else class="designs">
       <li v-for="d in current" :key="d.id">
         <div class="meta">
-          <span class="t">{{ d.issue_label }} · {{ d.version }}</span>
+          <span class="t">{{ d.issue_title || `Issue ${d.issue}` }} · {{ d.version }}</span>
           <em>{{ d.file_name }}</em>
         </div>
         <span class="badge" :class="d.status.toLowerCase()">{{ statusLabel[d.status] }}</span>
@@ -149,7 +160,7 @@ const statusLabel = {
       <ul class="designs">
         <li v-for="d in history" :key="d.id" class="dim">
           <div class="meta">
-            <span class="t">{{ d.issue_label }} · {{ d.version }}</span>
+            <span class="t">{{ d.issue_title || `Issue ${d.issue}` }} · {{ d.version }}</span>
             <em>{{ d.file_name }}</em>
           </div>
           <span class="badge superseded">Superseded</span>
@@ -191,6 +202,9 @@ em { font-size: 12px; color: #888; font-style: normal; }
 .form label { display: block; font-size: 11px; color: #555; letter-spacing: .5px; margin-bottom: 12px; }
 .row { display: flex; gap: 12px; }
 .row label { flex: 1; }
+.row label.grow { flex: 2; }
+select { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px;
+         font-size: 13px; margin-top: 5px; }
 input, textarea { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px;
                   font-family: inherit; font-size: 13px; margin-top: 5px; }
 .hint { display: block; font-size: 11px; color: #999; margin: -6px 0 12px; }

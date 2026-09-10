@@ -7,6 +7,7 @@ import ArticleComposeView from '../views/ArticleComposeView.vue'
 import EditorDashboard from '../views/EditorDashboard.vue'
 import ArticleReviewView from '../views/ArticleReviewView.vue'
 import PublisherDashboard from '../views/PublisherDashboard.vue'
+import IssueDetailView from '../views/IssueDetailView.vue'
 import DesignerDashboard from '../views/DesignerDashboard.vue'
 import DesignerArticleView from '../views/DesignerArticleView.vue'
 import ReaderHome from '../views/ReaderHome.vue'
@@ -22,6 +23,7 @@ const routes = [
   { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true } },
   { path: '/editor/review/:id', component: ArticleReviewView, meta: { requiresAuth: true } },
   { path: '/publisher', component: PublisherDashboard, meta: { requiresAuth: true } },
+  { path: '/publisher/issue/:id', component: IssueDetailView, meta: { requiresAuth: true } },
   { path: '/designer', component: DesignerDashboard, meta: { requiresAuth: true } },
   { path: '/designer/article/:id', component: DesignerArticleView, meta: { requiresAuth: true } },
   { path: '/read', component: ReaderHome },

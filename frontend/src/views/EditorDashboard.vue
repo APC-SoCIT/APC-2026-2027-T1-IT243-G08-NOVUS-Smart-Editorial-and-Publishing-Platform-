@@ -56,6 +56,24 @@ const scoreClass = (s) => s === null ? 'none' : s >= 70 ? 'good' : 'bad'
       </li>
     </ul>
 
+    <h3>Approved — assign to an issue</h3>
+    <p class="note">
+      Approved articles waiting to be assigned. Unassigned articles publish
+      on their own; assigned ones publish with their issue.
+    </p>
+    <p v-if="!approved.length" class="empty">None.</p>
+    <ul v-else>
+      <li v-for="a in approved" :key="a.id" @click="router.push(`/editor/review/${a.id}`)">
+        <div class="meta">
+          <span class="t">{{ a.title }}</span>
+          <em>{{ a.writer_name }} · {{ a.issue ? 'assigned to an issue' : 'not assigned' }}</em>
+        </div>
+        <span class="chip" :class="a.issue ? 'on' : 'off'">
+          {{ a.issue ? 'In issue' : 'Standalone' }}
+        </span>
+      </li>
+    </ul>
+
     <h3>Returned by pre-screening</h3>
     <p class="note">
       These scored below the passing mark of 70 and went back to their writer automatically.
@@ -103,5 +121,8 @@ em { font-size: 12px; color: #888; font-style: normal; }
 .score.good { border-color: #2e9e63; color: #1c6b45; }
 .score.bad { border-color: #c95757; color: #a33; }
 .score.none { border-color: #ddd; color: #999; }
+.chip { font-size: 11px; padding: 4px 10px; border-radius: 12px; }
+.chip.on { background: #eaf1fb; color: #2b5a8f; }
+.chip.off { background: #f2f2f2; color: #777; }
 .empty { color: #888; font-size: 14px; }
 </style>

@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
+import IssueAssign from '../components/IssueAssign.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -89,6 +90,12 @@ const submitOverride = () => act(() => {
         <p>{{ n.instruction }}</p>
       </div>
     </div>
+
+    <IssueAssign
+      v-if="['APPROVED', 'PUBLISHED'].includes(article.status)"
+      :article-id="article.id"
+      :current-issue="article.issue"
+      @assigned="load" />
 
     <p v-if="error" class="err">{{ error }}</p>
 

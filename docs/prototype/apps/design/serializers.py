@@ -10,6 +10,7 @@ class MagazineDesignSerializer(serializers.ModelSerializer):
     designer_name = serializers.CharField(source="designer.get_full_name", read_only=True)
     reviewer_name = serializers.SerializerMethodField()
     file_name = serializers.SerializerMethodField()
+    issue_title = serializers.SerializerMethodField()
 
     class Meta:
         model = MagazineDesign
@@ -26,6 +27,9 @@ class MagazineDesignSerializer(serializers.ModelSerializer):
 
     def get_reviewer_name(self, obj):
         return obj.reviewed_by.get_full_name() if obj.reviewed_by else None
+
+    def get_issue_title(self, obj):
+        return f"Issue #{obj.issue.number} — {obj.issue.title}"
 
     def get_file_name(self, obj):
         return obj.file.name.rsplit("/", 1)[-1] if obj.file else None

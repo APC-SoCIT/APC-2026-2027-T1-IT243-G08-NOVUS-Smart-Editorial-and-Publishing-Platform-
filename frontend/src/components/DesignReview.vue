@@ -70,7 +70,7 @@ const statusLabel = {
     <div v-for="d in pending" :key="d.id" class="card">
       <div class="top">
         <div class="meta">
-          <span class="t">{{ d.issue_label }} · {{ d.version }}</span>
+          <span class="t">{{ d.issue_title || `Issue ${d.issue}` }} · {{ d.version }}</span>
           <em>{{ d.designer_name }} · {{ d.file_name }}</em>
         </div>
         <a :href="d.file" target="_blank" class="file">Open file</a>
@@ -103,7 +103,7 @@ const statusLabel = {
       <ul class="settled">
         <li v-for="d in settled" :key="d.id">
           <div class="meta">
-            <span class="t">{{ d.issue_label }} · {{ d.version }}</span>
+            <span class="t">{{ d.issue_title || `Issue ${d.issue}` }} · {{ d.version }}</span>
             <em>{{ d.designer_name }}</em>
           </div>
           <span class="badge" :class="d.status.toLowerCase()">
