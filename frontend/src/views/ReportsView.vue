@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import api from '../services/api'
 import StaffLayout from '../components/StaffLayout.vue'
+import ChartCard from '../components/charts/ChartCard.vue'
 
 const tab = ref('evaluation')
 const days = ref(90)
@@ -31,6 +32,72 @@ async function load() {
 onMounted(load)
 
 function pick(k) { tab.value = k; load() }
+
+const scoreChart = computed(() => {
+  const d = data.value.distribution || []
+  return {
+    series: [{ name: 'Evaluations', data: d.map(b => b.count) }],
+    options: {
+      chart: { type: 'bar' },
+      plotOptions: { bar: { columnWidth: '62%', borderRadius: 3,
+                            distributed: true } },
+      legend: { show: false },
+      // Bands below the passing mark are shown in red so the gate is legible
+      // at a glance rather than needing the caption.
+      colors: d.map(b => parseInt(b.band) < (data.value.threshold ?? 70)
+        ? '#c95757' : '#4a7fb5'),
+      xaxis: { categories: d.map(b => b.band), title: { text: 'Score band',
+               style: { fontSize: '11px', color: '#8a939e', fontWeight: 500 } } },
+      yaxis: { title: { text: 'Articles',
+               style: { fontSize: '11px', color: '#8a939e', fontWeight: 500 } } },
+    },
+  }
+})
+
+const gateChart = computed(() => ({
+  series: [data.value.passed || 0, data.value.failed || 0],
+  options: {
+    chart: { type: 'donut' },
+    labels: ['Passed to editor', 'Returned to writer'],
+    colors: ['#1c6b45', '#c95757'],
+    plotOptions: { pie: { donut: { size: '68%', labels: {
+      show: true,
+      total: { show: true, label: 'Evaluations', fontSize: '12px',
+               color: '#8a939e' },
+    } } } },
+    stroke: { width: 0 },
+  },
+}))
+
+const statusChart = computed(() => {
+  const e = Object.entries(data.value.by_status || {}).filter(([, n]) => n > 0)
+  return {
+    series: [{ name: 'Articles', data: e.map(([, n]) => n) }],
+    options: {
+      chart: { type: 'bar' },
+      plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '58%' } },
+      xaxis: { categories: e.map(([k]) => k.replace(/_/g, ' ').toLowerCase()) },
+      colors: ['#4a7fb5'],
+    },
+  }
+})
+
+const writerChart = computed(() => {
+  const w = (data.value.writers || []).slice(0, 8)
+  return {
+    series: [
+      { name: 'Published', data: w.map(x => x.published) },
+      { name: 'In progress', data: w.map(x => x.open) },
+      { name: 'Overdue', data: w.map(x => x.overdue) },
+    ],
+    options: {
+      chart: { type: 'bar', stacked: true },
+      plotOptions: { bar: { columnWidth: '52%', borderRadius: 3 } },
+      colors: ['#1c6b45', '#4a7fb5', '#c95757'],
+      xaxis: { categories: w.map(x => `${x.first_name} ${x.last_name.charAt(0)}.`) },
+    },
+  }
+})
 
 const maxBand = computed(() =>
   Math.max(1, ...(data.value.distribution || []).map(b => b.count)))
@@ -88,23 +155,23 @@ const label = (s) => (s || '').replace(/_/g, ' ').toLowerCase()
         <div class="stat warn"><b>{{ data.override_rate ?? '—' }}%</b><span>OVERRIDE RATE</span></div>
       </div>
 
-      <div class="card">
-        <h4>Score distribution</h4>
-        <p class="cap">
-          Passing mark is {{ data.threshold }}. Bars left of it were returned
-          to their writer.
-        </p>
-        <div class="hist">
-          <div v-for="b in data.distribution" :key="b.band" class="bar">
-            <div class="col">
-              <div class="fill" :class="{ under: parseInt(b.band) < data.threshold }"
-                   :style="{ height: (b.count / maxBand * 100) + '%' }"></div>
-            </div>
-            <span class="n">{{ b.count || '' }}</span>
-            <span class="lbl">{{ b.band }}</span>
-          </div>
-        </div>
-      </div>
+      <ChartCard
+        title="Score distribution"
+        :caption="`Passing mark is ${data.threshold}. Red bands were returned to their writer.`"
+        type="bar"
+        :series="scoreChart.series"
+        :options="scoreChart.options"
+        :description="`Bar chart of evaluation scores in ten-point bands. ${data.passed} of ${data.total_evaluations} evaluations scored at or above the passing mark of ${data.threshold}.`" />
+
+      <div class="two">
+        <ChartCard
+          title="Gate outcomes"
+          caption="How submissions divided at the pre-screening threshold."
+          type="donut"
+          :height="280"
+          :series="gateChart.series"
+          :options="gateChart.options"
+          :description="`${data.passed} evaluations passed to an editor and ${data.failed} were returned to their writer.`" />
 
       <div class="two">
         <div class="card">
@@ -142,14 +209,22 @@ const label = (s) => (s || '').replace(/_/g, ' ').toLowerCase()
         <div class="stat"><b>{{ data.avg_turnaround_days ?? '—' }}</b><span>AVG DAYS</span></div>
       </div>
 
-      <div class="card">
-        <h4>By status</h4>
-        <div class="metric" v-for="(n, s) in data.by_status" :key="s">
-          <span>{{ label(s) }}</span>
-          <div class="track"><i :style="{ width: pct(n, data.total) + '%' }"></i></div>
-          <b>{{ n }}</b>
-        </div>
-      </div>
+      <ChartCard
+        title="Articles by status"
+        caption="Where work currently sits in the pipeline."
+        type="bar"
+        :series="statusChart.series"
+        :options="statusChart.options"
+        :description="`Horizontal bar chart of ${data.total} articles grouped by workflow status.`" />
+
+      <ChartCard
+        title="Writer output"
+        caption="Published, in progress, and overdue per writer."
+        type="bar"
+        :height="280"
+        :series="writerChart.series"
+        :options="writerChart.options"
+        :description="`Stacked bar chart comparing output across ${(data.writers || []).length} writers.`" />
 
       <div class="card">
         <h4>Writer output</h4>
