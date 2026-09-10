@@ -9,6 +9,7 @@ import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
 import ScanningOverlay from '../components/ScanningOverlay.vue'
 import MessageThread from '../components/MessageThread.vue'
+import StatusTimeline from '../components/StatusTimeline.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 
 const route = useRoute()
@@ -249,6 +250,8 @@ const active = (n, a) => editor.value?.isActive(n, a)
     <VersionHistory :versions="versions"
                     :current-title="title"
                     :current-body="editor?.getHTML() || ''" />
+
+    <StatusTimeline v-if="articleId" :article-id="articleId" />
 
     <MessageThread v-if="articleId" :article-id="articleId" />
 

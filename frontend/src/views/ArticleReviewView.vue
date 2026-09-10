@@ -5,6 +5,7 @@ import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
 import IssueAssign from '../components/IssueAssign.vue'
 import MessageThread from '../components/MessageThread.vue'
+import StatusTimeline from '../components/StatusTimeline.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -124,6 +125,8 @@ const submitOverride = () => act(() => {
     <VersionHistory :versions="article.versions || []"
                     :current-title="article.title"
                     :current-body="article.body" />
+
+    <StatusTimeline :article-id="article.id" />
 
     <MessageThread :article-id="article.id" />
 

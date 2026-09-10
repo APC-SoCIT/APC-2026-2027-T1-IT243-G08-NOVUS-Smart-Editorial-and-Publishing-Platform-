@@ -320,6 +320,90 @@ class ArticleViewSet(viewsets.ModelViewSet):
         return Response(ArticleDetailSerializer(article).data,
                         status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["get"])
+    def timeline(self, request, pk=None):
+        """UC-1.17: the article's journey, assembled from the records that
+        already exist — assignment, submissions, evaluations, revision notes,
+        and publication. Nothing new is stored to produce this."""
+        article = self.get_object()
+        events = []
+
+        events.append({
+            "at": article.created_at,
+            "kind": "created",
+            "title": "Assigned" if article.assigned_by else "Draft started",
+            "detail": (f"{article.assigned_by.get_full_name()} assigned this to "
+                       f"{article.writer.get_full_name()}"
+                       if article.assigned_by
+                       else f"{article.writer.get_full_name()} started the draft"),
+        })
+
+        for v in article.versions.all().order_by("number"):
+            events.append({
+                "at": v.created_at,
+                "kind": "submitted",
+                "title": f"Submitted (v{v.number})",
+                "detail": (f"{v.submitted_by.get_full_name()} submitted "
+                           f"{v.word_count} words"
+                           if v.submitted_by else f"{v.word_count} words"),
+            })
+
+        for e in article.evaluations.all().order_by("created_at"):
+            passed = e.overall_score >= settings.AI_PASSING_SCORE
+            events.append({
+                "at": e.created_at,
+                "kind": "evaluated" if passed else "returned",
+                "title": f"Pre-screening scored {e.overall_score}",
+                "detail": ("Passed to the editor's queue" if passed
+                           else f"Below the passing mark of {settings.AI_PASSING_SCORE}, "
+                                "returned to the writer"),
+            })
+            if e.is_overridden:
+                events.append({
+                    "at": e.overridden_at or e.created_at,
+                    "kind": "override",
+                    "title": "AI verdict overridden",
+                    "detail": (f"{e.overridden_by.get_full_name()}: {e.override_reason}"
+                               if e.overridden_by else e.override_reason),
+                })
+
+        for n in article.revision_notes.filter(editor__isnull=False):
+            events.append({
+                "at": n.created_at,
+                "kind": "revision",
+                "title": "Revision requested",
+                "detail": f"{n.editor.get_full_name()} — {n.instruction[:110]}",
+            })
+
+        if article.status in (Article.Status.APPROVED, Article.Status.PUBLISHED):
+            events.append({
+                "at": article.updated_at,
+                "kind": "approved",
+                "title": "Approved",
+                "detail": (f"Approved by {article.editor.get_full_name()}"
+                           if article.editor else "Approved"),
+            })
+
+        if article.published_at:
+            events.append({
+                "at": article.published_at,
+                "kind": "published",
+                "title": "Published",
+                "detail": (f"Released with Issue #{article.issue.number}"
+                           if article.issue else "Published as a standalone article"),
+            })
+
+        if article.status == Article.Status.WITHDRAWN:
+            events.append({
+                "at": article.updated_at,
+                "kind": "withdrawn",
+                "title": "Withdrawn",
+                "detail": article.withdrawal_reason or "No reason recorded",
+            })
+
+        events.sort(key=lambda e: e["at"])
+        return Response(events)
+
     @action(detail=True, methods=["post"])
     def reassign(self, request, pk=None):
         """UC-1.1 A1: move an assignment to a different Writer, for reallocation
