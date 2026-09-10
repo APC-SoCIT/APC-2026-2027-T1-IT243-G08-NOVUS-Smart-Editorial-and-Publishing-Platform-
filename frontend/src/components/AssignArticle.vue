@@ -5,7 +5,6 @@ import api from '../services/api'
 const emit = defineEmits(['assigned'])
 
 const writers = ref([])
-const open = ref(false)
 const busy = ref(false)
 const error = ref('')
 
@@ -37,7 +36,6 @@ async function submit() {
       deadline: form.value.deadline || null,
     })
     reset()
-    open.value = false
     emit('assigned')
   } catch (e) {
     const d = e.response?.data
@@ -47,14 +45,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="head">
-    <h3>Assignments</h3>
-    <button class="new" @click="open = !open">
-      {{ open ? 'Cancel' : '+ Assign Article' }}
-    </button>
-  </div>
-
-  <div v-if="open" class="form">
+  <div class="form">
     <label>TOPIC / HEADLINE
       <input v-model="form.title" placeholder="What should the writer cover?" />
     </label>

@@ -89,6 +89,7 @@ function signOut() {
           <p v-if="subtitle">{{ subtitle }}</p>
         </div>
         <div class="hactions">
+          <slot name="action" />
           <NotificationBell />
           <button class="out" @click="signOut">Sign out</button>
         </div>
@@ -142,7 +143,7 @@ header { display: flex; justify-content: space-between; align-items: flex-start;
          border-bottom: 1px solid var(--nv-line); }
 header h1 { margin: 0; font-size: 21px; letter-spacing: .3px; }
 header p { margin: 4px 0 0; font-size: 13px; color: #8a97a8; }
-.hactions { display: flex; gap: 10px; align-items: center; }
+.hactions { display: flex; gap: var(--s-3); align-items: center; }
 .out { border: 1px solid #d5dae0; background: #fff; border-radius: 7px;
        padding: 7px 14px; font-size: 13px; cursor: pointer; }
 .out:hover { background: #f4f5f7; }
