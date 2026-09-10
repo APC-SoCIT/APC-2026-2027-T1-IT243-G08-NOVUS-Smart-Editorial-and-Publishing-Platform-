@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import DesignReview from '../components/DesignReview.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -70,6 +71,8 @@ const scoreClass = (s) => s === null ? 'none' : s >= 70 ? 'good' : 'bad'
         <div class="score bad"><b>{{ a.latest_score ?? '—' }}</b><small>score</small></div>
       </li>
     </ul>
+
+    <DesignReview />
   </div>
 </template>
 
