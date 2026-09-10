@@ -9,8 +9,11 @@ const router = useRouter()
 const articles = ref([])
 const loading = ref(true)
 
+const assignments = computed(() =>
+  articles.value.filter(a => a.status === 'ASSIGNED'))
+
 const counts = computed(() => ({
-  active: articles.value.filter(a => ['DRAFTING','AWAITING_EVALUATION','UNDER_REVIEW'].includes(a.status)).length,
+  active: articles.value.filter(a => ['ASSIGNED','DRAFTING','AWAITING_EVALUATION','UNDER_REVIEW'].includes(a.status)).length,
   revision: articles.value.filter(a => a.status === 'REVISION_REQUESTED').length,
   approved: articles.value.filter(a => ['APPROVED','PUBLISHED'].includes(a.status)).length,
 }))
@@ -26,7 +29,7 @@ onMounted(async () => {
 })
 
 function open(a) {
-  if (['DRAFTING', 'REVISION_REQUESTED'].includes(a.status)) {
+  if (['ASSIGNED', 'DRAFTING', 'REVISION_REQUESTED'].includes(a.status)) {
     router.push(`/writer/compose/${a.id}`)
   }
 }
@@ -76,6 +79,15 @@ h2 { margin: 0; letter-spacing: 1px; }
 .card b { display: block; font-size: 30px; }
 .card span { font-size: 11px; color: #888; letter-spacing: .5px; }
 ul { list-style: none; padding: 0; }
+.assign { border: 1px solid #e0e6ef; background: #f7faff; border-radius: 8px;
+          padding: 14px 16px; margin-bottom: 8px; cursor: pointer; }
+.assign:hover { border-color: #b9c9e0; }
+.atop { display: flex; justify-content: space-between; align-items: center; }
+.brief { margin: 8px 0; font-size: 13px; color: #555; line-height: 1.55; }
+.start { font-size: 12px; color: #4a7fb5; }
+.due { font-size: 11px; padding: 4px 10px; border-radius: 12px;
+       background: #eef2f7; color: #445; }
+.due.over { background: #fbe6e6; color: #a33; }
 li.clickable { cursor: pointer; }
 li.clickable:hover { background: #fafafa; }
 li { display: flex; justify-content: space-between; align-items: center; gap: 12px;

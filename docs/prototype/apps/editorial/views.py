@@ -78,7 +78,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article = self.get_object()
         if article.writer != request.user:
             return Response({"detail": "Not your article."}, status=status.HTTP_403_FORBIDDEN)
-        if article.status not in (Article.Status.DRAFTING, Article.Status.REVISION_REQUESTED):
+        if article.status not in (Article.Status.ASSIGNED, Article.Status.DRAFTING,
+                                  Article.Status.REVISION_REQUESTED):
             return Response(
                 {"detail": f"Cannot submit an article in status {article.status}."},
                 status=status.HTTP_409_CONFLICT,

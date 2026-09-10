@@ -9,6 +9,7 @@ class Article(TimeStampedModel):
     states referenced across UC-1.2 through UC-1.7 and UC-1.11."""
 
     class Status(models.TextChoices):
+        ASSIGNED = "ASSIGNED", "Assigned"
         DRAFTING = "DRAFTING", "Drafting"
         AWAITING_EVALUATION = "AWAITING_EVALUATION", "Awaiting Evaluation"
         UNDER_REVIEW = "UNDER_REVIEW", "Under Review"
@@ -49,6 +50,37 @@ class Article(TimeStampedModel):
         null=True, blank=True, related_name="articles",
     )
     issue_order = models.PositiveSmallIntegerField(default=0)
+
+    # UC-1.1 Assign Article. Null when a Writer started the piece themselves —
+    # both routes are permitted (UC-1.2 has no assignment precondition).
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="articles_assigned",
+    )
+    brief = models.TextField(
+        blank=True,
+        help_text="The topic, angle, and editorial direction given to the Writer.",
+    )
+    deadline = models.DateField(null=True, blank=True)
+
+    @property
+    def is_overdue(self):
+        """Drives the overdue counts on the pipeline dashboards."""
+        from django.utils import timezone
+        if not self.deadline or self.status in (
+            self.Status.PUBLISHED, self.Status.WITHDRAWN, self.Status.APPROVED
+        ):
+            return False
+        return self.deadline < timezone.now().date()
+
+    @property
+    def days_to_deadline(self):
+        from django.utils import timezone
+        if not self.deadline:
+            return None
+        return (self.deadline - timezone.now().date()).days
 
     def __str__(self):
         return f"{self.title} [{self.status}]"

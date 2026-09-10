@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import DesignReview from '../components/DesignReview.vue'
+import AssignArticle from '../components/AssignArticle.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -12,14 +13,20 @@ const loading = ref(true)
 
 const pending = computed(() => articles.value.filter(a => a.status === 'UNDER_REVIEW'))
 const returned = computed(() => articles.value.filter(a => a.returned_by_ai))
+const assigned = computed(() =>
+  articles.value.filter(a => ['ASSIGNED', 'DRAFTING'].includes(a.status)))
 const approved = computed(() =>
   articles.value.filter(a => ['APPROVED', 'PUBLISHED'].includes(a.status)))
+
+async function load() {
+  const { data } = await api.get('/editorial/articles/')
+  articles.value = data.results ?? data
+}
 
 onMounted(async () => {
   try {
     if (!auth.user) await auth.fetchUser()
-    const { data } = await api.get('/editorial/articles/')
-    articles.value = data.results ?? data
+    await load()
   } finally { loading.value = false }
 })
 
@@ -40,6 +47,21 @@ const scoreClass = (s) => s === null ? 'none' : s >= 70 ? 'good' : 'bad'
       <div class="card"><b>{{ pending.length }}</b><span>UNDER REVIEW</span></div>
       <div class="card"><b>{{ approved.length }}</b><span>APPROVED</span></div>
     </div>
+
+    <AssignArticle @assigned="load" />
+
+    <p v-if="!assigned.length" class="empty">No open assignments.</p>
+    <ul v-else class="assigned">
+      <li v-for="a in assigned" :key="a.id">
+        <div class="meta">
+          <span class="t">{{ a.title }}</span>
+          <em>{{ a.writer_name }} · {{ a.status === 'ASSIGNED' ? 'not started' : 'drafting' }}</em>
+        </div>
+        <span v-if="a.deadline" class="due" :class="{ over: a.is_overdue }">
+          {{ a.is_overdue ? 'Overdue' : `Due in ${a.days_to_deadline}d` }}
+        </span>
+      </li>
+    </ul>
 
     <h3>Pending reviews</h3>
     <p v-if="loading">Loading…</p>
@@ -121,6 +143,12 @@ em { font-size: 12px; color: #888; font-style: normal; }
 .score.good { border-color: #2e9e63; color: #1c6b45; }
 .score.bad { border-color: #c95757; color: #a33; }
 .score.none { border-color: #ddd; color: #999; }
+.assigned li { display: flex; justify-content: space-between; align-items: center;
+               border: 1px solid #eee; border-radius: 8px; padding: 12px 14px;
+               margin-bottom: 8px; }
+.due { font-size: 11px; padding: 4px 10px; border-radius: 12px;
+       background: #eef2f7; color: #445; }
+.due.over { background: #fbe6e6; color: #a33; }
 .chip { font-size: 11px; padding: 4px 10px; border-radius: 12px; }
 .chip.on { background: #eaf1fb; color: #2b5a8f; }
 .chip.off { background: #f2f2f2; color: #777; }

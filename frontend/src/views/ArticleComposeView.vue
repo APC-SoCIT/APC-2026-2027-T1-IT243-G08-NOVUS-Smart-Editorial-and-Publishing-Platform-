@@ -19,6 +19,8 @@ const error = ref('')
 const evaluation = ref(null)
 const returnedByAi = ref(false)
 const status = ref('DRAFTING')
+const briefText = ref('')
+const deadline = ref(null)
 
 const editor = useEditor({
   content: '',
@@ -32,6 +34,8 @@ onMounted(async () => {
   title.value = data.title
   category.value = data.category
   status.value = data.status
+  briefText.value = data.brief || ''
+  deadline.value = data.deadline
   evaluation.value = data.latest_evaluation
   returnedByAi.value = data.returned_by_ai
   editor.value?.commands.setContent(data.body)
@@ -86,6 +90,12 @@ const active = (n, a) => editor.value?.isActive(n, a)
       <router-link to="/writer" class="back">Back to dashboard</router-link>
     </header>
 
+    <div v-if="briefText" class="brief-box">
+      <h5>Editor's brief</h5>
+      <p>{{ briefText }}</p>
+      <small v-if="deadline">Deadline: {{ deadline }}</small>
+    </div>
+
     <EvaluationPanel
       :evaluation="evaluation"
       :returned-by-ai="returnedByAi"
@@ -132,6 +142,12 @@ const active = (n, a) => editor.value?.isActive(n, a)
 </template>
 
 <style scoped>
+.brief-box { border-left: 3px solid #4a7fb5; background: #f7faff;
+             padding: 14px 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px; }
+.brief-box h5 { margin: 0 0 6px; font-size: 11px; letter-spacing: .5px;
+                text-transform: uppercase; color: #4a7fb5; }
+.brief-box p { margin: 0; font-size: 13px; line-height: 1.6; color: #444; }
+.brief-box small { display: block; margin-top: 8px; font-size: 12px; color: #888; }
 .wrap { max-width: 800px; margin: 40px auto; font-family: system-ui; padding: 0 16px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; }

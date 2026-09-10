@@ -19,11 +19,37 @@ class RevisionNoteSerializer(serializers.ModelSerializer):
         return obj.editor.get_full_name() if obj.editor else None
 
 
+class AssignArticleSerializer(serializers.ModelSerializer):
+    """UC-1.1 Assign Article — an Editor creates the record and hands it to a
+    Writer with a topic, angle, and deadline."""
+
+    class Meta:
+        model = Article
+        fields = ["id", "title", "brief", "category", "writer", "deadline"]
+
+    def validate_writer(self, value):
+        if value.role != value.Role.WRITER:
+            raise serializers.ValidationError("Articles can only be assigned to a Writer.")
+        return value
+
+    def create(self, validated_data):
+        validated_data["assigned_by"] = self.context["request"].user
+        validated_data["status"] = Article.Status.ASSIGNED
+        return super().create(validated_data)
+
+
+class WithdrawSerializer(serializers.Serializer):
+    """UC-1.10 Withdraw Article."""
+    reason = serializers.CharField(max_length=255, min_length=5)
+
+
 class ArticleListSerializer(serializers.ModelSerializer):
     """Slim shape for dashboard/list views (Writer Dashboard, Editor
     Dashboard 'Pending Reviews' widget)."""
 
     writer_name = serializers.CharField(source="writer.get_full_name", read_only=True)
+    is_overdue = serializers.BooleanField(read_only=True)
+    days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
     latest_score = serializers.SerializerMethodField()
 
     class Meta:
@@ -31,6 +57,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "status", "category", "writer", "writer_name",
             "editor", "latest_score", "returned_by_ai", "issue",
+            "deadline", "is_overdue", "days_to_deadline", "brief",
             "created_at", "updated_at",
         ]
 
@@ -41,6 +68,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
     revision_notes = RevisionNoteSerializer(many=True, read_only=True)
+    is_overdue = serializers.BooleanField(read_only=True)
+    days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
     latest_evaluation = serializers.SerializerMethodField()
     writer_name = serializers.CharField(source="writer.get_full_name", read_only=True)
 
@@ -49,7 +78,9 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "body", "category", "tags", "status",
             "writer", "writer_name", "editor", "published_at",
-            "withdrawal_reason", "returned_by_ai", "issue", "revision_notes",
+            "withdrawal_reason", "returned_by_ai", "issue",
+            "deadline", "is_overdue", "days_to_deadline", "brief",
+            "assigned_by", "revision_notes",
             "latest_evaluation",
             "created_at", "updated_at",
         ]

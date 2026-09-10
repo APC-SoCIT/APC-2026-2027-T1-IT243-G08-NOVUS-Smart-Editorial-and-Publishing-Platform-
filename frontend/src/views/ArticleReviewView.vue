@@ -17,6 +17,8 @@ const error = ref('')
 const showComposer = ref(false)
 const notes = ref([])
 const overrideOpen = ref(false)
+const withdrawOpen = ref(false)
+const withdrawReason = ref('')
 const overrideReason = ref('')
 
 async function load() {
@@ -47,6 +49,12 @@ async function act(fn) {
 }
 
 const approve = () => act(() => api.post(`/editorial/articles/${id}/approve/`))
+
+const withdraw = () => act(() => {
+  if (withdrawReason.value.trim().length < 5)
+    throw { response: { data: { detail: 'Give a reason for withdrawing.' } } }
+  return api.post(`/editorial/articles/${id}/withdraw/`, { reason: withdrawReason.value })
+})
 
 const sendRevision = () => act(() => {
   const payload = notes.value.filter(n => n.instruction.trim())
@@ -123,6 +131,15 @@ const submitOverride = () => act(() => {
       <button class="ghost sm" @click="addNote">+ Add another note</button>
     </div>
 
+    <div v-if="withdrawOpen" class="composer">
+      <h5>Withdraw this article</h5>
+      <p class="hint">
+        It leaves the active pipeline and is removed from any issue it belongs to.
+      </p>
+      <textarea v-model="withdrawReason" rows="2"
+                placeholder="Why is this being withdrawn?"></textarea>
+    </div>
+
     <!-- Override -->
     <div v-if="overrideOpen" class="composer">
       <h5>Override justification</h5>
@@ -142,7 +159,12 @@ const submitOverride = () => act(() => {
           Override and Approve
         </button>
       </template>
+      <template v-else-if="withdrawOpen">
+        <button class="ghost" @click="withdrawOpen = false">Cancel</button>
+        <button class="warn" :disabled="busy" @click="withdraw">Confirm Withdrawal</button>
+      </template>
       <template v-else>
+        <button class="ghost" @click="withdrawOpen = true">Withdraw</button>
         <button class="ghost" @click="startRevision">Request Revisions</button>
         <button v-if="article.latest_evaluation" class="ghost" @click="overrideOpen = true">
           Override AI
