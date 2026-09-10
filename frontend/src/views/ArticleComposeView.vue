@@ -7,6 +7,7 @@ import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
+import ScanningOverlay from '../components/ScanningOverlay.vue'
 import MessageThread from '../components/MessageThread.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 
@@ -29,6 +30,8 @@ const heroPreview = ref(null)
 const heroCaption = ref('')
 const uploadingImage = ref(false)
 const versions = ref([])
+const scanning = ref(false)
+const scanResult = ref(null)
 const withdrawOpen = ref(false)
 const withdrawReason = ref('')
 const withdrawing = ref(false)
@@ -136,12 +139,22 @@ async function submitForReview() {
   const ok = await saveDraft()
   if (!ok) return
   submitting.value = true
+  scanning.value = true
+  scanResult.value = null
   try {
     const { data } = await api.post(`/editorial/articles/${articleId.value}/submit/`)
-    router.push({ path: '/writer', query: { score: data.overall_score } })
+    scanResult.value = data
   } catch (e) {
+    scanning.value = false
     error.value = e.response?.data?.detail || 'Submission failed.'
   } finally { submitting.value = false }
+}
+
+function finishScan() {
+  const passed = (scanResult.value?.overall_score ?? 0) >= 70
+  scanning.value = false
+  if (passed) router.push('/writer')
+  else window.location.reload()
 }
 
 async function withdraw() {
@@ -166,6 +179,9 @@ const active = (n, a) => editor.value?.isActive(n, a)
 
 <template>
   <div class="wrap">
+    <ScanningOverlay :active="scanning" :result="scanResult"
+                     :threshold="70" @done="finishScan" />
+
     <header>
       <h2>{{ articleId ? 'EDIT SUBMISSION' : 'NEW SUBMISSION' }}</h2>
       <router-link to="/writer" class="back">Back to dashboard</router-link>
