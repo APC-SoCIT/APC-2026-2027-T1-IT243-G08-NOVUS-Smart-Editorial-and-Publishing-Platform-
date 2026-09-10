@@ -10,8 +10,21 @@ const categories = computed(() => {
   const set = new Set(articles.value.map(a => a.category).filter(Boolean))
   return ['All', ...set]
 })
+
 const shown = computed(() =>
-  active.value === 'All' ? articles.value : articles.value.filter(a => a.category === active.value))
+  active.value === 'All'
+    ? articles.value
+    : articles.value.filter(a => a.category === active.value))
+
+// The featured article takes the banner; otherwise the most recent piece
+// with a hero image, falling back to the most recent of any kind.
+const lead = computed(() => {
+  const list = shown.value
+  return list.find(a => a.is_featured)
+    ?? list.find(a => a.hero_image)
+    ?? list[0]
+})
+const rest = computed(() => shown.value.filter(a => a.id !== lead.value?.id))
 
 onMounted(async () => {
   try {
@@ -27,7 +40,7 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
 <template>
   <div class="site">
     <nav>
-      <span class="brand">BOSS</span>
+      <router-link to="/read" class="brand">BOSS</router-link>
       <div class="links">
         <a v-for="c in categories" :key="c"
            :class="{ on: active === c }" @click="active = c">{{ c }}</a>
@@ -37,52 +50,92 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
 
     <main>
       <p v-if="loading" class="state">Loading…</p>
-      <p v-else-if="!articles.length" class="state">No articles published yet.</p>
+      <p v-else-if="!articles.length" class="state">Nothing published yet.</p>
 
       <template v-else>
-        <article v-if="shown.length" class="hero">
-          <span class="kicker">FEATURED</span>
-          <h1>{{ shown[0].title }}</h1>
-          <p class="meta">{{ shown[0].author_name }} · {{ fmt(shown[0].published_at) }}</p>
-          <router-link :to="`/read/${shown[0].id}`" class="cta">Read now →</router-link>
-        </article>
+        <router-link v-if="lead" :to="`/read/${lead.id}`" class="lead"
+                     :class="{ 'no-img': !lead.hero_image }">
+          <div v-if="lead.hero_image" class="lead-img">
+            <img :src="lead.hero_image" alt="" />
+          </div>
+          <div class="lead-text">
+            <span class="kicker">{{ lead.category || 'Featured' }}</span>
+            <h1>{{ lead.title }}</h1>
+            <p v-if="lead.excerpt" class="stand">{{ lead.excerpt }}</p>
+            <p class="meta">
+              {{ lead.author_name }} · {{ fmt(lead.published_at) }}
+              · {{ lead.reading_time }} min read
+            </p>
+          </div>
+        </router-link>
 
-        <h3 v-if="shown.length > 1">Latest articles</h3>
+        <h3 v-if="rest.length">Latest</h3>
         <div class="grid">
-          <router-link v-for="a in shown.slice(1)" :key="a.id"
-                       :to="`/read/${a.id}`" class="card">
+          <router-link v-for="a in rest" :key="a.id" :to="`/read/${a.id}`"
+                       class="card" :class="{ 'no-img': !a.hero_image }">
+            <div v-if="a.hero_image" class="thumb">
+              <img :src="a.hero_image" alt="" />
+            </div>
             <span class="cat">{{ a.category || 'General' }}</span>
             <h4>{{ a.title }}</h4>
-            <p>{{ a.author_name }} · {{ fmt(a.published_at) }}</p>
+            <p v-if="a.excerpt" class="ex">{{ a.excerpt }}</p>
+            <p class="meta">
+              {{ a.author_name }} · {{ a.reading_time }} min read
+            </p>
           </router-link>
         </div>
       </template>
     </main>
+
+    <footer>
+      <span>BOSS Magazine PH</span>
+      <router-link to="/staff/login">Editorial login</router-link>
+    </footer>
   </div>
 </template>
 
 <style scoped>
 .site { font-family: Georgia, serif; }
-nav { display: flex; align-items: center; gap: 28px; padding: 18px 32px; border-bottom: 1px solid #eee; }
-.brand { font-size: 26px; letter-spacing: 5px; font-weight: 700; }
-.links { display: flex; gap: 18px; flex: 1; font-family: system-ui; font-size: 13px; }
-.links a { cursor: pointer; color: #666; letter-spacing: .5px; }
+nav { display: flex; align-items: center; gap: 28px; padding: 20px 32px;
+      border-bottom: 1px solid #eee; position: sticky; top: 0; background: #fff; z-index: 5; }
+.brand { font-size: 26px; letter-spacing: 5px; font-weight: 700; color: inherit; }
+.links { display: flex; gap: 20px; flex: 1; font-family: system-ui; font-size: 12px; }
+.links a { cursor: pointer; color: #777; letter-spacing: .8px; text-transform: uppercase; }
 .links a.on { color: #111; font-weight: 600; }
 .signin { font-family: system-ui; font-size: 13px; color: #4a7fb5; }
-main { max-width: 940px; margin: 0 auto; padding: 36px 24px 80px; }
-.hero { background: #0d1526; color: #fff; border-radius: 12px; padding: 46px 40px; margin-bottom: 40px; }
-.kicker { font-family: system-ui; font-size: 10px; letter-spacing: 2px; opacity: .7; }
-.hero h1 { font-size: 40px; line-height: 1.15; margin: 12px 0 10px; }
-.hero .meta { font-family: system-ui; font-size: 13px; opacity: .75; margin: 0 0 22px; }
-.cta { font-family: system-ui; font-size: 14px; color: #fff; border: 1px solid rgba(255,255,255,.4);
-       padding: 9px 18px; border-radius: 6px; }
-h3 { font-family: system-ui; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
-     color: #888; margin: 0 0 16px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; }
-.card { border: 1px solid #eee; border-radius: 10px; padding: 20px; color: inherit; }
-.card:hover { border-color: #ccc; }
-.cat { font-family: system-ui; font-size: 10px; letter-spacing: 1px; color: #4a7fb5; }
-.card h4 { font-size: 19px; line-height: 1.3; margin: 8px 0; }
-.card p { font-family: system-ui; font-size: 12px; color: #888; margin: 0; }
+
+main { max-width: 1040px; margin: 0 auto; padding: 40px 24px 60px; }
+
+.lead { display: block; color: inherit; margin-bottom: 52px; }
+.lead-img { border-radius: 12px; overflow: hidden; margin-bottom: 22px; }
+.lead-img img { width: 100%; height: 420px; object-fit: cover; display: block; }
+.lead.no-img { background: #0d1526; color: #fff; border-radius: 12px; padding: 52px 44px; }
+.lead.no-img .stand, .lead.no-img .meta { color: rgba(255,255,255,.72); }
+.lead-text { max-width: 720px; }
+.kicker { font-family: system-ui; font-size: 10px; letter-spacing: 2px;
+          text-transform: uppercase; color: #4a7fb5; }
+.lead h1 { font-size: 42px; line-height: 1.15; margin: 10px 0 12px; }
+.stand { font-size: 19px; line-height: 1.55; color: #555; margin: 0 0 14px; }
+.meta { font-family: system-ui; font-size: 12px; color: #999; margin: 0; }
+
+h3 { font-family: system-ui; font-size: 12px; letter-spacing: 1.4px;
+     text-transform: uppercase; color: #999; margin: 0 0 20px;
+     border-top: 1px solid #eee; padding-top: 22px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 32px; }
+.card { color: inherit; }
+.thumb { border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.thumb img { width: 100%; height: 180px; object-fit: cover; display: block;
+             transition: transform .3s; }
+.card:hover .thumb img { transform: scale(1.03); }
+.card.no-img { border-left: 3px solid #e6e6e6; padding-left: 16px; }
+.cat { font-family: system-ui; font-size: 10px; letter-spacing: 1.2px;
+       text-transform: uppercase; color: #4a7fb5; }
+.card h4 { font-size: 20px; line-height: 1.3; margin: 7px 0; }
+.ex { font-size: 14px; line-height: 1.55; color: #666; margin: 0 0 9px; }
+
+footer { display: flex; justify-content: space-between; max-width: 1040px;
+         margin: 0 auto; padding: 26px 24px 50px; border-top: 1px solid #eee;
+         font-family: system-ui; font-size: 12px; color: #999; }
+footer a { color: #4a7fb5; }
 .state { color: #888; font-family: system-ui; }
 </style>

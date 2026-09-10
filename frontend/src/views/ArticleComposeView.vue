@@ -26,6 +26,9 @@ const heroFile = ref(null)
 const heroPreview = ref(null)
 const heroCaption = ref('')
 const uploadingImage = ref(false)
+const withdrawOpen = ref(false)
+const withdrawReason = ref('')
+const withdrawing = ref(false)
 const deadline = ref(null)
 
 const editor = useEditor({
@@ -137,6 +140,22 @@ async function submitForReview() {
   } finally { submitting.value = false }
 }
 
+async function withdraw() {
+  error.value = ''
+  if (withdrawReason.value.trim().length < 5) {
+    error.value = 'Give a reason for withdrawing this article.'
+    return
+  }
+  withdrawing.value = true
+  try {
+    await api.post(`/editorial/articles/${articleId.value}/withdraw/`,
+                   { reason: withdrawReason.value })
+    router.push('/writer')
+  } catch (e) {
+    error.value = e.response?.data?.detail || 'Could not withdraw.'
+  } finally { withdrawing.value = false }
+}
+
 const btn = (c) => editor.value?.chain().focus()[c]().run()
 const active = (n, a) => editor.value?.isActive(n, a)
 </script>
@@ -207,6 +226,19 @@ const active = (n, a) => editor.value?.isActive(n, a)
     <p v-if="error" class="err">{{ error }}</p>
     <p v-if="message" class="ok">{{ message }}</p>
 
+    <div v-if="withdrawOpen" class="withdraw">
+      <h5>Withdraw this article</h5>
+      <p>It leaves the active pipeline and is removed from any issue it belongs to.</p>
+      <textarea v-model="withdrawReason" rows="2"
+                placeholder="Why are you withdrawing it?"></textarea>
+      <div class="wacts">
+        <button class="ghost" @click="withdrawOpen = false">Cancel</button>
+        <button class="danger" :disabled="withdrawing" @click="withdraw">
+          {{ withdrawing ? 'Withdrawing…' : 'Confirm Withdrawal' }}
+        </button>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="ghost" :disabled="saving" @click="saveDraft">
         {{ saving ? 'Saving…' : 'Save Draft' }}
@@ -215,6 +247,11 @@ const active = (n, a) => editor.value?.isActive(n, a)
         {{ submitting ? 'Submitting…' : 'Submit for Review' }}
       </button>
     </div>
+
+    <button v-if="articleId && !withdrawOpen && status !== 'PUBLISHED'"
+            class="wlink" @click="withdrawOpen = true">
+      Withdraw this article
+    </button>
   </div>
 </template>
 
@@ -251,6 +288,17 @@ label { display: block; font-size: 11px; margin-top: 22px; color: #555; letter-s
 .ghost { flex: 1; padding: 12px; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; }
 .primary { flex: 2; padding: 12px; border: 0; background: #1a2744; color: #fff; border-radius: 6px; font-weight: 600; cursor: pointer; }
 button:disabled { opacity: .55; }
+.withdraw { border: 1px solid #f0d9d9; background: #fffafa; border-radius: 8px;
+            padding: 14px 16px; margin-top: 20px; }
+.withdraw h5 { margin: 0 0 6px; font-size: 13px; color: #a33; }
+.withdraw p { margin: 0 0 10px; font-size: 12px; color: #777; line-height: 1.5; }
+.withdraw textarea { width: 100%; padding: 9px; border: 1px solid #ccc;
+                     border-radius: 6px; font-family: inherit; font-size: 13px; }
+.wacts { display: flex; gap: 8px; margin-top: 10px; }
+.wacts button { flex: 1; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.danger { border: 0; background: #b53b3b; color: #fff; font-weight: 600; }
+.wlink { display: block; margin: 22px auto 0; border: 0; background: none;
+         color: #a33; font-size: 13px; cursor: pointer; text-decoration: underline; }
 .err { color: #c00; font-size: 13px; }
 .ok { color: #0a7; font-size: 13px; }
 </style>
