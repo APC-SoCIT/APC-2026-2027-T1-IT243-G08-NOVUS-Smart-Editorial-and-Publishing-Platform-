@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/publication/", include("apps.issues.urls")),
     path("api/", include("apps.notifications.urls")),
     path("api/", include("apps.messaging.urls")),
+    path("api/reports/", include("apps.reports.urls")),
 ]
 
 if settings.DEBUG:

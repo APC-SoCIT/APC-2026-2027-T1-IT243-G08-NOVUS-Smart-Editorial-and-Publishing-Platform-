@@ -6,6 +6,7 @@ import StaffLoginView from '../views/StaffLoginView.vue'
 import WriterDashboard from '../views/WriterDashboard.vue'
 import ArticleComposeView from '../views/ArticleComposeView.vue'
 import EditorDashboard from '../views/EditorDashboard.vue'
+import ReportsView from '../views/ReportsView.vue'
 import ArticleReviewView from '../views/ArticleReviewView.vue'
 import PublisherDashboard from '../views/PublisherDashboard.vue'
 import IssueDetailView from '../views/IssueDetailView.vue'
@@ -25,6 +26,7 @@ const routes = [
   { path: '/writer/compose', component: ArticleComposeView, meta: { requiresAuth: true } },
   { path: '/writer/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true } },
   { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true } },
+  { path: '/reports', component: ReportsView, meta: { requiresAuth: true } },
   { path: '/editor/review/:id', component: ArticleReviewView, meta: { requiresAuth: true } },
   { path: '/publisher', component: PublisherDashboard, meta: { requiresAuth: true } },
   { path: '/publisher/issue/:id', component: IssueDetailView, meta: { requiresAuth: true } },

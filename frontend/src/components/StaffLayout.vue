@@ -21,9 +21,11 @@ const NAV = {
   ],
   EDITOR: [
     { to: '/editor', label: 'Dashboard' },
+    { to: '/reports', label: 'Reports' },
   ],
   PUBLISHER: [
     { to: '/publisher', label: 'Pipeline' },
+    { to: '/reports', label: 'Reports' },
   ],
   GRAPHIC_DESIGNER: [
     { to: '/designer', label: 'Workspace' },
