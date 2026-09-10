@@ -5,6 +5,7 @@ import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
 import IssueAssign from '../components/IssueAssign.vue'
 import MessageThread from '../components/MessageThread.vue'
+import VersionHistory from '../components/VersionHistory.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -105,6 +106,10 @@ const submitOverride = () => act(() => {
       :article-id="article.id"
       :current-issue="article.issue"
       @assigned="load" />
+
+    <VersionHistory :versions="article.versions || []"
+                    :current-title="article.title"
+                    :current-body="article.body" />
 
     <MessageThread :article-id="article.id" />
 

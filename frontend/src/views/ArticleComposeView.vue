@@ -8,6 +8,7 @@ import Image from '@tiptap/extension-image'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
 import MessageThread from '../components/MessageThread.vue'
+import VersionHistory from '../components/VersionHistory.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,6 +28,7 @@ const heroFile = ref(null)
 const heroPreview = ref(null)
 const heroCaption = ref('')
 const uploadingImage = ref(false)
+const versions = ref([])
 const withdrawOpen = ref(false)
 const withdrawReason = ref('')
 const withdrawing = ref(false)
@@ -48,6 +50,7 @@ onMounted(async () => {
   excerpt.value = data.excerpt || ''
   heroCaption.value = data.hero_caption || ''
   heroPreview.value = data.hero_image
+  versions.value = data.versions || []
   deadline.value = data.deadline
   evaluation.value = data.latest_evaluation
   returnedByAi.value = data.returned_by_ai
@@ -226,6 +229,10 @@ const active = (n, a) => editor.value?.isActive(n, a)
 
     <p v-if="error" class="err">{{ error }}</p>
     <p v-if="message" class="ok">{{ message }}</p>
+
+    <VersionHistory :versions="versions"
+                    :current-title="title"
+                    :current-body="editor?.getHTML() || ''" />
 
     <MessageThread v-if="articleId" :article-id="articleId" />
 
