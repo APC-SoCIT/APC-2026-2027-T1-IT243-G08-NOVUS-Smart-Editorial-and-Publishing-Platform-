@@ -31,7 +31,10 @@ const NAV = {
     { to: '/designer', label: 'Workspace' },
   ],
   ADMIN: [
-    { to: '/editor', label: 'Dashboard' },
+    { to: '/editor', label: 'Editorial' },
+    { to: '/publisher', label: 'Publishing' },
+    { to: '/reports', label: 'Reports' },
+    { to: '/settings', label: 'Settings' },
   ],
 }
 

@@ -36,28 +36,36 @@ const auth = useAuthStore()
 </template>
 
 <style scoped>
-.paywall { position: relative; margin-top: -120px; }
-.fade { height: 120px;
-        background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 88%); }
-.box { background: #fff; border: 1px solid #e8e8e8; border-radius: 14px;
-       padding: 34px 36px; text-align: center; font-family: system-ui; }
-.badge { display: inline-block; font-size: 10px; letter-spacing: 1.6px;
-         text-transform: uppercase; color: #96631a; background: #fdf6e8;
-         padding: 5px 12px; border-radius: 12px; }
-h3 { font-family: Georgia, serif; font-size: 26px; margin: 16px 0 10px;
-     line-height: 1.3; }
-.box > p { color: #778; font-size: 14px; line-height: 1.6; margin: 0 auto 22px;
-           max-width: 380px; }
-.perks { list-style: none; padding: 0; margin: 0 auto 26px; max-width: 300px;
+.paywall { position: relative; margin-top: -140px; }
+.fade { height: 140px;
+        background: linear-gradient(180deg, rgba(10,10,10,0) 0%,
+                    var(--boss-bg) 88%); }
+.box { background: var(--boss-surface); border: 1px solid var(--boss-line);
+       border-radius: var(--r-lg); padding: var(--s-7); text-align: center;
+       font-family: var(--font-ui); }
+.badge { display: inline-block; font-size: var(--t-xs);
+         letter-spacing: var(--track-caps); text-transform: uppercase;
+         color: var(--boss-gold); border: 1px solid var(--boss-gold-deep);
+         padding: var(--s-1) var(--s-3); border-radius: var(--r-full); }
+h3 { font-family: var(--font-serif); font-size: var(--t-xl);
+     margin: var(--s-4) 0 var(--s-3); line-height: var(--lh-tight);
+     color: var(--boss-text); font-weight: 600; }
+.box > p { color: var(--boss-text-muted); font-size: var(--t-base);
+           line-height: var(--lh-body); margin: 0 auto var(--s-5); max-width: 400px; }
+.perks { list-style: none; padding: 0; margin: 0 auto var(--s-6); max-width: 300px;
          text-align: left; }
-.perks li { position: relative; padding: 7px 0 7px 26px; font-size: 14px; color: #445; }
-.perks li::before { content: '✓'; position: absolute; left: 0; color: #2e9e63;
-                    font-weight: 700; }
-.cta { border: 0; background: #111; color: #fff; padding: 13px 34px;
-       border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
-.cta:disabled { opacity: .45; cursor: not-allowed; }
-.phase { font-size: 12px; color: #aaa; margin: 14px auto 0; max-width: 340px;
-         line-height: 1.55; }
-.alt { font-size: 13px; color: #778; margin: 18px 0 0; }
-.alt a { color: #4a7fb5; }
+.perks li { position: relative; padding: var(--s-2) 0 var(--s-2) var(--s-5);
+            font-size: var(--t-sm); color: var(--boss-text); }
+.perks li::before { content: '\2713'; position: absolute; left: 0;
+                    color: var(--boss-gold); font-weight: 700; }
+.cta { border: 0; background: var(--boss-gold); color: var(--boss-bg);
+       padding: var(--s-3) var(--s-7); font-size: var(--t-sm); font-weight: 700;
+       letter-spacing: var(--track-caps); text-transform: uppercase;
+       cursor: pointer; transition: background var(--dur-base) var(--ease-out); }
+.cta:hover:not(:disabled) { background: var(--boss-gold-bright); }
+.cta:disabled { opacity: .5; cursor: not-allowed; }
+.phase { font-size: var(--t-xs); color: var(--boss-text-faint);
+         margin: var(--s-4) auto 0; max-width: 360px; line-height: var(--lh-snug); }
+.alt { font-size: var(--t-sm); color: var(--boss-text-muted); margin: var(--s-5) 0 0; }
+.alt a { color: var(--boss-gold); }
 </style>
