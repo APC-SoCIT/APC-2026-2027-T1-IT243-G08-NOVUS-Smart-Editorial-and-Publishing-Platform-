@@ -13,7 +13,7 @@ from apps.ai_eval.services import evaluate_article
 from apps.common.permissions import role_permission
 from apps.publishing.services import NotReady, publish_article
 
-from .models import Article, ArticleImage, RevisionNote
+from .models import Article, ArticleImage, ArticleVersion, RevisionNote
 
 logger = logging.getLogger(__name__)
 from .serializers import (
@@ -70,7 +70,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return [role_permission("WRITER")()]
         if self.action == "request_revision":
             return [role_permission("EDITOR")()]
-        if self.action in ("approve", "override", "assign_to_issue", "assign"):
+        if self.action in ("approve", "override", "assign_to_issue",
+                           "assign", "reassign"):
             return [role_permission("EDITOR")()]
         if self.action == "publish":
             return [role_permission("PUBLISHER")()]
@@ -90,6 +91,18 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 {"detail": f"Cannot submit an article in status {article.status}."},
                 status=status.HTTP_409_CONFLICT,
             )
+
+        # UC-1.4: snapshot the submitted copy before evaluation so the
+        # revision loop keeps a record of what was actually sent.
+        last = article.versions.first()
+        ArticleVersion.objects.create(
+            article=article,
+            number=(last.number + 1) if last else 1,
+            title=article.title,
+            body=article.body,
+            excerpt=article.excerpt,
+            submitted_by=request.user,
+        )
 
         article.status = Article.Status.AWAITING_EVALUATION
         article.save(update_fields=["status", "updated_at"])
@@ -192,6 +205,31 @@ class ArticleViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
+    def reassign(self, request, pk=None):
+        """UC-1.1 A1: move an assignment to a different Writer, for reallocation
+        when the original Writer cannot deliver."""
+        from apps.accounts.models import User
+
+        article = self.get_object()
+        if article.status not in (Article.Status.ASSIGNED, Article.Status.DRAFTING):
+            return Response(
+                {"detail": "Only an unsubmitted article can be reassigned."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        try:
+            writer = User.objects.get(pk=request.data.get("writer"),
+                                      role=User.Role.WRITER)
+        except User.DoesNotExist:
+            return Response({"detail": "Writer not found."},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        article.writer = writer
+        if request.data.get("deadline"):
+            article.deadline = request.data["deadline"]
+        article.save(update_fields=["writer", "deadline", "updated_at"])
+        return Response(ArticleDetailSerializer(article).data)
+
+    @action(detail=True, methods=["post"])
     def withdraw(self, request, pk=None):
         """UC-1.10 Withdraw Article. Removes an unpublished article from the
         active pipeline and corrects any issue it belonged to."""
@@ -238,8 +276,10 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
         issue_id = request.data.get("issue")
         if issue_id in (None, ""):
+            # Leaving an issue makes it a free standalone web piece.
             article.issue = None
-            article.save(update_fields=["issue", "updated_at"])
+            article.is_premium = False
+            article.save(update_fields=["issue", "is_premium", "updated_at"])
             return Response(ArticleDetailSerializer(article).data)
 
         try:
@@ -254,8 +294,10 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        # The issue is the paid product (UC-8.2).
         article.issue = issue
-        article.save(update_fields=["issue", "updated_at"])
+        article.is_premium = True
+        article.save(update_fields=["issue", "is_premium", "updated_at"])
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["post"])

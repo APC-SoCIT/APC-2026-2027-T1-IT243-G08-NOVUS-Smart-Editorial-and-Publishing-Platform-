@@ -82,6 +82,11 @@ class Article(TimeStampedModel):
     # without one renders as an empty banner.
     is_featured = models.BooleanField(default=False)
 
+    # UC-8.2 Access Premium Articles. Articles bound to an issue are the paid
+    # product and default to premium on assignment; standalone web pieces are
+    # free and drive traffic. An Editor can override either way.
+    is_premium = models.BooleanField(default=False)
+
     def save(self, *args, **kwargs):
         if not self.slug and self.title:
             from django.utils.text import slugify
@@ -173,3 +178,35 @@ class ArticleImage(TimeStampedModel):
 
     def __str__(self):
         return f"Image for {self.article_id}"
+
+
+class ArticleVersion(TimeStampedModel):
+    """A snapshot of an article's content at submission (UC-1.4).
+
+    Taken on every submit so the Editor can see what changed between drafts
+    and the Writer can recover superseded copy. Without this the revision loop
+    silently loses the previous draft.
+    """
+
+    article = models.ForeignKey(
+        Article, on_delete=models.CASCADE, related_name="versions"
+    )
+    number = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    excerpt = models.CharField(max_length=300, blank=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
+    )
+
+    class Meta:
+        ordering = ["-number"]
+        unique_together = [("article", "number")]
+
+    def __str__(self):
+        return f"{self.article_id} v{self.number}"
+
+    @property
+    def word_count(self):
+        from django.utils.html import strip_tags
+        return len(strip_tags(self.body or "").split())

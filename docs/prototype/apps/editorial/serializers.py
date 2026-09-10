@@ -8,7 +8,7 @@ class RelativeImageField(serializers.ImageField):
     def to_representation(self, value):
         return value.url if value else None
 
-from .models import Article, ArticleImage, RevisionNote
+from .models import Article, ArticleImage, ArticleVersion, RevisionNote
 
 
 class ArticleImageSerializer(serializers.ModelSerializer):
@@ -18,6 +18,19 @@ class ArticleImageSerializer(serializers.ModelSerializer):
         model = ArticleImage
         fields = ["id", "article", "image", "caption", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+
+class ArticleVersionSerializer(serializers.ModelSerializer):
+    submitted_by_name = serializers.CharField(
+        source="submitted_by.get_full_name", read_only=True
+    )
+    word_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ArticleVersion
+        fields = ["id", "number", "title", "body", "excerpt",
+                  "submitted_by", "submitted_by_name", "word_count", "created_at"]
+        read_only_fields = fields
 
 
 class RevisionNoteSerializer(serializers.ModelSerializer):
@@ -96,6 +109,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
 class ArticleDetailSerializer(serializers.ModelSerializer):
     revision_notes = RevisionNoteSerializer(many=True, read_only=True)
     images = ArticleImageSerializer(many=True, read_only=True)
+    versions = ArticleVersionSerializer(many=True, read_only=True)
     reading_time = serializers.IntegerField(read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
     days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
@@ -113,7 +127,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
             "deadline", "is_overdue", "days_to_deadline", "brief",
             "hero_image", "hero_caption", "excerpt", "slug",
             "reading_time", "is_featured", "images",
-            "assigned_by", "revision_notes",
+            "assigned_by", "revision_notes", "versions", "is_premium",
             "latest_evaluation",
             "created_at", "updated_at",
         ]

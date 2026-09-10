@@ -35,6 +35,10 @@ class MagazineDesign(TimeStampedModel):
     )
     notes_to_editor = models.TextField(blank=True)
 
+    # The newsstand thumbnail readers see in the issue archive. Supplied by
+    # the Designer with the layout; the Publisher may replace it.
+    cover_image = models.ImageField(upload_to="covers/%Y/%m/", null=True, blank=True)
+
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING_REVIEW
     )
