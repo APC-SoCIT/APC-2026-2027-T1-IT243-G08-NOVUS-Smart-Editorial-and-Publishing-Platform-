@@ -1,5 +1,13 @@
 from rest_framework import serializers
 
+
+class RelativeImageField(serializers.ImageField):
+    """Returns "/media/..." instead of an absolute backend URL, so the
+    image resolves through whichever origin serves the frontend."""
+
+    def to_representation(self, value):
+        return value.url if value else None
+
 from apps.editorial.models import Article
 
 
@@ -8,6 +16,8 @@ class PublicArticleListSerializer(serializers.ModelSerializer):
 
     author_name = serializers.CharField(source="writer.get_full_name", read_only=True)
     reading_time = serializers.IntegerField(read_only=True)
+
+    hero_image = RelativeImageField(required=False, allow_null=True)
 
     class Meta:
         model = Article
@@ -24,6 +34,8 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
     def get_images(self, obj):
         from apps.editorial.serializers import ArticleImageSerializer
         return ArticleImageSerializer(obj.images.all(), many=True).data
+
+    hero_image = RelativeImageField(required=False, allow_null=True)
 
     class Meta:
         model = Article

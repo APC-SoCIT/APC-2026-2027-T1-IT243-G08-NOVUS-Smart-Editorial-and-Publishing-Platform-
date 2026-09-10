@@ -1,9 +1,19 @@
 from rest_framework import serializers
 
+
+class RelativeImageField(serializers.ImageField):
+    """Returns "/media/..." instead of an absolute backend URL, so the
+    image resolves through whichever origin serves the frontend."""
+
+    def to_representation(self, value):
+        return value.url if value else None
+
 from .models import Article, ArticleImage, RevisionNote
 
 
 class ArticleImageSerializer(serializers.ModelSerializer):
+    image = RelativeImageField()
+
     class Meta:
         model = ArticleImage
         fields = ["id", "article", "image", "caption", "created_at"]
@@ -61,6 +71,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
     latest_score = serializers.SerializerMethodField()
     image_count = serializers.SerializerMethodField()
 
+    hero_image = RelativeImageField(required=False, allow_null=True)
+
     class Meta:
         model = Article
         fields = [
@@ -89,6 +101,8 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
     latest_evaluation = serializers.SerializerMethodField()
     writer_name = serializers.CharField(source="writer.get_full_name", read_only=True)
+
+    hero_image = RelativeImageField(required=False, allow_null=True)
 
     class Meta:
         model = Article

@@ -9,6 +9,11 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      // Uploaded images are served by Django, not Vite.
+      '/media': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

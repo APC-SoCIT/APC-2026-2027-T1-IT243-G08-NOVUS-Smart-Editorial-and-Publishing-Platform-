@@ -152,3 +152,8 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+
+# Return relative media URLs ("/media/...") rather than absolute ones. The
+# frontend is served from a different origin in development (Vite) and in
+# production (Vercel), so an absolute backend URL is never the right one.
+UPLOADED_FILES_USE_URL = False

@@ -320,3 +320,7 @@ code {
 .prose-area blockquote { border-left: 3px solid #ddd; margin: 0 0 12px; padding-left: 12px; color: #555; }
 
 .prose-area img { max-width: 100%; height: auto; border-radius: 6px; margin: 12px 0; }
+
+a { text-decoration: none; color: inherit; }
+a:hover { text-decoration: none; }
+img { max-width: 100%; }
