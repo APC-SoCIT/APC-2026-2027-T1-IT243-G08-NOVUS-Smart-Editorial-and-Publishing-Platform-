@@ -93,33 +93,44 @@ async function submit() {
 
         <label :class="{ bad: !emailValid }">
           EMAIL ADDRESS
-          <input v-model.trim="email" type="email" autocomplete="username"
+          <input id="staff-email" v-model.trim="email" type="email"
+                 autocomplete="username" required
                  :disabled="throttled" placeholder="you@bossmedia.ph"
+                 :aria-invalid="!emailValid"
+                 aria-describedby="email-note"
                  @keyup.enter="submit" />
         </label>
-        <p v-if="!emailValid" class="fieldnote">Check the format of your email.</p>
+        <p v-if="!emailValid" id="email-note" class="fieldnote">
+          Check the format of your email address.
+        </p>
 
         <label>
           PASSWORD
           <div class="pw">
-            <input v-model="password" :type="showPassword ? 'text' : 'password'"
-                   autocomplete="current-password" :disabled="throttled"
+            <input id="staff-password" v-model="password"
+                   :type="showPassword ? 'text' : 'password'"
+                   autocomplete="current-password" required :disabled="throttled"
+                   aria-describedby="caps-note"
                    @keyup="checkCaps" @keydown="checkCaps" @keyup.enter="submit" />
             <button type="button" class="peek" :disabled="throttled"
+                    :aria-pressed="showPassword"
+                    :aria-label="showPassword ? 'Hide password' : 'Show password'"
                     @click="showPassword = !showPassword">
-              {{ showPassword ? 'Hide' : 'Show' }}
+              <span aria-hidden="true">{{ showPassword ? 'Hide' : 'Show' }}</span>
             </button>
           </div>
         </label>
-        <p v-if="capsOn" class="fieldnote warn">Caps Lock is on.</p>
+        <p v-if="capsOn" id="caps-note" class="fieldnote warn" role="status">
+          Caps Lock is on.
+        </p>
 
-        <p v-if="error" class="error">{{ error }}</p>
+        <p v-if="error" class="error" role="alert">{{ error }}</p>
 
         <button class="signin" :disabled="loading || throttled" @click="submit">
           {{ loading ? 'Verifying…' : 'Sign in' }}
         </button>
 
-        <p v-if="attempts >= 3 && !throttled" class="attempts">
+        <p v-if="attempts >= 3 && !throttled" class="attempts" role="status">
           {{ 5 - attempts }} attempts remaining before this account is locked.
         </p>
 

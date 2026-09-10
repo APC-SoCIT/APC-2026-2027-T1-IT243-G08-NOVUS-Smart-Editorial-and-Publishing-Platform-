@@ -57,8 +57,8 @@ function doEnable() {
     <p v-if="loading">Loading…</p>
 
     <template v-else>
-      <p v-if="error" class="err">{{ error }}</p>
-      <p v-if="saved" class="ok">{{ saved }}</p>
+      <p v-if="error" class="err" role="alert">{{ error }}</p>
+      <p v-if="saved" class="ok" role="status">{{ saved }}</p>
 
       <div class="card" :class="{ live: form.maintenance_mode }">
         <div class="mhead">

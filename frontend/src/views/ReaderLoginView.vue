@@ -62,7 +62,7 @@ async function submit() {
         </div>
       </label>
 
-      <p v-if="error" class="error">{{ error }}</p>
+      <p v-if="error" class="error" role="alert">{{ error }}</p>
 
       <button class="go" :disabled="loading" @click="submit">
         {{ loading ? 'Signing in…' : 'Sign in' }}

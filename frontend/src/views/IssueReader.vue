@@ -36,7 +36,8 @@ const isPdf = () => (issue.value?.replica_url || '').toLowerCase().endsWith('.pd
     <main v-else>
       <div class="head">
         <div class="cover">
-          <img v-if="issue.cover_image" :src="issue.cover_image" alt="" />
+          <img v-if="issue.cover_image" :src="issue.cover_image"
+               :alt="`Cover of Issue ${issue.number}, ${issue.title}`" />
           <div v-else class="placeholder">
             <span class="num">№ {{ issue.number }}</span>
             <span class="ttl">{{ issue.title }}</span>

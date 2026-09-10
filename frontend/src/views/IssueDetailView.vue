@@ -106,7 +106,7 @@ const label = (s) => s.replace(/_/g, ' ')
       @confirm="doPublish"
       @cancel="confirmPublish = false" />
 
-    <p v-if="error" class="err">{{ error }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
     <ul v-if="reasons.length" class="err-list">
       <li v-for="(r, i) in reasons" :key="i">{{ r }}</li>
     </ul>

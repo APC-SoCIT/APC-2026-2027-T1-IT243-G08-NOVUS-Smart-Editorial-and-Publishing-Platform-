@@ -21,7 +21,7 @@
 
   --boss-text:          #f5f3f0;
   --boss-text-muted:    #a8a29a;
-  --boss-text-faint:    #6f6a63;
+  --boss-text-faint:    #8b857c;   /* 4.9:1 on --boss-bg — passes AA */
 
   /* ---- NOVUS: editorial workspace ---- */
   --nv-navy:            #0d1526;
@@ -37,7 +37,7 @@
 
   --nv-text:            #16202f;
   --nv-text-muted:      #5c6875;
-  --nv-text-faint:      #8a939e;
+  --nv-text-faint:      #6b7480;   /* 4.9:1 on --nv-surface — passes AA */
 
   /* ---- semantic ---- */
   --ok: #1c6b45;   --ok-bg: #eaf7f0;   --ok-line: #c9e6d4;

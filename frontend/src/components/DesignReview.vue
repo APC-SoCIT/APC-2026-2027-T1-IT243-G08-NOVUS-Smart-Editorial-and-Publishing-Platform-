@@ -65,7 +65,7 @@ const statusLabel = {
     <p v-if="loading">Loading…</p>
     <p v-else-if="!pending.length" class="empty">No layouts waiting.</p>
 
-    <p v-if="error" class="err">{{ error }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
 
     <div v-for="d in pending" :key="d.id" class="card">
       <div class="top">

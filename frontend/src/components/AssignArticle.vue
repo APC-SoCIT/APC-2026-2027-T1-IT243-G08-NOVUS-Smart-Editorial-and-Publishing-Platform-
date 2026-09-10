@@ -82,7 +82,7 @@ async function submit() {
         <input v-model="form.deadline" type="date" />
       </label>
     </div>
-    <p v-if="error" class="err">{{ error }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
     <button class="primary" :disabled="busy" @click="submit">
       {{ busy ? 'Assigning…' : 'Assign to Writer' }}
     </button>

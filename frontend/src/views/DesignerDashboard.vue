@@ -131,8 +131,8 @@ const statusLabel = {
       <label>NOTES TO EDITOR
         <textarea v-model="notes" rows="3" placeholder="Anything the editor should know…"></textarea>
       </label>
-      <p v-if="error" class="err">{{ error }}</p>
-      <p v-if="ok" class="ok">{{ ok }}</p>
+      <p v-if="error" class="err" role="alert">{{ error }}</p>
+      <p v-if="ok" class="ok" role="status">{{ ok }}</p>
       <button class="primary" :disabled="uploading" @click="upload">
         {{ uploading ? 'Uploading…' : 'Submit Layout for Editor Review' }}
       </button>

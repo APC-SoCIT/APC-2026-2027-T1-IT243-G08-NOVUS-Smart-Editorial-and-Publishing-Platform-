@@ -53,8 +53,8 @@ async function save() {
         {{ busy ? 'Saving…' : 'Save' }}
       </button>
     </div>
-    <p v-if="error" class="err">{{ error }}</p>
-    <p v-if="ok" class="ok">{{ ok }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
+    <p v-if="ok" class="ok" role="status">{{ ok }}</p>
   </div>
 </template>
 

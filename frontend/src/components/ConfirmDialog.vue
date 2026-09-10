@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick, onUnmounted } from 'vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -17,7 +17,56 @@ const props = defineProps({
 const emit = defineEmits(['confirm', 'cancel'])
 
 const typed = ref('')
-watch(() => props.open, (o) => { if (o) typed.value = '' })
+const box = ref(null)
+let lastFocused = null
+
+/* A modal must contain keyboard focus. Without this, Tab walks into the page
+   behind the dialog, which is invisible to a sighted user and confusing to
+   everyone else. Escape closes, and focus returns where it came from. */
+function onKeydown(e) {
+  if (!props.open) return
+
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    emit('cancel')
+    return
+  }
+  if (e.key !== 'Tab' || !box.value) return
+
+  const focusable = box.value.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')
+  if (!focusable.length) return
+
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault(); last.focus()
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault(); first.focus()
+  }
+}
+
+watch(() => props.open, async (o) => {
+  if (o) {
+    typed.value = ''
+    lastFocused = document.activeElement
+    document.addEventListener('keydown', onKeydown)
+    document.body.style.overflow = 'hidden'
+    await nextTick()
+    const target = box.value?.querySelector('input, button')
+    target?.focus()
+  } else {
+    document.removeEventListener('keydown', onKeydown)
+    document.body.style.overflow = ''
+    lastFocused?.focus?.()
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown)
+  document.body.style.overflow = ''
+})
 
 const canConfirm = computed(() =>
   !props.busy && (!props.requireText || typed.value.trim() === props.requireText))
@@ -26,17 +75,22 @@ const canConfirm = computed(() =>
 <template>
   <transition name="fade">
     <div v-if="open" class="scrim" @click.self="emit('cancel')">
-      <div class="box" :class="tone">
-        <h3>{{ title }}</h3>
-        <p v-if="message" class="msg">{{ message }}</p>
+      <div ref="box" class="box focus-trap" :class="tone"
+           role="alertdialog" aria-modal="true"
+           :aria-labelledby="`dlg-title`" :aria-describedby="`dlg-msg`">
+        <h3 id="dlg-title">{{ title }}</h3>
+        <p v-if="message" id="dlg-msg" class="msg">{{ message }}</p>
 
         <ul v-if="points.length" class="points">
           <li v-for="(p, i) in points" :key="i">{{ p }}</li>
         </ul>
 
         <div v-if="requireText" class="typed">
-          <label>Type <b>{{ requireText }}</b> to confirm</label>
-          <input v-model="typed" :placeholder="requireText"
+          <label for="dlg-confirm-text">
+            Type <b>{{ requireText }}</b> to confirm
+          </label>
+          <input id="dlg-confirm-text" v-model="typed" :placeholder="requireText"
+                 autocomplete="off"
                  @keyup.enter="canConfirm && emit('confirm')" />
         </div>
 

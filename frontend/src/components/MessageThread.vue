@@ -83,7 +83,7 @@ const ago = (d) => {
         {{ sending ? 'Sending…' : 'Send' }}
       </button>
     </div>
-    <p v-if="error" class="err">{{ error }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
   </div>
 </template>
 

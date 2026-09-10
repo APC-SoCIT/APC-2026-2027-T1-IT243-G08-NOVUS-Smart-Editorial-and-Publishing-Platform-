@@ -144,7 +144,7 @@ const submitOverride = () => act(() => {
       @confirm="doApprove"
       @cancel="confirmApprove = false" />
 
-    <p v-if="error" class="err">{{ error }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
 
     <!-- Revision composer -->
     <div v-if="showComposer" class="composer">

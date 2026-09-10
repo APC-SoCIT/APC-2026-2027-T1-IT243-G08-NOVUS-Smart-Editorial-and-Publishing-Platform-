@@ -75,7 +75,7 @@ const pct = (i) => i.total_articles
 
 <template>
   <StaffLayout title="Publishing pipeline" subtitle="Issues, releases, and standalone articles">
-    <p v-if="error" class="err">{{ error }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
 
     <ConfirmDialog
       :open="!!pending"

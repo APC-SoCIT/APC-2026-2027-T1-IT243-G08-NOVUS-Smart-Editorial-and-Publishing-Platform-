@@ -42,11 +42,22 @@ async function markAll() {
   items.value.forEach(n => (n.is_read = true))
 }
 
+function onKey(e) {
+  if (e.key === 'Escape' && open.value) {
+    open.value = false
+    document.querySelector('.bell')?.focus()
+  }
+}
+
 onMounted(() => {
+  document.addEventListener('keydown', onKey)
   loadCount()
   timer = setInterval(loadCount, 30000)
 })
-onUnmounted(() => clearInterval(timer))
+onUnmounted(() => {
+  clearInterval(timer)
+  document.removeEventListener('keydown', onKey)
+})
 
 const ago = (d) => {
   const mins = Math.floor((Date.now() - new Date(d)) / 60000)
@@ -62,12 +73,21 @@ const urgent = ['DEADLINE_PASSED', 'RETURNED_BY_AI', 'REVISION', 'DESIGN_REVISIO
 
 <template>
   <div class="bell-wrap">
-    <button class="bell" @click="toggle" :class="{ active: open }">
-      Notifications
-      <span v-if="unread" class="badge">{{ unread > 99 ? '99+' : unread }}</span>
+    <button class="bell" :class="{ active: open }"
+            :aria-expanded="open" aria-haspopup="true"
+            aria-controls="notif-panel"
+            :aria-label="unread
+              ? `Notifications, ${unread} unread`
+              : 'Notifications, none unread'"
+            @click="toggle">
+      <span aria-hidden="true">Notifications</span>
+      <span v-if="unread" class="badge" aria-hidden="true">
+        {{ unread > 99 ? '99+' : unread }}
+      </span>
     </button>
 
-    <div v-if="open" class="panel">
+    <div v-if="open" id="notif-panel" class="panel"
+         role="region" aria-label="Notifications">
       <div class="phead">
         <span>Notifications</span>
         <button v-if="unread" class="mark" @click="markAll">Mark all read</button>
@@ -77,7 +97,10 @@ const urgent = ['DEADLINE_PASSED', 'RETURNED_BY_AI', 'REVISION', 'DESIGN_REVISIO
       <ul v-else>
         <li v-for="n in items" :key="n.id"
             :class="{ unread: !n.is_read, urgent: urgent.includes(n.kind) }"
-            @click="openItem(n)">
+            tabindex="0" role="button"
+            :aria-label="`${n.message}${n.is_read ? '' : ', unread'}`"
+            @click="openItem(n)" @keyup.enter="openItem(n)"
+            @keyup.space.prevent="openItem(n)">
           <p>{{ n.message }}</p>
           <small>{{ ago(n.created_at) }}</small>
         </li>

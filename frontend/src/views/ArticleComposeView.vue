@@ -216,7 +216,8 @@ const active = (n, a) => editor.value?.isActive(n, a)
 
     <label>HERO IMAGE <span class="opt">optional</span></label>
     <div v-if="heroPreview" class="hero-prev">
-      <img :src="heroPreview" alt="" />
+      <img :src="heroPreview"
+           :alt="heroCaption || 'Preview of the hero image for this article'" />
       <button class="rm" @click="clearHero">Remove</button>
     </div>
     <input id="hero-file" type="file" accept="image/*" @change="pickHero" />
@@ -244,7 +245,7 @@ const active = (n, a) => editor.value?.isActive(n, a)
     </div>
     <editor-content :editor="editor" class="editor" />
 
-    <p v-if="error" class="err">{{ error }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
     <p v-if="message" class="ok">{{ message }}</p>
 
     <VersionHistory :versions="versions"

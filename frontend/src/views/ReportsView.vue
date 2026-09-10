@@ -130,7 +130,7 @@ const label = (s) => (s || '').replace(/_/g, ' ').toLowerCase()
       <button class="csv" @click="exportCsv">Export CSV</button>
     </div>
 
-    <p v-if="error" class="err">{{ error }}</p>
+    <p v-if="error" class="err" role="alert">{{ error }}</p>
     <p v-else-if="loading">Loading…</p>
 
     <!-- AI evaluation -->
