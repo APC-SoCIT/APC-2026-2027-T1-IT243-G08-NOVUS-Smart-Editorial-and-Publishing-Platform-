@@ -13,6 +13,8 @@ import DesignerDashboard from '../views/DesignerDashboard.vue'
 import DesignerArticleView from '../views/DesignerArticleView.vue'
 import ReaderHome from '../views/ReaderHome.vue'
 import ReaderArticle from '../views/ReaderArticle.vue'
+import IssueArchive from '../views/IssueArchive.vue'
+import IssueReader from '../views/IssueReader.vue'
 
 const routes = [
   { path: '/', redirect: '/read' },
@@ -30,6 +32,8 @@ const routes = [
   { path: '/designer/article/:id', component: DesignerArticleView, meta: { requiresAuth: true } },
   { path: '/read', component: ReaderHome },
   { path: '/read/:id', component: ReaderArticle },
+  { path: '/issues', component: IssueArchive },
+  { path: '/issues/:id', component: IssueReader },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

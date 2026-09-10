@@ -69,3 +69,58 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
         fields = ["id", "slug", "title", "excerpt", "body", "category", "tags",
                   "hero_image", "hero_caption", "images", "author_name",
                   "reading_time", "is_premium", "is_locked", "published_at"]
+
+
+class PublicIssueListSerializer(serializers.ModelSerializer):
+    """The newsstand view — UC-8.1 Download Digital Issues."""
+
+    cover_image = RelativeImageField(required=False, allow_null=True)
+    article_count = serializers.SerializerMethodField()
+
+    class Meta:
+        from apps.issues.models import Issue
+        model = Issue
+        fields = ["id", "number", "title", "cover_image",
+                  "article_count", "published_at"]
+
+    def get_article_count(self, obj):
+        return obj.articles.count()
+
+
+class PublicIssueDetailSerializer(PublicIssueListSerializer):
+    articles = serializers.SerializerMethodField()
+    replica_url = serializers.SerializerMethodField()
+    replica_available = serializers.BooleanField(read_only=True)
+    can_access = serializers.SerializerMethodField()
+
+    class Meta(PublicIssueListSerializer.Meta):
+        fields = PublicIssueListSerializer.Meta.fields + [
+            "articles", "replica_url", "replica_available", "can_access",
+        ]
+
+    def _is_subscriber(self):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        if user.role != user.Role.READER:
+            return True
+        profile = getattr(user, "reader_profile", None)
+        return bool(profile and profile.tier == profile.Tier.SUBSCRIBER)
+
+    def get_can_access(self, obj):
+        return self._is_subscriber()
+
+    def get_articles(self, obj):
+        return PublicArticleListSerializer(
+            obj.articles.filter(status="PUBLISHED").order_by("issue_order", "id"),
+            many=True, context=self.context,
+        ).data
+
+    def get_replica_url(self, obj):
+        """The PDF is withheld entirely from non-subscribers — unlike article
+        text, there is no partial version of a magazine file."""
+        if not self._is_subscriber():
+            return None
+        design = obj.approved_design
+        return design.file.url if design and design.file else None

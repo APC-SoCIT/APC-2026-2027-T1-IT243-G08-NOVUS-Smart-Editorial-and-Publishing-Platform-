@@ -45,6 +45,7 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
         <a v-for="c in categories" :key="c"
            :class="{ on: active === c }" @click="active = c">{{ c }}</a>
       </div>
+      <router-link to="/issues" class="issues">Issues</router-link>
       <router-link to="/login" class="signin">Sign in</router-link>
     </nav>
 
@@ -108,6 +109,8 @@ nav { display: flex; align-items: center; gap: 28px; padding: 20px 32px;
 .links { display: flex; gap: 20px; flex: 1; font-family: system-ui; font-size: 12px; }
 .links a { cursor: pointer; color: #777; letter-spacing: .8px; text-transform: uppercase; }
 .links a.on { color: #111; font-weight: 600; }
+.issues { font-family: system-ui; font-size: 12px; color: #777;
+          letter-spacing: .8px; text-transform: uppercase; }
 .signin { font-family: system-ui; font-size: 13px; color: #4a7fb5; }
 
 main { max-width: 1040px; margin: 0 auto; padding: 40px 24px 60px; }

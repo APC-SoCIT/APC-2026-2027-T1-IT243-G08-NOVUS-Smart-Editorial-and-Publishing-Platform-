@@ -2,7 +2,12 @@ from rest_framework import generics, permissions
 
 from apps.editorial.models import Article
 
-from .serializers import PublicArticleDetailSerializer, PublicArticleListSerializer
+from .serializers import (
+    PublicArticleDetailSerializer,
+    PublicArticleListSerializer,
+    PublicIssueDetailSerializer,
+    PublicIssueListSerializer,
+)
 
 
 class PublicArticleListView(generics.ListAPIView):
@@ -28,3 +33,28 @@ class PublicArticleDetailView(generics.RetrieveAPIView):
     serializer_class = PublicArticleDetailSerializer
     permission_classes = [permissions.AllowAny]
     queryset = Article.objects.filter(status=Article.Status.PUBLISHED)
+
+
+class PublicIssueListView(generics.ListAPIView):
+    """UC-8.1: the published issue archive. Browsable by anyone; the download
+    itself is subscriber-only."""
+
+    serializer_class = PublicIssueListSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        from apps.issues.models import Issue
+        return Issue.objects.filter(
+            status__in=[Issue.Status.PUBLISHED, Issue.Status.ARCHIVED]
+        ).order_by("-number")
+
+
+class PublicIssueDetailView(generics.RetrieveAPIView):
+    serializer_class = PublicIssueDetailSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        from apps.issues.models import Issue
+        return Issue.objects.filter(
+            status__in=[Issue.Status.PUBLISHED, Issue.Status.ARCHIVED]
+        )

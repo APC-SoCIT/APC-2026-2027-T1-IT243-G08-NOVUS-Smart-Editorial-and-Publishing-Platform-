@@ -1,5 +1,13 @@
 from rest_framework import serializers
 
+
+class RelativeImageField(serializers.ImageField):
+    """Relative URLs so images resolve through whichever origin serves
+    the frontend."""
+
+    def to_representation(self, value):
+        return value.url if value else None
+
 from .models import MagazineDesign
 
 ALLOWED_EXT = {".pdf", ".indd", ".ai", ".psd", ".png", ".jpg", ".jpeg"}
@@ -11,12 +19,13 @@ class MagazineDesignSerializer(serializers.ModelSerializer):
     reviewer_name = serializers.SerializerMethodField()
     file_name = serializers.SerializerMethodField()
     issue_title = serializers.SerializerMethodField()
+    cover_image = RelativeImageField(required=False, allow_null=True)
 
     class Meta:
         model = MagazineDesign
         fields = [
             "id", "issue", "issue_title", "version", "file", "file_name",
-            "designer", "designer_name", "notes_to_editor", "status",
+            "cover_image", "designer", "designer_name", "notes_to_editor", "status",
             "reviewed_by", "reviewer_name", "reviewed_at", "revision_notes",
             "created_at",
         ]
