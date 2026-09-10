@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
-import NotificationBell from '../components/NotificationBell.vue'
+import StaffLayout from '../components/StaffLayout.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -41,16 +41,7 @@ function signOut() {
 </script>
 
 <template>
-  <div class="wrap">
-    <header>
-      <h2>WRITER DASHBOARD</h2>
-      <div class="hactions">
-        <NotificationBell />
-        <button class="out" @click="signOut">Sign out</button>
-      </div>
-    </header>
-    <p class="hi">Welcome back, {{ auth.user?.first_name }}!</p>
-
+  <StaffLayout title="Writer dashboard" subtitle="Your assignments and submissions">
     <div class="cards">
       <div class="card"><b>{{ counts.active }}</b><span>ACTIVE</span></div>
       <div class="card"><b>{{ counts.revision }}</b><span>REVISION</span></div>
@@ -69,11 +60,10 @@ function signOut() {
         <b v-if="a.latest_score">{{ a.latest_score }}</b>
       </li>
     </ul>
-  </div>
+  </StaffLayout>
 </template>
 
 <style scoped>
-.wrap { max-width: 760px; margin: 40px auto; font-family: system-ui; padding: 0 16px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; }
 .hactions { display: flex; gap: 10px; align-items: center; }

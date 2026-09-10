@@ -3,8 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import StaffLayout from '../components/StaffLayout.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
-import NotificationBell from '../components/NotificationBell.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -74,16 +74,7 @@ const pct = (i) => i.total_articles
 </script>
 
 <template>
-  <div class="wrap">
-    <header>
-      <h2>PUBLISHER PIPELINE</h2>
-      <div class="hactions">
-        <NotificationBell />
-        <button class="out" @click="signOut">Sign out</button>
-      </div>
-    </header>
-    <p class="hi">Welcome back, {{ auth.user?.first_name }}!</p>
-
+  <StaffLayout title="Publishing pipeline" subtitle="Issues, releases, and standalone articles">
     <p v-if="error" class="err">{{ error }}</p>
 
     <ConfirmDialog
@@ -175,11 +166,10 @@ const pct = (i) => i.total_articles
         </li>
       </ul>
     </template>
-  </div>
+  </StaffLayout>
 </template>
 
 <style scoped>
-.wrap { max-width: 820px; margin: 40px auto; font-family: system-ui; padding: 0 16px 70px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; }
 .hactions { display: flex; gap: 10px; align-items: center; }

@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
-import NotificationBell from '../components/NotificationBell.vue'
+import StaffLayout from '../components/StaffLayout.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -85,16 +85,7 @@ const statusLabel = {
 </script>
 
 <template>
-  <div class="wrap">
-    <header>
-      <h2>DESIGNER WORKSPACE</h2>
-      <div class="hactions">
-        <NotificationBell />
-        <button class="out" @click="signOut">Sign out</button>
-      </div>
-    </header>
-    <p class="hi">Welcome back, {{ auth.user?.first_name }}!</p>
-
+  <StaffLayout title="Designer workspace" subtitle="Approved copy and magazine layouts">
     <div v-if="needsRevision" class="alert">
       <b>Revision requested on {{ needsRevision.version }}</b>
       <p>{{ needsRevision.revision_notes }}</p>
@@ -171,11 +162,10 @@ const statusLabel = {
         </li>
       </ul>
     </template>
-  </div>
+  </StaffLayout>
 </template>
 
 <style scoped>
-.wrap { max-width: 780px; margin: 40px auto; font-family: system-ui; padding: 0 16px 60px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; }
 .hactions { display: flex; gap: 10px; align-items: center; }
