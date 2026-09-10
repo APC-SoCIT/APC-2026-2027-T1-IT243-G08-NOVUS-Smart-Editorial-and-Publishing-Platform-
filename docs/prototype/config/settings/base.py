@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "apps.ai_eval",
     "apps.publishing",
     "apps.content",
+    "apps.design",
     "apps.notifications",
     "apps.payments",
     "apps.reports",
@@ -136,3 +137,17 @@ else:
 # article reaches the Editor's queue. Business rule, not a technical constant --
 # an Editor can still override the verdict under UC-1.8.
 AI_PASSING_SCORE = 70
+
+# UC-1.12: magazine design assets. Local storage in Phase 1; the container
+# diagram specifies Cloudflare R2 for production.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
+# Declaring STORAGES anywhere replaces Django's defaults wholesale, so the
+# "default" backend must be named explicitly or FileField uploads fail
+# (UC-1.12 Upload Magazine Design).
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}

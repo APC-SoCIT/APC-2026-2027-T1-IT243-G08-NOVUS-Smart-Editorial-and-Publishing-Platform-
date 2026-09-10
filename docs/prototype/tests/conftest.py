@@ -1,4 +1,5 @@
 import pytest
+from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.accounts.models import ReaderProfile, User
@@ -67,3 +68,10 @@ def mock_claude_eval(monkeypatch):
         }
 
     monkeypatch.setattr("apps.editorial.views.evaluate_article", _fake_evaluate)
+
+
+@pytest.fixture(autouse=True)
+def tmp_media(tmp_path, settings):
+    """UC-1.12 uploads go to a temp directory so tests never write into
+    the project's media folder."""
+    settings.MEDIA_ROOT = tmp_path / "media"

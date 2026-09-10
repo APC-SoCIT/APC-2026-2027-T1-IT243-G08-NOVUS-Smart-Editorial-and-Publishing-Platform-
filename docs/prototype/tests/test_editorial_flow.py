@@ -146,3 +146,58 @@ class TestAIPreScreeningGate:
         match = [a for a in listed.data["results"] if a["id"] == aid]
         assert match, "Editor must be able to see AI-returned articles"
         assert match[0]["returned_by_ai"] is True
+
+
+@pytest.mark.django_db
+class TestMagazineDesignFlow:
+    """UC-1.12 through UC-1.15: upload, review, revise, resubmit."""
+
+    def _upload(self, client, version="v1.0", issue="Issue #12"):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        f = SimpleUploadedFile("layout.pdf", b"%PDF-1.4 fake", content_type="application/pdf")
+        return client.post("/api/design/designs/",
+                           {"issue_label": issue, "version": version, "file": f,
+                            "notes_to_editor": "First pass."},
+                           format="multipart")
+
+    def test_designer_uploads_and_editor_approves(self, auth_client, make_user, editor):
+        from apps.accounts.models import User
+        designer = make_user("designer@boss.ph", User.Role.GRAPHIC_DESIGNER)
+        r = self._upload(auth_client(designer))
+        assert r.status_code == status.HTTP_201_CREATED
+        assert r.data["status"] == "PENDING_REVIEW"
+
+        did = r.data["id"]
+        ec = auth_client(editor)
+        approved = ec.post(f"/api/design/designs/{did}/approve/")
+        assert approved.status_code == status.HTTP_200_OK
+        assert approved.data["status"] == "APPROVED"
+
+    def test_editor_requests_revision_and_designer_resubmits(
+        self, auth_client, make_user, editor
+    ):
+        from apps.accounts.models import User
+        from apps.design.models import MagazineDesign
+        designer = make_user("designer2@boss.ph", User.Role.GRAPHIC_DESIGNER)
+        dc = auth_client(designer)
+        did = self._upload(dc).data["id"]
+
+        ec = auth_client(editor)
+        r = ec.post(f"/api/design/designs/{did}/request-revision/",
+                    {"notes": "Cover typography is too tight."})
+        assert r.data["status"] == "REVISION_REQUESTED"
+
+        # UC-1.15: resubmission is a new version; the old one is kept.
+        again = self._upload(auth_client(designer), version="v1.1")
+        assert again.status_code == status.HTTP_201_CREATED
+        assert MagazineDesign.objects.filter(issue_label="Issue #12").count() == 2
+        assert MagazineDesign.objects.get(pk=did).status == "SUPERSEDED"
+
+    def test_rejects_unsupported_file_type(self, auth_client, make_user):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from apps.accounts.models import User
+        designer = make_user("designer3@boss.ph", User.Role.GRAPHIC_DESIGNER)
+        f = SimpleUploadedFile("notes.exe", b"nope", content_type="application/octet-stream")
+        r = auth_client(designer).post("/api/design/designs/",
+            {"issue_label": "Issue #12", "version": "v1.0", "file": f}, format="multipart")
+        assert r.status_code == status.HTTP_400_BAD_REQUEST
