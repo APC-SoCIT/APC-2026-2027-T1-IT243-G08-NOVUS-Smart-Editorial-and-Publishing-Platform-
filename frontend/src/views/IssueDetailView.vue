@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,6 +11,7 @@ const loading = ref(true)
 const busy = ref(false)
 const error = ref('')
 const reasons = ref([])
+const confirmPublish = ref(false)
 
 async function load() {
   const { data } = await api.get(`/publication/issues/${route.params.id}/`)
@@ -17,6 +19,11 @@ async function load() {
   loading.value = false
 }
 onMounted(load)
+
+async function doPublish() {
+  confirmPublish.value = false
+  await publish()
+}
 
 async function publish() {
   error.value = ''; reasons.value = []
@@ -83,13 +90,30 @@ const label = (s) => s.replace(/_/g, ' ')
     </div>
     <p v-else class="empty">No approved layout yet.</p>
 
+    <ConfirmDialog
+      :open="confirmPublish"
+      :title="`Publish Issue #${issue.number}?`"
+      message="Every article in this issue goes live at once and becomes publicly readable."
+      :confirm-label="`Publish Issue #${issue.number}`"
+      tone="danger"
+      :busy="busy"
+      :require-text="`Issue ${issue.number}`"
+      :points="[
+        `${issue.total_articles} articles will be published simultaneously.`,
+        'Their writers are notified.',
+        'Publication cannot be undone — a published issue can only be archived.',
+      ]"
+      @confirm="doPublish"
+      @cancel="confirmPublish = false" />
+
     <p v-if="error" class="err">{{ error }}</p>
     <ul v-if="reasons.length" class="err-list">
       <li v-for="(r, i) in reasons" :key="i">{{ r }}</li>
     </ul>
 
     <button v-if="issue.status !== 'PUBLISHED' && issue.status !== 'ARCHIVED'"
-            class="publish" :disabled="busy || !issue.is_ready" @click="publish">
+            class="publish" :disabled="busy || !issue.is_ready"
+            @click="confirmPublish = true">
       {{ busy ? 'Publishing…' : `Confirm and Publish Issue #${issue.number}` }}
     </button>
     <p v-else class="done">This issue is live on the reader portal.</p>

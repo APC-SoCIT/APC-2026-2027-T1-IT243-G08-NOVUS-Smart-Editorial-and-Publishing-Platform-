@@ -6,6 +6,7 @@ import EvaluationPanel from '../components/EvaluationPanel.vue'
 import IssueAssign from '../components/IssueAssign.vue'
 import MessageThread from '../components/MessageThread.vue'
 import VersionHistory from '../components/VersionHistory.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +21,7 @@ const showComposer = ref(false)
 const notes = ref([])
 const overrideOpen = ref(false)
 const withdrawOpen = ref(false)
+const confirmApprove = ref(false)
 const withdrawReason = ref('')
 const overrideReason = ref('')
 
@@ -51,6 +53,7 @@ async function act(fn) {
 }
 
 const approve = () => act(() => api.post(`/editorial/articles/${id}/approve/`))
+const doApprove = () => { confirmApprove.value = false; approve() }
 
 const withdraw = () => act(() => {
   if (withdrawReason.value.trim().length < 5)
@@ -112,6 +115,20 @@ const submitOverride = () => act(() => {
                     :current-body="article.body" />
 
     <MessageThread :article-id="article.id" />
+
+    <ConfirmDialog
+      :open="confirmApprove"
+      title="Approve this article?"
+      :message="`&quot;${article.title}&quot; will be marked approved and released to the next stage.`"
+      confirm-label="Approve"
+      :busy="busy"
+      :points="[
+        'The writer is notified and can no longer edit it directly.',
+        'It becomes available for assignment to an issue.',
+        'The graphics designer can read it for layout.',
+      ]"
+      @confirm="doApprove"
+      @cancel="confirmApprove = false" />
 
     <p v-if="error" class="err">{{ error }}</p>
 
@@ -177,7 +194,7 @@ const submitOverride = () => act(() => {
         <button v-if="article.latest_evaluation" class="ghost" @click="overrideOpen = true">
           Override AI
         </button>
-        <button class="primary" :disabled="busy" @click="approve">Approve</button>
+        <button class="primary" :disabled="busy" @click="confirmApprove = true">Approve</button>
       </template>
     </div>
   </div>

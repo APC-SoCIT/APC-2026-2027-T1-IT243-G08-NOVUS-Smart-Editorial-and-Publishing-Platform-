@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import NotificationBell from '../components/NotificationBell.vue'
 
 const auth = useAuthStore()
@@ -16,6 +17,7 @@ const busy = ref(null)
 
 const creating = ref(false)
 const form = ref({ number: '', title: '', target_release_date: '' })
+const pending = ref(null)
 
 const live = computed(() => issues.value.filter(i => i.status === 'PUBLISHED'))
 const inProgress = computed(() =>
@@ -84,6 +86,19 @@ const pct = (i) => i.total_articles
 
     <p v-if="error" class="err">{{ error }}</p>
 
+    <ConfirmDialog
+      :open="!!pending"
+      title="Publish this article?"
+      :message="pending ? `&quot;${pending.title}&quot; goes live on the reader portal immediately.` : ''"
+      confirm-label="Publish"
+      :busy="!!busy"
+      :points="[
+        'It is not part of an issue, so it publishes on its own.',
+        'The writer is notified.',
+      ]"
+      @confirm="() => { const a = pending; pending = null; publishStandalone(a) }"
+      @cancel="pending = null" />
+
     <div class="head">
       <h3>Issues in preparation</h3>
       <button class="new" @click="creating = !creating">
@@ -141,7 +156,7 @@ const pct = (i) => i.total_articles
             <em>{{ a.writer_name }} · {{ a.category || 'Uncategorised' }}</em>
           </div>
           <button class="pub" :disabled="busy === `a${a.id}`"
-                  @click="publishStandalone(a)">
+                  @click="pending = a">
             {{ busy === `a${a.id}` ? 'Publishing…' : 'Publish' }}
           </button>
         </li>
