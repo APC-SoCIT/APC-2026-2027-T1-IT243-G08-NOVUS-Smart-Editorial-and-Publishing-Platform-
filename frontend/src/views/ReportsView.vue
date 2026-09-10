@@ -33,23 +33,19 @@ onMounted(load)
 
 function pick(k) { tab.value = k; load() }
 
+const T = () => data.value.threshold ?? 70
+
 const scoreChart = computed(() => {
   const d = data.value.distribution || []
   return {
     series: [{ name: 'Evaluations', data: d.map(b => b.count) }],
     options: {
       chart: { type: 'bar' },
-      plotOptions: { bar: { columnWidth: '62%', borderRadius: 3,
-                            distributed: true } },
+      plotOptions: { bar: { columnWidth: '62%', borderRadius: 3, distributed: true } },
       legend: { show: false },
-      // Bands below the passing mark are shown in red so the gate is legible
-      // at a glance rather than needing the caption.
-      colors: d.map(b => parseInt(b.band) < (data.value.threshold ?? 70)
-        ? '#c95757' : '#4a7fb5'),
-      xaxis: { categories: d.map(b => b.band), title: { text: 'Score band',
-               style: { fontSize: '11px', color: '#8a939e', fontWeight: 500 } } },
-      yaxis: { title: { text: 'Articles',
-               style: { fontSize: '11px', color: '#8a939e', fontWeight: 500 } } },
+      // Bands below the passing mark are red, so the gate reads at a glance.
+      colors: d.map(b => parseInt(b.band) < T() ? '#c95757' : '#4a7fb5'),
+      xaxis: { categories: d.map(b => b.band) },
     },
   }
 })
@@ -60,11 +56,7 @@ const gateChart = computed(() => ({
     chart: { type: 'donut' },
     labels: ['Passed to editor', 'Returned to writer'],
     colors: ['#1c6b45', '#c95757'],
-    plotOptions: { pie: { donut: { size: '68%', labels: {
-      show: true,
-      total: { show: true, label: 'Evaluations', fontSize: '12px',
-               color: '#8a939e' },
-    } } } },
+    plotOptions: { pie: { donut: { size: '68%' } } },
     stroke: { width: 0 },
   },
 }))
@@ -161,17 +153,16 @@ const label = (s) => (s || '').replace(/_/g, ' ').toLowerCase()
         type="bar"
         :series="scoreChart.series"
         :options="scoreChart.options"
-        :description="`Bar chart of evaluation scores in ten-point bands. ${data.passed} of ${data.total_evaluations} evaluations scored at or above the passing mark of ${data.threshold}.`" />
+        :description="`Bar chart of evaluation scores in ten-point bands. ${data.passed} of ${data.total_evaluations} scored at or above ${data.threshold}.`" />
 
-      <div class="two">
-        <ChartCard
-          title="Gate outcomes"
-          caption="How submissions divided at the pre-screening threshold."
-          type="donut"
-          :height="280"
-          :series="gateChart.series"
-          :options="gateChart.options"
-          :description="`${data.passed} evaluations passed to an editor and ${data.failed} were returned to their writer.`" />
+      <ChartCard
+        title="Gate outcomes"
+        caption="How submissions divided at the pre-screening threshold."
+        type="donut"
+        :height="280"
+        :series="gateChart.series"
+        :options="gateChart.options"
+        :description="`${data.passed} evaluations passed to an editor and ${data.failed} were returned.`" />
 
       <div class="two">
         <div class="card">
@@ -216,15 +207,6 @@ const label = (s) => (s || '').replace(/_/g, ' ').toLowerCase()
         :series="statusChart.series"
         :options="statusChart.options"
         :description="`Horizontal bar chart of ${data.total} articles grouped by workflow status.`" />
-
-      <ChartCard
-        title="Writer output"
-        caption="Published, in progress, and overdue per writer."
-        type="bar"
-        :height="280"
-        :series="writerChart.series"
-        :options="writerChart.options"
-        :description="`Stacked bar chart comparing output across ${(data.writers || []).length} writers.`" />
 
       <div class="card">
         <h4>Writer output</h4>
