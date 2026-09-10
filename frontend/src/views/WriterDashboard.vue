@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import NotificationBell from '../components/NotificationBell.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -43,7 +44,10 @@ function signOut() {
   <div class="wrap">
     <header>
       <h2>WRITER DASHBOARD</h2>
-      <button class="out" @click="signOut">Sign out</button>
+      <div class="hactions">
+        <NotificationBell />
+        <button class="out" @click="signOut">Sign out</button>
+      </div>
     </header>
     <p class="hi">Welcome back, {{ auth.user?.first_name }}!</p>
 
@@ -72,6 +76,7 @@ function signOut() {
 .wrap { max-width: 760px; margin: 40px auto; font-family: system-ui; padding: 0 16px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; }
+.hactions { display: flex; gap: 10px; align-items: center; }
 .out { border: 1px solid #ccc; background: #fff; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
 .hi { color: #555; }
 .cards { display: flex; gap: 12px; margin: 22px 0; }

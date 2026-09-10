@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import NotificationBell from '../components/NotificationBell.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -87,7 +88,10 @@ const statusLabel = {
   <div class="wrap">
     <header>
       <h2>DESIGNER WORKSPACE</h2>
-      <button class="out" @click="signOut">Sign out</button>
+      <div class="hactions">
+        <NotificationBell />
+        <button class="out" @click="signOut">Sign out</button>
+      </div>
     </header>
     <p class="hi">Welcome back, {{ auth.user?.first_name }}!</p>
 
@@ -174,6 +178,7 @@ const statusLabel = {
 .wrap { max-width: 780px; margin: 40px auto; font-family: system-ui; padding: 0 16px 60px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; }
+.hactions { display: flex; gap: 10px; align-items: center; }
 .out { border: 1px solid #ccc; background: #fff; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
 .hi { color: #555; }
 h3 { margin: 30px 0 10px; font-size: 15px; }
