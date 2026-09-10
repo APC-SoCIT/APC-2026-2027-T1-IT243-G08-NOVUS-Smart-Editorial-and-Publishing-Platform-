@@ -10,7 +10,7 @@ from apps.ai_eval.models import ArticleEvaluation
 from apps.ai_eval.serializers import ArticleEvaluationSerializer
 from apps.ai_eval.services import evaluate_article
 from apps.common.permissions import role_permission
-from apps.publishing.services import publish_article
+from apps.publishing.services import NotReady, publish_article
 
 from .models import Article, RevisionNote
 
@@ -64,7 +64,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return [role_permission("WRITER")()]
         if self.action == "request_revision":
             return [role_permission("EDITOR")()]
-        if self.action in ("approve", "override"):
+        if self.action in ("approve", "override", "assign_to_issue"):
             return [role_permission("EDITOR")()]
         if self.action == "publish":
             return [role_permission("PUBLISHER")()]
@@ -172,13 +172,49 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.save(update_fields=["status", "editor", "updated_at"])
         return Response(ArticleDetailSerializer(article).data)
 
+    @action(detail=True, methods=["post"], url_path="assign-issue")
+    def assign_to_issue(self, request, pk=None):
+        """UC-1.11 Assign Article to Issue. Only approved articles can be
+        assigned, and only to an issue that still accepts them."""
+        from apps.issues.models import Issue
+
+        article = self.get_object()
+        if article.status != Article.Status.APPROVED:
+            return Response(
+                {"detail": "Only an approved article can be assigned to an issue."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        issue_id = request.data.get("issue")
+        if issue_id in (None, ""):
+            article.issue = None
+            article.save(update_fields=["issue", "updated_at"])
+            return Response(ArticleDetailSerializer(article).data)
+
+        try:
+            issue = Issue.objects.get(pk=issue_id)
+        except Issue.DoesNotExist:
+            return Response({"detail": "Issue not found."},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        if issue.status in (Issue.Status.PUBLISHED, Issue.Status.ARCHIVED):
+            return Response(
+                {"detail": f"Issue #{issue.number} no longer accepts articles."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        article.issue = issue
+        article.save(update_fields=["issue", "updated_at"])
+        return Response(ArticleDetailSerializer(article).data)
+
     @action(detail=True, methods=["post"])
     def publish(self, request, pk=None):
-        """UC-2.3 Execute Live Publishing — simplified to a single Article
-        for the Phase-1 demo. See README 'Deliberate MVP simplification'."""
+        """UC-2.5, standalone path: publish an approved article that is not
+        assigned to an issue. Issue-bound articles publish via the issue."""
         article = self.get_object()
         try:
-            publish_article(article)
-        except ValueError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+            publish_article(article, request.user)
+        except NotReady as exc:
+            return Response({"detail": exc.reasons[0], "reasons": exc.reasons},
+                            status=status.HTTP_409_CONFLICT)
         return Response(ArticleDetailSerializer(article).data)

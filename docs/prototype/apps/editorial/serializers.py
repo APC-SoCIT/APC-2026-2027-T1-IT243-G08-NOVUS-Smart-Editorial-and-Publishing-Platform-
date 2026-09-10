@@ -30,7 +30,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
         model = Article
         fields = [
             "id", "title", "status", "category", "writer", "writer_name",
-            "editor", "latest_score", "returned_by_ai", "created_at", "updated_at",
+            "editor", "latest_score", "returned_by_ai", "issue",
+            "created_at", "updated_at",
         ]
 
     def get_latest_score(self, obj):
@@ -48,7 +49,8 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "body", "category", "tags", "status",
             "writer", "writer_name", "editor", "published_at",
-            "withdrawal_reason", "returned_by_ai", "revision_notes", "latest_evaluation",
+            "withdrawal_reason", "returned_by_ai", "issue", "revision_notes",
+            "latest_evaluation",
             "created_at", "updated_at",
         ]
         read_only_fields = [

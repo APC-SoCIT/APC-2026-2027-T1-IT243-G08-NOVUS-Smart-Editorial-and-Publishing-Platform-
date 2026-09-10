@@ -22,10 +22,8 @@ class MagazineDesign(TimeStampedModel):
         REVISION_REQUESTED = "REVISION_REQUESTED", "Revision Requested"
         SUPERSEDED = "SUPERSEDED", "Superseded"
 
-    # Phase 2 replaces this with a FK to Issue (UC-2.2 Compile Issue).
-    issue_label = models.CharField(
-        max_length=100,
-        help_text="Issue this layout belongs to, e.g. 'Issue #12'.",
+    issue = models.ForeignKey(
+        "issues.Issue", on_delete=models.CASCADE, related_name="designs",
     )
     version = models.CharField(max_length=20, default="v1.0")
     file = models.FileField(upload_to="designs/%Y/%m/")
@@ -55,10 +53,10 @@ class MagazineDesign(TimeStampedModel):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["issue_label", "version"],
+                fields=["issue", "version"],
                 name="unique_design_version_per_issue",
             )
         ]
 
     def __str__(self):
-        return f"{self.issue_label} {self.version} ({self.status})"
+        return f"{self.issue} {self.version} ({self.status})"

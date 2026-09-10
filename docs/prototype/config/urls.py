@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/ai-eval/", include("apps.ai_eval.urls")),
     path("api/content/", include("apps.content.urls")),
     path("api/design/", include("apps.design.urls")),
+    path("api/publication/", include("apps.issues.urls")),
 ]
 
 if settings.DEBUG:

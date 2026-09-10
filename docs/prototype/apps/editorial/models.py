@@ -42,6 +42,14 @@ class Article(TimeStampedModel):
     # revision notes, because a failing submission may carry no suggestions.
     returned_by_ai = models.BooleanField(default=False)
 
+    # UC-1.11 Assign Article to Issue. Null until an Editor assigns it;
+    # an article cannot be published outside an issue (UC-2.5).
+    issue = models.ForeignKey(
+        "issues.Issue", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="articles",
+    )
+    issue_order = models.PositiveSmallIntegerField(default=0)
+
     def __str__(self):
         return f"{self.title} [{self.status}]"
 

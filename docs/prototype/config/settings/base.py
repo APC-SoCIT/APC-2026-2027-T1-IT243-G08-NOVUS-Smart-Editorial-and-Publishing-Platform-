@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "apps.publishing",
     "apps.content",
     "apps.design",
+    "apps.issues",
     "apps.notifications",
     "apps.payments",
     "apps.reports",
