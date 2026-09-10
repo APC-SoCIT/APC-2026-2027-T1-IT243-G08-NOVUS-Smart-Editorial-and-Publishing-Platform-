@@ -59,7 +59,10 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
             <img :src="lead.hero_image" alt="" />
           </div>
           <div class="lead-text">
-            <span class="kicker">{{ lead.category || 'Featured' }}</span>
+            <span class="kicker">
+              {{ lead.category || 'Featured' }}
+              <span v-if="lead.is_premium" class="lock">· Subscriber</span>
+            </span>
             <h1>{{ lead.title }}</h1>
             <p v-if="lead.excerpt" class="stand">{{ lead.excerpt }}</p>
             <p class="meta">
@@ -76,7 +79,10 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
             <div v-if="a.hero_image" class="thumb">
               <img :src="a.hero_image" alt="" />
             </div>
-            <span class="cat">{{ a.category || 'General' }}</span>
+            <span class="cat">
+              {{ a.category || 'General' }}
+              <span v-if="a.is_premium" class="lock">· Subscriber</span>
+            </span>
             <h4>{{ a.title }}</h4>
             <p v-if="a.excerpt" class="ex">{{ a.excerpt }}</p>
             <p class="meta">
@@ -130,6 +136,8 @@ h3 { font-family: system-ui; font-size: 12px; letter-spacing: 1.4px;
 .card.no-img { border-left: 3px solid #e6e6e6; padding-left: 16px; }
 .cat { font-family: system-ui; font-size: 10px; letter-spacing: 1.2px;
        text-transform: uppercase; color: #4a7fb5; }
+.lock { color: #96631a; }
+.lead.no-img .lock { color: #d9ad6a; }
 .card h4 { font-size: 20px; line-height: 1.3; margin: 7px 0; }
 .ex { font-size: 14px; line-height: 1.55; color: #666; margin: 0 0 9px; }
 

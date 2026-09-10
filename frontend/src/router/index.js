@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import ReaderLoginView from '../views/ReaderLoginView.vue'
+import ReaderRegisterView from '../views/ReaderRegisterView.vue'
 import StaffLoginView from '../views/StaffLoginView.vue'
 import WriterDashboard from '../views/WriterDashboard.vue'
 import ArticleComposeView from '../views/ArticleComposeView.vue'
@@ -16,6 +17,7 @@ import ReaderArticle from '../views/ReaderArticle.vue'
 const routes = [
   { path: '/', redirect: '/read' },
   { path: '/login', component: ReaderLoginView },
+  { path: '/register', component: ReaderRegisterView },
   { path: '/staff/login', component: StaffLoginView },
   { path: '/writer', component: WriterDashboard, meta: { requiresAuth: true } },
   { path: '/writer/compose', component: ArticleComposeView, meta: { requiresAuth: true } },

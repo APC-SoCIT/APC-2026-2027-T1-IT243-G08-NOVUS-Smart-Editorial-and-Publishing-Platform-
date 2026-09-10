@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../services/api'
+import Paywall from '../components/Paywall.vue'
 
 const route = useRoute()
 const article = ref(null)
@@ -43,9 +44,14 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
         <figcaption v-if="article.hero_caption">{{ article.hero_caption }}</figcaption>
       </figure>
 
-      <div class="body" v-html="article.body"></div>
+      <div class="body" :class="{ clipped: article.is_locked }"
+           v-html="article.body"></div>
 
-      <router-link to="/read" class="back">← All articles</router-link>
+      <Paywall v-if="article.is_locked" />
+
+      <router-link v-if="!article.is_locked" to="/read" class="back">
+        ← All articles
+      </router-link>
     </article>
   </div>
 </template>
@@ -77,6 +83,7 @@ h1 { font-size: 40px; line-height: 1.18; margin: 10px 0 14px; }
                           margin: 26px 0; font-style: italic; color: #555; }
 .body :deep(ul), .body :deep(ol) { padding-left: 26px; margin: 0 0 20px; }
 
+.body.clipped { max-height: 420px; overflow: hidden; }
 .back { display: inline-block; margin-top: 44px; font-family: system-ui;
         font-size: 13px; color: #4a7fb5; }
 .state { color: #888; font-family: system-ui; text-align: center; padding: 60px; }

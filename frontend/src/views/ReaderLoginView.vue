@@ -69,6 +69,7 @@ async function submit() {
       </button>
 
       <p class="note">Free articles need no account.</p>
+      <p class="alt">New here? <router-link to="/register">Create an account</router-link></p>
       <p class="alt"><router-link to="/staff/login">Editorial team login</router-link></p>
     </div>
   </div>
