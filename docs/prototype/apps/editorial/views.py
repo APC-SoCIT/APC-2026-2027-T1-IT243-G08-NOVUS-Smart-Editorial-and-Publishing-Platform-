@@ -43,6 +43,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
               .order_by("-updated_at"))
         if user.role == user.Role.WRITER:
             return qs.filter(writer=user)
+        if user.role == user.Role.GRAPHIC_DESIGNER:
+            # UC-1.12: a Designer lays out finalised copy only. Drafts and
+            # articles still under review are not theirs to see.
+            return qs.filter(status__in=[Article.Status.APPROVED,
+                                         Article.Status.PUBLISHED])
         # Editor / Publisher / Admin see the full pipeline; Reader/Subscriber
         # never hit this queryset — they're routed to apps.content instead.
         return qs

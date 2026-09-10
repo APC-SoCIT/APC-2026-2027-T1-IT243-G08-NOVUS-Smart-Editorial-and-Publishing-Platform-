@@ -201,3 +201,39 @@ class TestMagazineDesignFlow:
         r = auth_client(designer).post("/api/design/designs/",
             {"issue_label": "Issue #12", "version": "v1.0", "file": f}, format="multipart")
         assert r.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+class TestDesignerArticleAccess:
+    """UC-1.12: the Designer reads finalised copy, not the whole pipeline."""
+
+    def test_designer_sees_only_approved_and_published(
+        self, auth_client, make_user, writer
+    ):
+        from apps.accounts.models import User
+        designer = make_user("designer4@boss.ph", User.Role.GRAPHIC_DESIGNER)
+
+        approved = Article.objects.create(
+            writer=writer, title="Ready", body="<p>Final copy.</p>",
+            category="Tech", status=Article.Status.APPROVED)
+        draft = Article.objects.create(
+            writer=writer, title="Not ready", body="<p>Notes.</p>",
+            category="Tech", status=Article.Status.DRAFTING)
+
+        r = auth_client(designer).get("/api/editorial/articles/")
+        ids = [a["id"] for a in r.data["results"]]
+        assert approved.id in ids
+        assert draft.id not in ids, "Designer must not see drafts"
+
+    def test_designer_can_read_approved_article_body(
+        self, auth_client, make_user, writer
+    ):
+        from apps.accounts.models import User
+        designer = make_user("designer5@boss.ph", User.Role.GRAPHIC_DESIGNER)
+        a = Article.objects.create(
+            writer=writer, title="Layout me", body="<p>Body for layout.</p>",
+            category="Life", status=Article.Status.APPROVED)
+
+        r = auth_client(designer).get(f"/api/editorial/articles/{a.id}/")
+        assert r.status_code == status.HTTP_200_OK
+        assert "Body for layout" in r.data["body"]
