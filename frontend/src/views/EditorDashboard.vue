@@ -5,6 +5,7 @@ import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import NotificationBell from '../components/NotificationBell.vue'
 import DesignReview from '../components/DesignReview.vue'
+import PipelinePanel from '../components/PipelinePanel.vue'
 import AssignArticle from '../components/AssignArticle.vue'
 
 const auth = useAuthStore()
@@ -51,6 +52,8 @@ const scoreClass = (s) => s === null ? 'none' : s >= 70 ? 'good' : 'bad'
       <div class="card"><b>{{ pending.length }}</b><span>UNDER REVIEW</span></div>
       <div class="card"><b>{{ approved.length }}</b><span>APPROVED</span></div>
     </div>
+
+    <PipelinePanel />
 
     <AssignArticle @assigned="load" />
 

@@ -210,6 +210,53 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.save(update_fields=["status", "editor", "updated_at"])
         return Response(ArticleDetailSerializer(article).data)
 
+    @action(detail=False, methods=["get"])
+    def pipeline(self, request):
+        """UC-1.16 View Pipeline Dashboard. Counts by status, deadline
+        pressure, and per-writer workload — the assignment tracking the
+        Publisher pipeline view depends on."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        qs = self.get_queryset()
+        today = timezone.now().date()
+        open_statuses = [Article.Status.ASSIGNED, Article.Status.DRAFTING,
+                         Article.Status.REVISION_REQUESTED]
+
+        by_status = {}
+        for value, _label in Article.Status.choices:
+            by_status[value] = qs.filter(status=value).count()
+
+        open_qs = qs.filter(status__in=open_statuses)
+        overdue = open_qs.filter(deadline__lt=today)
+        near = open_qs.filter(deadline__gte=today,
+                              deadline__lte=today + timedelta(days=2))
+
+        workload = {}
+        for a in open_qs.select_related("writer"):
+            name = a.writer.get_full_name() if a.writer else "Unassigned"
+            entry = workload.setdefault(name, {"open": 0, "overdue": 0})
+            entry["open"] += 1
+            if a.deadline and a.deadline < today:
+                entry["overdue"] += 1
+
+        return Response({
+            "by_status": by_status,
+            "total": qs.count(),
+            "open": open_qs.count(),
+            "overdue": overdue.count(),
+            "due_soon": near.count(),
+            "unassigned_to_issue": qs.filter(
+                status=Article.Status.APPROVED, issue__isnull=True).count(),
+            "workload": [
+                {"writer": k, **v}
+                for k, v in sorted(workload.items(), key=lambda x: -x[1]["open"])
+            ],
+            "overdue_articles": ArticleListSerializer(
+                overdue.select_related("writer")[:10], many=True).data,
+        })
+
     @action(detail=False, methods=["post"])
     def assign(self, request):
         """UC-1.1 Assign Article. Creates the record in ASSIGNED status and
