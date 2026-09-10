@@ -46,6 +46,12 @@ def publish_issue(issue, publisher):
     issue.scheduled_for = None
     issue.save(update_fields=["status", "published_at", "published_by",
                               "scheduled_for", "updated_at"])
+
+    from apps.notifications.models import Notification
+    from apps.notifications.services import notify_many
+    notify_many([a.writer for a in issue.articles.all()],
+                Notification.Kind.PUBLISHED,
+                f"{issue} is now live.", "/read")
     return issue
 
 
@@ -67,4 +73,9 @@ def publish_article(article, publisher):
     article.status = Article.Status.PUBLISHED
     article.published_at = timezone.now()
     article.save(update_fields=["status", "published_at", "updated_at"])
+
+    from apps.notifications.models import Notification
+    from apps.notifications.services import notify
+    notify(article.writer, Notification.Kind.PUBLISHED,
+           f'"{article.title}" is now live.', f"/read/{article.id}")
     return article

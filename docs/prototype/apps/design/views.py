@@ -5,6 +5,8 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from apps.common.permissions import role_permission
+from apps.notifications.models import Notification
+from apps.notifications.services import notify_many, notify
 
 from .models import MagazineDesign
 from .serializers import DesignRevisionSerializer, MagazineDesignSerializer
@@ -45,6 +47,12 @@ class MagazineDesignViewSet(viewsets.ModelViewSet):
                                 MagazineDesign.Status.REVISION_REQUESTED])
             .update(status=MagazineDesign.Status.SUPERSEDED))
 
+        from apps.accounts.models import User
+        notify_many(User.objects.filter(role=User.Role.EDITOR, is_active=True),
+                    Notification.Kind.DESIGN_UPLOADED,
+                    f"A layout for {design.issue} awaits review.",
+                    "/editor")
+
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         """UC-1.13: Editor approves the layout for publication."""
@@ -58,6 +66,9 @@ class MagazineDesignViewSet(viewsets.ModelViewSet):
         design.reviewed_by = request.user
         design.reviewed_at = timezone.now()
         design.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+        notify(design.designer, Notification.Kind.DESIGN_APPROVED,
+               f"Your layout {design.version} for {design.issue} was approved.",
+               "/designer")
         return Response(MagazineDesignSerializer(design).data)
 
     @action(detail=True, methods=["post"], url_path="request-revision")
@@ -78,4 +89,7 @@ class MagazineDesignViewSet(viewsets.ModelViewSet):
         design.reviewed_at = timezone.now()
         design.save(update_fields=["status", "revision_notes", "reviewed_by",
                                    "reviewed_at", "updated_at"])
+        notify(design.designer, Notification.Kind.DESIGN_REVISION,
+               f"Revisions requested on {design.version} for {design.issue}.",
+               "/designer")
         return Response(MagazineDesignSerializer(design).data)

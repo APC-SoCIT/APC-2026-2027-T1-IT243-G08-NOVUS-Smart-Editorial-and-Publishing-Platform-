@@ -11,6 +11,8 @@ from apps.ai_eval.models import ArticleEvaluation
 from apps.ai_eval.serializers import ArticleEvaluationSerializer
 from apps.ai_eval.services import evaluate_article
 from apps.common.permissions import role_permission
+from apps.notifications.models import Notification
+from apps.notifications.services import notify
 from apps.publishing.services import NotReady, publish_article
 
 from .models import Article, ArticleImage, ArticleVersion, RevisionNote
@@ -145,6 +147,16 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 )
         article.save(update_fields=["status", "returned_by_ai", "updated_at"])
 
+        if passed:
+            notify(article.editor or article.assigned_by,
+                   Notification.Kind.SUBMITTED,
+                   f'"{article.title}" passed pre-screening and awaits review.',
+                   f"/editor/review/{article.id}")
+        else:
+            notify(article.writer, Notification.Kind.RETURNED_BY_AI,
+                   f'"{article.title}" scored {evaluation.overall_score} and was returned for revision.',
+                   f"/writer/compose/{article.id}")
+
         payload = ArticleEvaluationSerializer(evaluation).data
         payload["gate"] = "PASSED" if passed else "RETURNED"
         payload["threshold"] = threshold
@@ -157,6 +169,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
         serializer = RequestRevisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(article=article, editor=request.user)
+        notify(article.writer, Notification.Kind.REVISION,
+               f'{request.user.get_full_name()} requested revisions on "{article.title}".',
+               f"/writer/compose/{article.id}")
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["post"])
@@ -167,6 +182,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.status = Article.Status.APPROVED
         article.editor = request.user
         article.save(update_fields=["status", "editor", "updated_at"])
+        notify(article.writer, Notification.Kind.APPROVED,
+               f'"{article.title}" was approved.',
+               f"/writer/compose/{article.id}")
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["post"])
@@ -201,6 +219,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         article = serializer.save()
+        notify(article.writer, Notification.Kind.ASSIGNED,
+               f'You have been assigned "{article.title}".',
+               f"/writer/compose/{article.id}")
         return Response(ArticleDetailSerializer(article).data,
                         status=status.HTTP_201_CREATED)
 
@@ -227,6 +248,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
         if request.data.get("deadline"):
             article.deadline = request.data["deadline"]
         article.save(update_fields=["writer", "deadline", "updated_at"])
+        notify(writer, Notification.Kind.ASSIGNED,
+               f'"{article.title}" has been reassigned to you.',
+               f"/writer/compose/{article.id}")
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["post"])
