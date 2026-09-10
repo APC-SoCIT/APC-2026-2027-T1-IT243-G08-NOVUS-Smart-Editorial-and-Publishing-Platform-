@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
 
@@ -20,11 +21,16 @@ const evaluation = ref(null)
 const returnedByAi = ref(false)
 const status = ref('DRAFTING')
 const briefText = ref('')
+const excerpt = ref('')
+const heroFile = ref(null)
+const heroPreview = ref(null)
+const heroCaption = ref('')
+const uploadingImage = ref(false)
 const deadline = ref(null)
 
 const editor = useEditor({
   content: '',
-  extensions: [StarterKit, Link.configure({ openOnClick: false })],
+  extensions: [StarterKit, Link.configure({ openOnClick: false }), Image],
   editorProps: { attributes: { class: 'prose-area' } },
 })
 
@@ -35,27 +41,79 @@ onMounted(async () => {
   category.value = data.category
   status.value = data.status
   briefText.value = data.brief || ''
+  excerpt.value = data.excerpt || ''
+  heroCaption.value = data.hero_caption || ''
+  heroPreview.value = data.hero_image
   deadline.value = data.deadline
   evaluation.value = data.latest_evaluation
   returnedByAi.value = data.returned_by_ai
   editor.value?.commands.setContent(data.body)
 })
 
-const payload = () => ({
-  title: title.value,
-  body: editor.value?.getHTML() || '',
-  category: category.value,
-})
+function payload() {
+  const base = {
+    title: title.value,
+    body: editor.value?.getHTML() || '',
+    category: category.value,
+    excerpt: excerpt.value,
+    hero_caption: heroCaption.value,
+  }
+  if (!heroFile.value) return { data: base, config: {} }
+
+  const fd = new FormData()
+  Object.entries(base).forEach(([k, v]) => fd.append(k, v))
+  fd.append('hero_image', heroFile.value)
+  return { data: fd, config: { headers: { 'Content-Type': 'multipart/form-data' } } }
+}
+
+function pickHero(e) {
+  const f = e.target.files[0]
+  if (!f) return
+  heroFile.value = f
+  heroPreview.value = URL.createObjectURL(f)
+}
+
+function clearHero() {
+  heroFile.value = null
+  heroPreview.value = null
+  const el = document.getElementById('hero-file')
+  if (el) el.value = ''
+}
+
+async function insertImage(e) {
+  const f = e.target.files[0]
+  if (!f) return
+  if (!articleId.value) {
+    error.value = 'Save the draft first, then add images.'
+    return
+  }
+  uploadingImage.value = true
+  try {
+    const fd = new FormData()
+    fd.append('article', articleId.value)
+    fd.append('image', f)
+    const { data } = await api.post('/editorial/images/', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    editor.value?.chain().focus().setImage({ src: data.image }).run()
+  } catch {
+    error.value = 'Could not upload the image.'
+  } finally {
+    uploadingImage.value = false
+    e.target.value = ''
+  }
+}
 
 async function saveDraft() {
   error.value = ''; message.value = ''
   if (!title.value.trim()) { error.value = 'A headline is required.'; return false }
   saving.value = true
   try {
+    const { data: body, config } = payload()
     if (articleId.value) {
-      await api.patch(`/editorial/articles/${articleId.value}/`, payload())
+      await api.patch(`/editorial/articles/${articleId.value}/`, body, config)
     } else {
-      const { data } = await api.post('/editorial/articles/', payload())
+      const { data } = await api.post('/editorial/articles/', body, config)
       articleId.value = data.id
       router.replace(`/writer/compose/${data.id}`)
     }
@@ -111,6 +169,20 @@ const active = (n, a) => editor.value?.isActive(n, a)
       <option>Innovation</option><option>Leadership</option>
     </select>
 
+    <label>STANDFIRST <span class="opt">optional</span>
+      <input v-model="excerpt" maxlength="300"
+             placeholder="One sentence shown under the headline and on cards" />
+    </label>
+
+    <label>HERO IMAGE <span class="opt">optional</span></label>
+    <div v-if="heroPreview" class="hero-prev">
+      <img :src="heroPreview" alt="" />
+      <button class="rm" @click="clearHero">Remove</button>
+    </div>
+    <input id="hero-file" type="file" accept="image/*" @change="pickHero" />
+    <input v-if="heroPreview" v-model="heroCaption" class="cap"
+           placeholder="Photo caption or credit" />
+
     <label>BODY</label>
     <div v-if="editor" class="toolbar">
       <button :class="{ on: active('bold') }" @click="btn('toggleBold')"><b>B</b></button>
@@ -124,6 +196,11 @@ const active = (n, a) => editor.value?.isActive(n, a)
       <button :class="{ on: active('bulletList') }" @click="btn('toggleBulletList')">• List</button>
       <button :class="{ on: active('orderedList') }" @click="btn('toggleOrderedList')">1. List</button>
       <button :class="{ on: active('blockquote') }" @click="btn('toggleBlockquote')">" Quote</button>
+      <span class="sep"></span>
+      <label class="imgbtn">
+        {{ uploadingImage ? 'Uploading…' : 'Image' }}
+        <input type="file" accept="image/*" @change="insertImage" hidden />
+      </label>
     </div>
     <editor-content :editor="editor" class="editor" />
 
@@ -159,6 +236,15 @@ label { display: block; font-size: 11px; margin-top: 22px; color: #555; letter-s
            border-bottom: 0; border-radius: 6px 6px 0 0; padding: 6px; background: #fafafa; }
 .toolbar button { border: 0; background: transparent; padding: 5px 9px; border-radius: 4px; cursor: pointer; font-size: 13px; }
 .toolbar button.on { background: #1a2744; color: #fff; }
+.imgbtn { display: inline-block; padding: 5px 9px; border-radius: 4px;
+          font-size: 13px; cursor: pointer; margin: 0; }
+.imgbtn:hover { background: #eee; }
+.opt { color: #aaa; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.hero-prev { position: relative; margin-top: 6px; }
+.hero-prev img { width: 100%; max-height: 260px; object-fit: cover; border-radius: 8px; }
+.rm { position: absolute; top: 10px; right: 10px; border: 0; background: rgba(0,0,0,.65);
+      color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.cap { margin-top: 8px; }
 .sep { width: 1px; height: 18px; background: #ddd; margin: 0 4px; }
 .editor { border: 1px solid #ccc; border-radius: 0 0 6px 6px; padding: 14px; min-height: 320px; background: #fff; }
 .actions { display: flex; gap: 10px; margin-top: 24px; }

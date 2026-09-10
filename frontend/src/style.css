@@ -318,3 +318,5 @@ code {
 .prose-area h3 { font-size: 18px; margin: 16px 0 8px; }
 .prose-area ul, .prose-area ol { padding-left: 22px; margin: 0 0 12px; }
 .prose-area blockquote { border-left: 3px solid #ddd; margin: 0 0 12px; padding-left: 12px; color: #555; }
+
+.prose-area img { max-width: 100%; height: auto; border-radius: 6px; margin: 12px 0; }
