@@ -108,7 +108,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [role_permission("WRITER")()]
+            # Editors write too — leaders, columns, editorials. The
+            # constraint is not who may write but who may sign it off.
+            return [permissions.IsAuthenticated()]
         if self.action == "partial_update":
             # editor_image_edit: an Editor may correct photography and
             # metadata on an article under review; a Writer may edit
@@ -119,7 +121,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         if self.action in ("approve", "override", "assign_to_issue",
                            "assign", "reassign"):
             return [role_permission("EDITOR")()]
-        if self.action == "publish":
+        if self.action in ("publish", "sign_off"):
             return [role_permission("PUBLISHER")()]
         return [permissions.IsAuthenticated()]
 
@@ -130,7 +132,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
         appears automatically on the Editor's queue, matching the wireframes."""
         article = self.get_object()
         if article.writer != request.user:
-            return Response({"detail": "Not your article."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": "Not your article."},
+                            status=status.HTTP_403_FORBIDDEN)
         if article.status not in (Article.Status.ASSIGNED, Article.Status.DRAFTING,
                                   Article.Status.REVISION_REQUESTED):
             return Response(
@@ -177,7 +180,15 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
         article.returned_by_ai = not passed
         if passed:
-            article.status = Article.Status.UNDER_REVIEW
+            # self_approval: nobody signs off their own copy. An
+            # Editor's article goes to the Publisher, who is already
+            # the final checkpoint before an issue ships.
+            article.status = (
+                Article.Status.PENDING_SIGNOFF
+                if article.writer.role in (
+                    article.writer.Role.EDITOR, article.writer.Role.ADMIN)
+                else Article.Status.UNDER_REVIEW
+            )
         else:
             article.status = Article.Status.REVISION_REQUESTED
             for s_ in evaluation.suggestions:
@@ -238,6 +249,27 @@ class ArticleViewSet(viewsets.ModelViewSet):
         notify(article.writer, Notification.Kind.APPROVED,
                f'"{article.title}" was approved.',
                f"/writer/compose/{article.id}")
+        return Response(ArticleDetailSerializer(article).data)
+
+    @action(detail=True, methods=["post"], url_path="sign-off")
+    def sign_off(self, request, pk=None):
+        """Publisher sign-off on editor-authored copy. An editor approving
+        their own article would defeat the purpose of the gate, so the
+        publisher acts as the second reader."""
+        article = self.get_object()
+
+        if article.status != Article.Status.PENDING_SIGNOFF:
+            return Response(
+                {"detail": "This article is not awaiting sign-off."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        article.status = Article.Status.APPROVED
+        article.editor = request.user
+        article.save(update_fields=["status", "editor", "updated_at"])
+        notify(article.writer, Notification.Kind.APPROVED,
+               f'"{article.title}" was signed off by the publisher.',
+               f"/editor/review/{article.id}")
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["post"])

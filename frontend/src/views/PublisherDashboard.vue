@@ -16,8 +16,10 @@ const router = useRouter()
 
 const issues = ref([])
 const standalone = ref([])
+const signoff = ref([])
+const pendingSign = ref(null)
 const loading = ref(true)
-const tab = ref('prep')
+const tab = ref('signoff')
 const error = ref('')
 const busy = ref(null)
 
@@ -31,6 +33,7 @@ const ready = computed(() => prep.value.filter(i => i.is_ready))
 const live = computed(() => issues.value.filter(i => i.status === 'PUBLISHED'))
 
 const TABS = computed(() => [
+  { key: 'signoff', label: 'Needs sign-off', count: signoff.value.length },
   { key: 'prep',   label: 'In preparation', count: prep.value.length },
   { key: 'single', label: 'Single articles', count: standalone.value.length },
   { key: 'live',   label: 'Published',      count: live.value.length },
@@ -42,8 +45,11 @@ async function load() {
     api.get('/editorial/articles/'),
   ])
   issues.value = i.data.results ?? i.data
-  standalone.value = (a.data.results ?? a.data)
-    .filter(x => x.status === 'APPROVED' && !x.issue)
+  const all = a.data.results ?? a.data
+  standalone.value = all.filter(x => x.status === 'APPROVED' && !x.issue)
+  // Editor-authored copy waiting on a second reader. Nobody signs off
+  // their own work, so it lands here rather than in the editor's queue.
+  signoff.value = all.filter(x => x.status === 'PENDING_SIGNOFF')
 }
 
 onMounted(async () => {
@@ -83,6 +89,16 @@ async function publishSingle() {
   finally { busy.value = null }
 }
 
+async function doSignOff() {
+  const a = pendingSign.value
+  pendingSign.value = null
+  error.value = ''
+  busy.value = a.id
+  try { await api.post(`/editorial/articles/${a.id}/sign-off/`); await load() }
+  catch (e) { error.value = e.response?.data?.detail || 'Sign-off failed.' }
+  finally { busy.value = null }
+}
+
 const pct = (i) => i.total_articles
   ? Math.round((i.approved_articles / i.total_articles) * 100) : 0
 </script>
@@ -107,6 +123,32 @@ const pct = (i) => i.total_articles
     </div>
 
     <UiSkeleton v-if="loading" :rows="3" label="Loading issues" />
+
+    <!-- editor-authored copy awaiting a second reader -->
+    <template v-else-if="tab === 'signoff'">
+      <UiEmpty v-if="!signoff.length" icon="✓" title="Nothing to sign off"
+               body="Articles written by an editor arrive here for your approval, since nobody signs off their own copy." />
+      <ul v-else class="rows">
+        <li v-for="a in signoff" :key="a.id" class="row">
+          <div class="meta">
+            <span class="t">{{ a.title }}</span>
+            <span class="sub">
+              By {{ a.writer_name }} · {{ a.category || 'Uncategorised' }}
+              · {{ a.reading_time }} min read
+            </span>
+            <p v-if="a.excerpt" class="ex">{{ a.excerpt }}</p>
+          </div>
+          <span v-if="a.latest_score" class="score">{{ a.latest_score }}</span>
+          <div class="sacts">
+            <UiButton size="sm" @click="router.push(`/editor/review/${a.id}`)">
+              Read it
+            </UiButton>
+            <UiButton variant="primary" size="sm" :loading="busy === a.id"
+                      @click="pendingSign = a">Sign off</UiButton>
+          </div>
+        </li>
+      </ul>
+    </template>
 
     <!-- issues in preparation -->
     <template v-else-if="tab === 'prep'">
@@ -189,6 +231,9 @@ const pct = (i) => i.total_articles
       <div class="glance">
         <h2>At a glance</h2>
         <dl>
+          <div :class="{ warn: signoff.length }">
+            <dt>Needs sign-off</dt><dd>{{ signoff.length }}</dd>
+          </div>
           <div><dt>In preparation</dt><dd>{{ prep.length }}</dd></div>
           <div :class="{ ok: ready.length }">
             <dt>Ready to publish</dt><dd>{{ ready.length }}</dd>
@@ -231,6 +276,20 @@ const pct = (i) => i.total_articles
     <p v-if="error" class="ferr" role="alert">{{ error }}</p>
     <UiButton variant="primary" full @click="createIssue">Create issue</UiButton>
   </SlideOver>
+
+  <ConfirmDialog
+    :open="!!pendingSign"
+    title="Sign off this article?"
+    :message="pendingSign
+      ? `“${pendingSign.title}” by ${pendingSign.writer_name} will be approved and become eligible for publication.`
+      : ''"
+    confirm-label="Sign off"
+    :points="[
+      'You are acting as the second reader on editor-authored copy.',
+      'It can then be assigned to an issue or published on its own.',
+    ]"
+    @confirm="doSignOff"
+    @cancel="pendingSign = null" />
 
   <ConfirmDialog
     :open="!!pendingArticle"
@@ -290,12 +349,19 @@ const pct = (i) => i.total_articles
 .flags .no { color: var(--nv-text-faint); }
 .flags .date { color: var(--nv-text-muted); margin-left: auto; }
 
-.row { display: flex; align-items: center; gap: var(--s-4);
+.row { display: flex; align-items: flex-start; gap: var(--s-4);
        padding: 14px 18px; background: var(--nv-surface);
        border: 1px solid var(--nv-line); border-radius: var(--r-md); }
 .meta { flex: 1; min-width: 0; }
 .meta .t { display: block; font-size: 16px; margin-bottom: 3px; }
 .sub { font-size: 14px; color: var(--nv-text-muted); }
+.ex { margin: 8px 0 0; font-size: 14px; line-height: 1.55;
+      color: var(--nv-text-muted); }
+.sacts { display: flex; gap: 8px; flex-shrink: 0; }
+.score { min-width: 42px; padding: 5px 10px; border-radius: var(--r-sm);
+         text-align: center; font-size: 15px; font-weight: 700;
+         border: 1px solid var(--ok-line); color: var(--ok);
+         background: var(--ok-bg); flex-shrink: 0; }
 
 .glance { background: var(--nv-surface); border: 1px solid var(--nv-line);
           border-radius: var(--r-md); padding: var(--s-5); }

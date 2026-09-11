@@ -14,6 +14,7 @@ class Article(TimeStampedModel):
         AWAITING_EVALUATION = "AWAITING_EVALUATION", "Awaiting Evaluation"
         UNDER_REVIEW = "UNDER_REVIEW", "Under Review"
         REVISION_REQUESTED = "REVISION_REQUESTED", "Revision Requested"
+        PENDING_SIGNOFF = "PENDING_SIGNOFF", "Awaiting Publisher Sign-off"
         APPROVED = "APPROVED", "Approved"
         PUBLISHED = "PUBLISHED", "Published"
         WITHDRAWN = "WITHDRAWN", "Withdrawn"

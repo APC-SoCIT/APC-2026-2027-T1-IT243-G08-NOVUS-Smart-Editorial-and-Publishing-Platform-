@@ -28,6 +28,9 @@ const routes = [
   { path: '/writer', component: WriterDashboard, meta: { requiresAuth: true } },
   { path: '/writer/compose', component: ArticleComposeView, meta: { requiresAuth: true } },
   { path: '/writer/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true } },
+  // Editors write too. Same composer, a path that does not imply otherwise.
+  { path: '/compose', component: ArticleComposeView, meta: { requiresAuth: true } },
+  { path: '/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true } },
   { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true } },
   { path: '/reports', component: ReportsView, meta: { requiresAuth: true } },
   { path: '/settings', component: PlatformSettings, meta: { requiresAuth: true } },

@@ -82,6 +82,7 @@ const EMPTY = {
   <StaffLayout title="Editor dashboard" subtitle="What needs your attention today">
 
     <template #action>
+      <UiButton @click="router.push('/compose')">+ Write article</UiButton>
       <UiButton variant="primary" @click="assignOpen = true">
         + Assign article
       </UiButton>
