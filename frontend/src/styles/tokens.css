@@ -187,3 +187,28 @@ button { font-family: inherit; }
 }
 
 html { transition: background-color var(--dur-base) var(--ease-out); }
+
+/* Light text on a dark background renders optically heavier than the same
+   weight on white — a known artefact of subpixel antialiasing. Easing the
+   weight and switching to greyscale smoothing keeps it crisp rather than
+   smeared. */
+[data-theme="dark"] body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] b,
+[data-theme="dark"] strong {
+  font-weight: 600;
+}
+
+/* Slightly more letter-spacing at small sizes, where dark-mode blur bites
+   hardest. */
+[data-theme="dark"] .sub,
+[data-theme="dark"] small,
+[data-theme="dark"] dt {
+  letter-spacing: .01em;
+}
