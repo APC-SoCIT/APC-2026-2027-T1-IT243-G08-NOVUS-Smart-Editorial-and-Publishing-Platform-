@@ -74,7 +74,6 @@ async function submit() {
 
       <div class="alt">
         <p>New here? <router-link to="/register">Create an account</router-link></p>
-        <p><router-link to="/staff/login">Editorial team login</router-link></p>
       </div>
     </main>
   </div>
