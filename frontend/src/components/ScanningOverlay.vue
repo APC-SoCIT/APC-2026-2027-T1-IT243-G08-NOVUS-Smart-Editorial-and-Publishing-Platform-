@@ -136,7 +136,7 @@ const unavailable = () => props.result?.overall_score === null
 .scrim { position: fixed; inset: 0; background: rgba(13, 21, 38, .72);
          backdrop-filter: blur(3px); display: flex; align-items: center;
          justify-content: center; z-index: 100; font-family: system-ui; }
-.panel { background: #fff; border-radius: 14px; padding: 34px 36px;
+.panel { background: var(--nv-surface); border-radius: 14px; padding: 34px 36px;
          width: 420px; max-width: calc(100vw - 40px); text-align: center;
          box-shadow: 0 20px 60px rgba(0,0,0,.28); }
 
@@ -169,30 +169,30 @@ h3 { margin: 0 0 16px; font-size: 17px; }
 .dot { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #dde2e8;
        display: inline-flex; align-items: center; justify-content: center;
        font-size: 10px; flex-shrink: 0; }
-.stages li.done .dot { background: #2e9e63; border-color: #2e9e63; color: #fff; }
-.stages li.now .dot { border-color: #4a7fb5; }
+.stages li.done .dot { background: #2e9e63; border-color: var(--ok); color: #fff; }
+.stages li.now .dot { border-color: var(--nv-accent); }
 .spin { width: 8px; height: 8px; border: 1.5px solid #4a7fb5; border-top-color: transparent;
         border-radius: 50%; animation: rot .7s linear infinite; }
 @keyframes rot { to { transform: rotate(360deg); } }
 
-.note { margin: 0; font-size: 12px; color: #aab2bc; }
+.note { margin: 0; font-size: 12px; color: var(--nv-text-faint)2bc; }
 
 /* verdict */
 .ring { width: 104px; height: 104px; border-radius: 50%; border: 5px solid;
         margin: 0 auto 18px; display: flex; flex-direction: column;
         align-items: center; justify-content: center; }
-.ring.ok { border-color: #2e9e63; color: #1c6b45; }
-.ring.no { border-color: #c95757; color: #a33; }
-.ring.none { border-color: #dde2e8; color: #99a; }
+.ring.ok { border-color: var(--ok); color: var(--ok); }
+.ring.no { border-color: var(--bad); color: var(--bad); }
+.ring.none { border-color: #dde2e8; color: var(--nv-text-faint); }
 .ring b { font-size: 34px; line-height: 1; }
 .ring small { font-size: 11px; opacity: .65; margin-top: 2px; }
-.verdict p { margin: 0; font-size: 13px; color: #667; line-height: 1.6; }
+.verdict p { margin: 0; font-size: 13px; color: var(--nv-text-muted); line-height: 1.6; }
 .summary { margin-top: 16px; background: #f6f8fa; border-radius: 8px;
            padding: 12px 14px; font-size: 13px; line-height: 1.6;
            color: #4a5a6a; text-align: left; }
 
 .continue { width: 100%; margin-top: 24px; padding: 12px; border: 0;
-            background: #1a2744; color: #fff; border-radius: 8px;
+            background: var(--nv-navy-2); color: #fff; border-radius: 8px;
             font-weight: 600; font-size: 14px; cursor: pointer; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity .25s; }

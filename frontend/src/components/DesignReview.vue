@@ -117,21 +117,21 @@ const statusLabel = {
 
 <style scoped>
 h3 { margin: 28px 0 10px; font-size: 15px; }
-.card { border: 1px solid #eee; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+.card { border: 1px solid var(--nv-line); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
 .top { display: flex; justify-content: space-between; align-items: center; }
 .meta { display: flex; flex-direction: column; gap: 3px; }
 .t { font-weight: 600; font-size: 14px; }
-em { font-size: 12px; color: #888; font-style: normal; }
-.file { font-size: 13px; color: #4a7fb5; }
-.dnotes { font-size: 13px; color: #555; margin: 12px 0 0; line-height: 1.55;
+em { font-size: 12px; color: var(--nv-text-faint); font-style: normal; }
+.file { font-size: 13px; color: var(--nv-accent); }
+.dnotes { font-size: 13px; color: var(--nv-text-muted); margin: 12px 0 0; line-height: 1.55;
           border-left: 3px solid #eee; padding-left: 10px; }
 .composer { margin-top: 12px; }
-textarea { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px;
+textarea { width: 100%; padding: 9px; border: 1px solid var(--nv-line-strong); border-radius: 6px;
            font-family: inherit; font-size: 13px; resize: vertical; }
 .acts { display: flex; gap: 8px; margin-top: 12px; }
-.ghost { flex: 1; padding: 10px; border: 1px solid #ccc; background: #fff;
+.ghost { flex: 1; padding: 10px; border: 1px solid var(--nv-line-strong); background: var(--nv-surface);
          border-radius: 6px; cursor: pointer; font-size: 13px; }
-.primary { flex: 1; padding: 10px; border: 0; background: #1a2744; color: #fff;
+.primary { flex: 1; padding: 10px; border: 0; background: var(--nv-navy-2); color: #fff;
            border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; }
 .warn { flex: 1; padding: 10px; border: 0; background: #b5651d; color: #fff;
         border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; }
@@ -140,8 +140,8 @@ button:disabled { opacity: .55; }
 .settled li { display: flex; justify-content: space-between; align-items: center;
               border: 1px solid #f0f0f0; border-radius: 8px; padding: 11px 14px; margin-bottom: 7px; }
 .badge { font-size: 11px; padding: 4px 10px; border-radius: 12px; }
-.badge.approved { background: #eaf7f0; color: #1c6b45; }
-.badge.revision_requested { background: #fdf2e0; color: #96631a; }
-.empty { color: #888; font-size: 14px; }
-.err { color: #c00; font-size: 13px; }
+.badge.approved { background: var(--ok-bg); color: var(--ok); }
+.badge.revision_requested { background: var(--warn-bg); color: var(--warn); }
+.empty { color: var(--nv-text-faint); font-size: 14px; }
+.err { color: var(--bad); font-size: 13px; }
 </style>

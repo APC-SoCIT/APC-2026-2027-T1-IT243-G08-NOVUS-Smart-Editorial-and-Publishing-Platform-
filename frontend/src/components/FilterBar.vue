@@ -108,14 +108,14 @@ const label = (s) => s.replace(/_/g, ' ').toLowerCase()
           border: 1px solid var(--nv-line-strong); border-radius: var(--r-sm);
           font-size: var(--t-sm); font-family: inherit;
           background: var(--nv-surface); }
-.search:focus { outline: none; border-color: #4a7fb5;
+.search:focus { outline: none; border-color: var(--nv-accent);
                 box-shadow: 0 0 0 3px rgba(74,127,181,.12); }
-select { padding: 9px 10px; border: 1px solid #d7dbe0; border-radius: 7px;
-         font-size: 13px; font-family: inherit; background: #fff;
+select { padding: 9px 10px; border: 1px solid var(--nv-line-strong); border-radius: 7px;
+         font-size: 13px; font-family: inherit; background: var(--nv-surface);
          text-transform: capitalize; cursor: pointer; }
 .chk { display: flex; align-items: center; gap: 6px; font-size: 13px;
-       color: #556; cursor: pointer; white-space: nowrap; }
+       color: var(--nv-text-muted); cursor: pointer; white-space: nowrap; }
 .chk input { cursor: pointer; }
-.clear { border: 0; background: none; color: #4a7fb5; font-size: 13px;
+.clear { border: 0; background: none; color: var(--nv-accent); font-size: 13px;
          cursor: pointer; padding: 8px; }
 </style>

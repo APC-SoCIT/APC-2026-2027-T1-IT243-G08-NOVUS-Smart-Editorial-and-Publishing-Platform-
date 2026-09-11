@@ -104,37 +104,37 @@ const when = (d) => new Date(d).toLocaleString('en-PH',
 <style scoped>
 .vh { margin-top: 24px; }
 .toggle { width: 100%; display: flex; align-items: center; gap: 8px;
-          border: 1px solid #e6e6e6; background: #fafafa; border-radius: 8px;
+          border: 1px solid var(--nv-line); background: var(--nv-bg); border-radius: 8px;
           padding: 11px 14px; font-size: 13px; cursor: pointer; }
-.count { background: #e4e9f0; color: #445; font-size: 11px;
+.count { background: #e4e9f0; color: var(--nv-text); font-size: 11px;
          padding: 2px 8px; border-radius: 10px; }
-.chev { margin-left: auto; font-size: 10px; color: #999; }
-.body { border: 1px solid #e6e6e6; border-top: 0; border-radius: 0 0 8px 8px; padding: 14px; }
-.hint { margin: 0 0 12px; font-size: 12px; color: #999; line-height: 1.5; }
+.chev { margin-left: auto; font-size: 10px; color: var(--nv-text-faint); }
+.body { border: 1px solid var(--nv-line); border-top: 0; border-radius: 0 0 8px 8px; padding: 14px; }
+.hint { margin: 0 0 12px; font-size: 12px; color: var(--nv-text-faint); line-height: 1.5; }
 .list { list-style: none; margin: 0; padding: 0; }
 .list li { display: flex; justify-content: space-between; align-items: center;
-           padding: 10px 12px; border: 1px solid #eee; border-radius: 6px;
+           padding: 10px 12px; border: 1px solid var(--nv-line); border-radius: 6px;
            margin-bottom: 6px; cursor: pointer; }
-.list li:hover { background: #fafafa; }
+.list li:hover { background: var(--nv-bg); }
 .list li.on { border-color: #b9c9e0; background: #f6f9fd; }
 .meta b { display: block; font-size: 13px; }
-.meta em { font-size: 11px; color: #999; font-style: normal; }
-.words { font-size: 11px; color: #999; }
-.detail { margin-top: 14px; border-top: 1px solid #eee; padding-top: 14px; }
+.meta em { font-size: 11px; color: var(--nv-text-faint); font-style: normal; }
+.words { font-size: 11px; color: var(--nv-text-faint); }
+.detail { margin-top: 14px; border-top: 1px solid var(--nv-line); padding-top: 14px; }
 .dhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .tabs { display: flex; gap: 4px; }
-.tabs button { border: 1px solid #ddd; background: #fff; border-radius: 5px;
+.tabs button { border: 1px solid #ddd; background: var(--nv-surface); border-radius: 5px;
                padding: 5px 11px; font-size: 12px; cursor: pointer; }
-.tabs button.on { background: #1a2744; color: #fff; border-color: #1a2744; }
-.tchange { font-size: 12px; color: #96631a; background: #fdf6e8;
+.tabs button.on { background: var(--nv-navy-2); color: #fff; border-color: #1a2744; }
+.tchange { font-size: 12px; color: var(--warn); background: var(--warn-bg);
            padding: 8px 11px; border-radius: 6px; margin: 0 0 10px; }
 .content { max-height: 320px; overflow-y: auto; font-size: 14px; line-height: 1.65;
-           background: #fafafa; padding: 14px; border-radius: 6px; }
+           background: var(--nv-bg); padding: 14px; border-radius: 6px; }
 .content :deep(p) { margin: 0 0 12px; }
 .diff p { margin: 0 0 7px; font-size: 13px; line-height: 1.55;
           padding: 7px 11px; border-radius: 5px; }
-.diff p.added { background: #eef8f2; color: #1c6b45; }
-.diff p.removed { background: #fdeeee; color: #a33; text-decoration: line-through; }
+.diff p.added { background: #eef8f2; color: var(--ok); }
+.diff p.removed { background: var(--bad-bg); color: var(--bad); text-decoration: line-through; }
 .mark { font-weight: 700; margin-right: 6px; }
-.muted { color: #999; font-size: 13px; }
+.muted { color: var(--nv-text-faint); font-size: 13px; }
 </style>

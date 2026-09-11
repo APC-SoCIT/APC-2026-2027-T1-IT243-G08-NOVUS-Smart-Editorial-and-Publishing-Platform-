@@ -252,10 +252,10 @@ const EMPTY = {
                color: var(--nv-text-muted); cursor: pointer;
                transition: background var(--dur-fast) var(--ease-out),
                            color var(--dur-fast) var(--ease-out); }
-.tabs button:hover { background: #eef0f3; color: var(--nv-text); }
+.tabs button:hover { background: var(--nv-bg); color: var(--nv-text); }
 .tabs button.on { background: var(--nv-navy-2); color: #fff; font-weight: 600; }
 .count { font-size: 13px; font-weight: 700; padding: 1px 8px;
-         border-radius: var(--r-full); background: #e4e7ec; color: var(--nv-text-muted); }
+         border-radius: var(--r-full); background: var(--nv-line); color: var(--nv-text-muted); }
 .tabs button.on .count { background: rgba(255,255,255,.22); color: #fff; }
 
 .search { width: 260px; padding: 10px 14px; font-size: 15px;
@@ -268,7 +268,7 @@ const EMPTY = {
             font-size: 13px; letter-spacing: .05em; text-transform: uppercase;
             color: var(--nv-text-muted); margin: 0 0 2px; font-weight: 600; }
 .group h3 span { font-size: 12px; padding: 1px 7px; border-radius: var(--r-full);
-                 background: #e4e7ec; color: var(--nv-text-muted); }
+                 background: var(--nv-line); color: var(--nv-text-muted); }
 .ghint { font-size: 13px; color: var(--nv-text-faint); margin: 0 0 var(--s-3); }
 .rows { list-style: none; margin: 0; padding: 0;
         display: flex; flex-direction: column; gap: 8px; }

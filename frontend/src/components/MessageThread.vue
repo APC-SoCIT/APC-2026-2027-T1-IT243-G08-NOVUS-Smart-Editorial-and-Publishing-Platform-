@@ -88,11 +88,11 @@ const ago = (d) => {
 </template>
 
 <style scoped>
-.thread { border: 1px solid #e6e6e6; border-radius: 8px; padding: 16px; margin-top: 24px; }
+.thread { border: 1px solid var(--nv-line); border-radius: 8px; padding: 16px; margin-top: 24px; }
 h5 { margin: 0 0 5px; font-size: 12px; letter-spacing: .5px;
-     text-transform: uppercase; color: #555; }
-.hint { margin: 0 0 14px; font-size: 12px; color: #999; line-height: 1.5; }
-.muted { color: #999; font-size: 13px; }
+     text-transform: uppercase; color: var(--nv-text-muted); }
+.hint { margin: 0 0 14px; font-size: 12px; color: var(--nv-text-faint); line-height: 1.5; }
+.muted { color: var(--nv-text-faint); font-size: 13px; }
 .list { max-height: 320px; overflow-y: auto; margin-bottom: 14px; }
 .msg { display: flex; margin-bottom: 10px; }
 .msg.mine { justify-content: flex-end; }
@@ -101,13 +101,13 @@ h5 { margin: 0 0 5px; font-size: 12px; letter-spacing: .5px;
 .who { display: flex; gap: 7px; align-items: baseline; margin-bottom: 4px; }
 .who b { font-size: 13px; }
 .role { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #8a97a8; }
-.who small { font-size: 11px; color: #aaa; margin-left: auto; }
+.who small { font-size: 11px; color: var(--nv-text-faint); margin-left: auto; }
 .bubble p { margin: 0; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
 .compose { display: flex; gap: 8px; }
-textarea { flex: 1; padding: 9px; border: 1px solid #ccc; border-radius: 6px;
+textarea { flex: 1; padding: 9px; border: 1px solid var(--nv-line-strong); border-radius: 6px;
            font-family: inherit; font-size: 13px; resize: vertical; }
-button { border: 0; background: #1a2744; color: #fff; border-radius: 6px;
+button { border: 0; background: var(--nv-navy-2); color: #fff; border-radius: 6px;
          padding: 0 20px; font-weight: 600; cursor: pointer; }
 button:disabled { opacity: .45; }
-.err { color: #c00; font-size: 13px; margin: 8px 0 0; }
+.err { color: var(--bad); font-size: 13px; margin: 8px 0 0; }
 </style>

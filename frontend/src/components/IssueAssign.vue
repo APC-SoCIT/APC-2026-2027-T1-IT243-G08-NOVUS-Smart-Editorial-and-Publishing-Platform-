@@ -59,16 +59,16 @@ async function save() {
 </template>
 
 <style scoped>
-.box { border: 1px solid #e6e6e6; border-radius: 8px; padding: 14px 16px;
-       background: #fafafa; margin-top: 22px; }
+.box { border: 1px solid var(--nv-line); border-radius: 8px; padding: 14px 16px;
+       background: var(--nv-bg); margin-top: 22px; }
 h5 { margin: 0 0 6px; font-size: 12px; letter-spacing: .5px;
-     text-transform: uppercase; color: #555; }
-.hint { margin: 0 0 12px; font-size: 12px; color: #888; line-height: 1.5; }
+     text-transform: uppercase; color: var(--nv-text-muted); }
+.hint { margin: 0 0 12px; font-size: 12px; color: var(--nv-text-faint); line-height: 1.5; }
 .row { display: flex; gap: 8px; }
-select { flex: 1; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
-button { border: 1px solid #ccc; background: #fff; border-radius: 6px;
+select { flex: 1; padding: 9px; border: 1px solid var(--nv-line-strong); border-radius: 6px; font-size: 13px; }
+button { border: 1px solid var(--nv-line-strong); background: var(--nv-surface); border-radius: 6px;
          padding: 9px 18px; font-size: 13px; cursor: pointer; }
 button:disabled { opacity: .55; }
-.err { color: #c00; font-size: 13px; margin: 10px 0 0; }
+.err { color: var(--bad); font-size: 13px; margin: 10px 0 0; }
 .ok { color: #0a7; font-size: 13px; margin: 10px 0 0; }
 </style>

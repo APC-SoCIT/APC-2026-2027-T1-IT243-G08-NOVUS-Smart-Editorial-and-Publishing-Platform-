@@ -251,37 +251,37 @@ const submitOverride = () => act(() => {
 .wrap { max-width: 820px; margin: 40px auto; font-family: system-ui; padding: 0 16px 60px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; font-size: 16px; }
-.back { font-size: 13px; color: #555; }
+.back { font-size: 13px; color: var(--nv-text-muted); }
 h1 { margin: 18px 0 4px; font-size: 27px; line-height: 1.25; }
 .byline { margin: 0 0 20px; font-size: 13px; color: #777; }
-.body { border: 1px solid #eee; border-radius: 8px; padding: 20px; line-height: 1.7; background: #fff; }
+.body { border: 1px solid var(--nv-line); border-radius: 8px; padding: 20px; line-height: 1.7; background: var(--nv-surface); }
 .body :deep(h2) { font-size: 20px; margin: 18px 0 8px; }
 .body :deep(p) { margin: 0 0 12px; }
 .history { margin-top: 24px; }
 .history h5, .composer h5 { margin: 0 0 8px; font-size: 12px; letter-spacing: .5px;
-                            text-transform: uppercase; color: #555; }
-.hnote { border-top: 1px solid #eee; padding: 10px 0; }
-.hnote em { font-size: 11px; color: #888; font-style: normal; margin-left: 6px; }
+                            text-transform: uppercase; color: var(--nv-text-muted); }
+.hnote { border-top: 1px solid var(--nv-line); padding: 10px 0; }
+.hnote em { font-size: 11px; color: var(--nv-text-faint); font-style: normal; margin-left: 6px; }
 .hnote p { margin: 5px 0 0; font-size: 13px; }
-.tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: #eef2f7; color: #445; margin-right: 4px; }
-.composer { margin-top: 24px; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; background: #fafafa; }
-.hint { margin: 0 0 12px; font-size: 12px; color: #888; }
+.tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--info-bg); color: var(--nv-text); margin-right: 4px; }
+.composer { margin-top: 24px; border: 1px solid var(--nv-line); border-radius: 8px; padding: 16px; background: var(--nv-bg); }
+.hint { margin: 0 0 12px; font-size: 12px; color: var(--nv-text-faint); }
 .note-row { margin-bottom: 12px; }
 .row { display: flex; gap: 6px; margin-bottom: 6px; }
-.row input, .row select { padding: 7px; border: 1px solid #ccc; border-radius: 5px; font-size: 13px; }
+.row input, .row select { padding: 7px; border: 1px solid var(--nv-line-strong); border-radius: 5px; font-size: 13px; }
 .row input { flex: 1; }
-.x { border: 1px solid #ccc; background: #fff; border-radius: 5px; width: 30px; cursor: pointer; }
-textarea { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 5px;
+.x { border: 1px solid var(--nv-line-strong); background: var(--nv-surface); border-radius: 5px; width: 30px; cursor: pointer; }
+textarea { width: 100%; padding: 9px; border: 1px solid var(--nv-line-strong); border-radius: 5px;
            font-family: inherit; font-size: 13px; resize: vertical; }
 .actions { display: flex; gap: 10px; margin-top: 24px; }
-.ghost { flex: 1; padding: 12px; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; }
+.ghost { flex: 1; padding: 12px; border: 1px solid var(--nv-line-strong); background: var(--nv-surface); border-radius: 6px; cursor: pointer; }
 .ghost.sm { flex: none; padding: 7px 12px; font-size: 13px; }
-.primary { flex: 1; padding: 12px; border: 0; background: #1a2744; color: #fff;
+.primary { flex: 1; padding: 12px; border: 0; background: var(--nv-navy-2); color: #fff;
            border-radius: 6px; font-weight: 600; cursor: pointer; }
 .warn { flex: 1; padding: 12px; border: 0; background: #b5651d; color: #fff;
         border-radius: 6px; font-weight: 600; cursor: pointer; }
 button:disabled { opacity: .55; }
-.gatenote { background: #fdf6e8; border: 1px solid #f0d9b5; color: #8a6321;
+.gatenote { background: var(--warn-bg); border: 1px solid #f0d9b5; color: #8a6321;
             padding: 11px 14px; border-radius: 8px; font-size: 13px;
             line-height: 1.6; margin: 0 0 16px; }
 .settled { background: var(--ok-bg); border: 1px solid var(--ok-line);
@@ -290,5 +290,5 @@ button:disabled { opacity: .55; }
 .settled b { text-transform: capitalize; }
 .settled.waiting { background: var(--nv-bg); border-color: var(--nv-line-strong);
                    color: var(--nv-text-muted); }
-.err { color: #c00; font-size: 13px; margin-top: 14px; }
+.err { color: var(--bad); font-size: 13px; margin-top: 14px; }
 </style>

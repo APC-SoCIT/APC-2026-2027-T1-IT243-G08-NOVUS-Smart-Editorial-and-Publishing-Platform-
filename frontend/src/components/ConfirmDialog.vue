@@ -109,24 +109,24 @@ const canConfirm = computed(() =>
 .scrim { position: fixed; inset: 0; background: rgba(13,21,38,.6);
          backdrop-filter: blur(2px); display: flex; align-items: center;
          justify-content: center; z-index: 90; font-family: system-ui; }
-.box { background: #fff; border-radius: 12px; padding: 26px 28px; width: 420px;
+.box { background: var(--nv-surface); border-radius: 12px; padding: 26px 28px; width: 420px;
        max-width: calc(100vw - 40px); box-shadow: 0 18px 50px rgba(0,0,0,.26);
        border-top: 4px solid #1a2744; }
 .box.warn { border-top-color: #b5651d; }
 .box.danger { border-top-color: #b53b3b; }
 h3 { margin: 0 0 9px; font-size: 17px; }
-.msg { margin: 0; font-size: 14px; line-height: 1.6; color: #556; }
+.msg { margin: 0; font-size: 14px; line-height: 1.6; color: var(--nv-text-muted); }
 .points { margin: 14px 0 0; padding-left: 20px; }
-.points li { font-size: 13px; line-height: 1.65; color: #667; }
+.points li { font-size: 13px; line-height: 1.65; color: var(--nv-text-muted); }
 .typed { margin-top: 18px; }
-.typed label { display: block; font-size: 12px; color: #778; margin-bottom: 6px; }
-.typed input { width: 100%; padding: 10px; border: 1px solid #ccd; border-radius: 6px;
+.typed label { display: block; font-size: 12px; color: var(--nv-text-muted); margin-bottom: 6px; }
+.typed input { width: 100%; padding: 10px; border: 1px solid var(--nv-line-strong); border-radius: 6px;
                font-size: 14px; font-family: inherit; }
 .actions { display: flex; gap: 10px; margin-top: 24px; }
 .actions button { flex: 1; padding: 11px; border-radius: 7px; font-size: 14px;
                   cursor: pointer; font-weight: 600; }
-.cancel { border: 1px solid #ccd; background: #fff; color: #445; }
-.go { border: 0; background: #1a2744; color: #fff; }
+.cancel { border: 1px solid var(--nv-line-strong); background: var(--nv-surface); color: var(--nv-text); }
+.go { border: 0; background: var(--nv-navy-2); color: #fff; }
 .box.warn .go { background: #b5651d; }
 .box.danger .go { background: #b53b3b; }
 .actions button:disabled { opacity: .45; cursor: not-allowed; }

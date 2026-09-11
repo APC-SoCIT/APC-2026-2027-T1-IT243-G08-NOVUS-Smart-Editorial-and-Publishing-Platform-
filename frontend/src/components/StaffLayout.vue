@@ -113,7 +113,7 @@ function signOut() {
 .shell { display: flex; min-height: 100vh; font-family: var(--font-ui);
          background: var(--nv-bg); }
 
-aside { width: 216px; background: #0d1526; color: #fff; padding: 24px 0;
+aside { width: 216px; background: var(--nv-navy); color: #fff; padding: 24px 0;
         display: flex; flex-direction: column; flex-shrink: 0; position: sticky;
         top: 0; height: 100vh; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 22px 26px;
@@ -146,9 +146,11 @@ header { display: flex; justify-content: space-between; align-items: flex-start;
 header h1 { margin: 0; font-size: 21px; letter-spacing: .3px; }
 header p { margin: 4px 0 0; font-size: 13px; color: #8a97a8; }
 .hactions { display: flex; gap: var(--s-3); align-items: center; }
-.out { border: 1px solid #d5dae0; background: #fff; border-radius: 7px;
-       padding: 7px 14px; font-size: 13px; cursor: pointer; }
-.out:hover { background: #f4f5f7; }
+.out { border: 1px solid var(--nv-line-strong); background: var(--nv-surface);
+       color: var(--nv-text); border-radius: var(--r-sm);
+       padding: 7px 14px; font-size: 13px; cursor: pointer;
+       transition: border-color var(--dur-fast) var(--ease-out); }
+.out:hover { background: var(--nv-bg); border-color: var(--nv-text-faint); }
 
 .content { padding: var(--s-6) var(--s-7) var(--s-9); max-width: 1240px; }
 .content.railed { display: grid; grid-template-columns: minmax(0, 1fr) 300px;

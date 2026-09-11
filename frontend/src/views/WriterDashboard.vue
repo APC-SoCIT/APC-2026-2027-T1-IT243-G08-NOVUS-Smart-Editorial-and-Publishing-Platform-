@@ -216,10 +216,10 @@ const EMPTY = {
                padding: 10px 16px; font-size: 15px; font-weight: 500;
                color: var(--nv-text-muted); cursor: pointer;
                transition: background var(--dur-fast) var(--ease-out); }
-.tabs button:hover { background: #eef0f3; color: var(--nv-text); }
+.tabs button:hover { background: var(--nv-bg); color: var(--nv-text); }
 .tabs button.on { background: var(--nv-navy-2); color: #fff; font-weight: 600; }
 .count { font-size: 13px; font-weight: 700; padding: 1px 8px;
-         border-radius: var(--r-full); background: #e4e7ec; color: var(--nv-text-muted); }
+         border-radius: var(--r-full); background: var(--nv-line); color: var(--nv-text-muted); }
 .tabs button.on .count { background: rgba(255,255,255,.22); color: #fff; }
 .search { width: 240px; padding: 10px 14px; font-size: 15px;
           border: 1px solid var(--nv-line-strong); border-radius: var(--r-sm);

@@ -83,20 +83,20 @@ async function submit() {
 <style scoped>
 .head { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; }
 .head h3 { margin: 0; font-size: 15px; }
-.new { border: 1px solid #ccc; background: #fff; border-radius: 6px;
+.new { border: 1px solid var(--nv-line-strong); background: var(--nv-surface); border-radius: 6px;
        padding: 7px 14px; font-size: 13px; cursor: pointer; }
-.form { border: 1px solid #e6e6e6; border-radius: 8px; padding: 16px;
-        background: #fafafa; margin: 12px 0 6px; }
-label { display: block; font-size: 11px; color: #555; letter-spacing: .5px; margin-bottom: 12px; }
+.form { border: 1px solid var(--nv-line); border-radius: 8px; padding: 16px;
+        background: var(--nv-bg); margin: 12px 0 6px; }
+label { display: block; font-size: 11px; color: var(--nv-text-muted); letter-spacing: .5px; margin-bottom: 12px; }
 .row { display: flex; gap: 12px; }
 .row label { flex: 1; margin-bottom: 12px; }
 .row label.grow { flex: 2; }
-input, select, textarea { width: 100%; padding: 9px; border: 1px solid #ccc;
+input, select, textarea { width: 100%; padding: 9px; border: 1px solid var(--nv-line-strong);
                           border-radius: 6px; font-size: 13px; margin-top: 5px;
                           font-family: inherit; }
 textarea { resize: vertical; }
-.primary { width: 100%; padding: 11px; border: 0; background: #1a2744; color: #fff;
+.primary { width: 100%; padding: 11px; border: 0; background: var(--nv-navy-2); color: #fff;
            border-radius: 6px; font-weight: 600; cursor: pointer; }
 .primary:disabled { opacity: .55; }
-.err { color: #c00; font-size: 13px; }
+.err { color: var(--bad); font-size: 13px; }
 </style>

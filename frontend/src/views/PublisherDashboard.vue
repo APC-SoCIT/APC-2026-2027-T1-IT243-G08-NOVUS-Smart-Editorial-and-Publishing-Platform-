@@ -318,10 +318,10 @@ const pct = (i) => i.total_articles
                padding: 10px 16px; font-size: 15px; font-weight: 500;
                color: var(--nv-text-muted); cursor: pointer;
                transition: background var(--dur-fast) var(--ease-out); }
-.tabs button:hover { background: #eef0f3; color: var(--nv-text); }
+.tabs button:hover { background: var(--nv-bg); color: var(--nv-text); }
 .tabs button.on { background: var(--nv-navy-2); color: #fff; font-weight: 600; }
 .count { font-size: 13px; font-weight: 700; padding: 1px 8px;
-         border-radius: var(--r-full); background: #e4e7ec; color: var(--nv-text-muted); }
+         border-radius: var(--r-full); background: var(--nv-line); color: var(--nv-text-muted); }
 .tabs button.on .count { background: rgba(255,255,255,.22); color: #fff; }
 
 .rows { list-style: none; margin: 0; padding: 0;
@@ -338,7 +338,7 @@ const pct = (i) => i.total_articles
 .t { font-size: 17px; font-weight: 600; color: var(--nv-text); }
 
 .bar { margin-top: 14px; }
-.track { height: 8px; background: #eef1f4; border-radius: 4px; overflow: hidden; }
+.track { height: 8px; background: var(--nv-line); border-radius: 4px; overflow: hidden; }
 .track i { display: block; height: 100%; background: var(--nv-accent);
            transition: width var(--dur-base) var(--ease-out); }
 .track i.full { background: var(--ok); }

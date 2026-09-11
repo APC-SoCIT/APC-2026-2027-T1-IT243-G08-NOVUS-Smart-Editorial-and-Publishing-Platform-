@@ -51,7 +51,7 @@ button.on { color: var(--nv-navy-2); border-bottom-color: var(--nv-navy-2);
             font-weight: 600; }
 .count { font-size: var(--t-xs); font-weight: 600; min-width: 20px;
          padding: 1px var(--s-2); border-radius: var(--r-full);
-         background: #eef0f3; color: var(--nv-text-muted); }
+         background: var(--nv-bg); color: var(--nv-text-muted); }
 button.on .count { background: var(--nv-navy-2); color: #fff; }
 .count.alert { background: var(--bad-bg); color: var(--bad); }
 button.on .count.alert { background: var(--bad); color: #fff; }
