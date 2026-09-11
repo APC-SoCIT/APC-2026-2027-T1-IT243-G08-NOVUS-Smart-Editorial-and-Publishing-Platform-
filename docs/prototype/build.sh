@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Render runs this on every deploy. Migrations run here rather than by hand,
+# so a schema change can never ship without its migration.
 set -o errexit
 
 pip install -r requirements.txt
