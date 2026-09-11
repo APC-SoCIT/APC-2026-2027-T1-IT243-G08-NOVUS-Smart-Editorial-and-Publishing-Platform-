@@ -120,3 +120,70 @@ body {
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; display: block; }
 button { font-family: inherit; }
+
+/* ============================================================
+   NOVUS dark theme.
+
+   Applied by setting data-theme="dark" on <html>. Only the NOVUS
+   (staff) palette is overridden — BOSS is dark by design and has
+   no light mode to switch away from.
+
+   Surfaces are lifted greys rather than pure black: on a screen
+   people read for hours, pure black with white text causes halation
+   and is harder to read, not easier. Contrast ratios below are
+   against --nv-surface in this mode.
+   ============================================================ */
+
+[data-theme="dark"] {
+  --nv-bg:            #12161d;
+  --nv-surface:       #1a1f28;
+  --nv-line:          #272d38;
+  --nv-line-strong:   #39414f;
+
+  --nv-text:          #e7eaef;   /* 13.1:1 — AAA  */
+  --nv-text-muted:    #a4adbb;   /*  7.2:1 — AA   */
+  --nv-text-faint:    #7b8595;   /*  4.6:1 — AA   */
+
+  --nv-navy:          #0d1117;
+  --nv-navy-2:        #2f4a78;   /* lifted: the light-mode navy
+                                    disappears against a dark surface */
+  --nv-navy-3:        #3b5b90;
+  --nv-accent:        #6ba3dd;
+  --nv-accent-soft:   #1c2c3f;
+
+  /* Semantic colours are lightened and their fills darkened, so a
+     badge stays legible instead of glowing. */
+  --ok:        #6fce9f;  --ok-bg:   #17301f;  --ok-line:   #26543a;
+  --warn:      #e0b25f;  --warn-bg: #332815;  --warn-line: #5a4520;
+  --bad:       #e88f8f;  --bad-bg:  #331c1c;  --bad-line:  #5a2e2e;
+  --info:      #7fb3e8;  --info-bg: #17283a;  --info-line: #2b4a6b;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.45);
+  --shadow-lg: 0 14px 40px rgba(0,0,0,.55);
+
+  --focus-ring: 0 0 0 3px rgba(107,163,221,.45);
+
+  color-scheme: dark;
+}
+
+/* Form controls and charts need telling; they do not inherit. */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--nv-bg);
+  color: var(--nv-text);
+  border-color: var(--nv-line-strong);
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: var(--nv-text-faint); }
+
+[data-theme="dark"] .apexcharts-text tspan { fill: var(--nv-text-muted); }
+[data-theme="dark"] .apexcharts-gridline { stroke: var(--nv-line); }
+[data-theme="dark"] .apexcharts-tooltip {
+  background: var(--nv-surface) !important;
+  border-color: var(--nv-line) !important;
+  color: var(--nv-text) !important;
+}
+
+html { transition: background-color var(--dur-base) var(--ease-out); }

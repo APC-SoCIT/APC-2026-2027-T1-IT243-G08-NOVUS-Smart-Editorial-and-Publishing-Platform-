@@ -4,9 +4,14 @@ import './styles/tokens.css'
 import App from './App.vue'
 import router from './router'
 import VueApexCharts from 'vue3-apexcharts'
+import { useThemeStore } from './stores/theme'
 
-createApp(App)
-  .use(createPinia())
-  .use(router)
-  .use(VueApexCharts)
-  .mount('#app')
+const app = createApp(App)
+const pinia = createPinia()
+
+app.use(pinia).use(router).use(VueApexCharts)
+
+// Applied before mount so the first paint is already the right theme.
+useThemeStore(pinia).init()
+
+app.mount('#app')

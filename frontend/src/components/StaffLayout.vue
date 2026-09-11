@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import NotificationBell from './NotificationBell.vue'
+import ThemeToggle from './ThemeToggle.vue'
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -91,6 +92,7 @@ function signOut() {
         <div class="hactions">
           <slot name="action" />
           <NotificationBell />
+          <ThemeToggle />
           <button class="out" @click="signOut">Sign out</button>
         </div>
       </header>
