@@ -30,6 +30,13 @@ const wasReturned = computed(() =>
   && !article.value?.latest_evaluation?.is_overridden)
 const withdrawOpen = ref(false)
 const confirmApprove = ref(false)
+
+/* Once an article is approved, published or withdrawn the editorial
+   decision is made. Leaving the action bar visible invites approving
+   something twice, which the backend rejects but the interface
+   should not offer in the first place. */
+const isDecided = computed(() =>
+  ['APPROVED', 'PUBLISHED', 'WITHDRAWN'].includes(article.value?.status))
 const withdrawReason = ref('')
 const overrideReason = ref('')
 
@@ -190,7 +197,14 @@ const submitOverride = () => act(() => {
                 placeholder="Why are you setting aside the automated verdict?"></textarea>
     </div>
 
-    <div class="actions">
+    <div v-if="isDecided" class="settled" role="status">
+      This article is <b>{{ article.status.replace(/_/g, ' ').toLowerCase() }}</b>.
+      <template v-if="article.status === 'APPROVED'">
+        Assign it to an issue below, or leave it unassigned to publish on its own.
+      </template>
+    </div>
+
+    <div v-else class="actions">
       <template v-if="showComposer">
         <button class="ghost" @click="showComposer = false">Cancel</button>
         <button class="warn" :disabled="busy" @click="sendRevision">Send to Writer</button>
@@ -258,5 +272,9 @@ button:disabled { opacity: .55; }
 .gatenote { background: #fdf6e8; border: 1px solid #f0d9b5; color: #8a6321;
             padding: 11px 14px; border-radius: 8px; font-size: 13px;
             line-height: 1.6; margin: 0 0 16px; }
+.settled { background: var(--ok-bg); border: 1px solid var(--ok-line);
+           color: var(--ok); padding: 14px 18px; border-radius: var(--r-md);
+           font-size: 15px; line-height: 1.6; margin-top: var(--s-5); }
+.settled b { text-transform: capitalize; }
 .err { color: #c00; font-size: 13px; margin-top: 14px; }
 </style>

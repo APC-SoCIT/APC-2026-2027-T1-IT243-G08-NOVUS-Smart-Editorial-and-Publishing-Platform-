@@ -31,16 +31,35 @@ const match = (a) => {
 /* "Needs you" merges the review queue and gate returns: both are articles
    sitting still until an editor acts. Splitting them made the editor check
    two places for the same kind of work. */
-const attention = computed(() => articles.value.filter(a =>
-  (a.status === 'UNDER_REVIEW' || a.returned_by_ai) && match(a)))
+/* An article the gate returned is with its writer, not with the editor.
+   Counting it under "needs you" overstated the editor's actual workload and
+   buried the two pieces they could genuinely act on. */
+const awaitingReview = computed(() => articles.value.filter(a =>
+  a.status === 'UNDER_REVIEW' && !a.returned_by_ai && match(a)))
+const attention = awaitingReview
+
 const working = computed(() => articles.value.filter(a =>
-  ['ASSIGNED', 'DRAFTING'].includes(a.status) && match(a)))
+  (['ASSIGNED', 'DRAFTING'].includes(a.status) || a.returned_by_ai) && match(a)))
+
+/* Within "being written", the three states mean different things to an
+   editor: one has not started, one is in hand, one came back from the gate. */
+const grouped = computed(() => [
+  { label: 'Returned by pre-screening',
+    hint: 'Below the passing mark. The writer is revising.',
+    items: working.value.filter(a => a.returned_by_ai) },
+  { label: 'Being drafted',
+    hint: 'Started, not yet submitted.',
+    items: working.value.filter(a => !a.returned_by_ai && a.status === 'DRAFTING') },
+  { label: 'Not started',
+    hint: 'Assigned but untouched.',
+    items: working.value.filter(a => !a.returned_by_ai && a.status === 'ASSIGNED') },
+].filter(g => g.items.length))
 const approved = computed(() => articles.value.filter(a =>
   a.status === 'APPROVED' && match(a)))
 
 const TABS = computed(() => [
-  { key: 'attention', label: 'Needs you',   count: attention.value.length },
-  { key: 'working',   label: 'Being written', count: working.value.length },
+  { key: 'attention', label: 'Needs you',     count: attention.value.length },
+  { key: 'working',   label: 'With writers',  count: working.value.length },
   { key: 'approved',  label: 'Approved',    count: approved.value.length },
   { key: 'layouts',   label: 'Layouts',     count: null },
 ])
@@ -121,6 +140,34 @@ const EMPTY = {
       <UiSkeleton v-if="loading" :rows="4" label="Loading articles" />
 
       <UiEmpty v-else-if="!current.length" v-bind="EMPTY[tab]" />
+
+      <!-- Grouped, because "with writers" covers three different situations. -->
+      <template v-else-if="tab === 'working'">
+        <section v-for="g in grouped" :key="g.label" class="group">
+          <h3>{{ g.label }} <span>{{ g.items.length }}</span></h3>
+          <p class="ghint">{{ g.hint }}</p>
+          <ul class="rows">
+            <li v-for="a in g.items" :key="a.id" class="row" tabindex="0"
+                role="button" @click="open(a)" @keyup.enter="open(a)">
+              <span class="who" aria-hidden="true">{{ initials(a.writer_name) }}</span>
+              <div class="meta">
+                <span class="t">{{ a.title }}</span>
+                <span class="sub">
+                  {{ a.writer_name }}
+                  <template v-if="a.deadline">
+                    · <span :class="{ late: a.is_overdue }">
+                        {{ a.is_overdue ? `${Math.abs(a.days_to_deadline)} days late`
+                                        : `due in ${a.days_to_deadline} days` }}
+                      </span>
+                  </template>
+                </span>
+              </div>
+              <span v-if="a.returned_by_ai && a.latest_score !== null"
+                    class="score bad">{{ a.latest_score }}</span>
+            </li>
+          </ul>
+        </section>
+      </template>
 
       <ul v-else class="rows">
         <li v-for="a in current" :key="a.id" class="row" tabindex="0"
@@ -216,6 +263,13 @@ const EMPTY = {
           font-family: inherit; background: var(--nv-surface); }
 
 /* ---- rows ---- */
+.group { margin-bottom: var(--s-6); }
+.group h3 { display: flex; align-items: center; gap: 8px;
+            font-size: 13px; letter-spacing: .05em; text-transform: uppercase;
+            color: var(--nv-text-muted); margin: 0 0 2px; font-weight: 600; }
+.group h3 span { font-size: 12px; padding: 1px 7px; border-radius: var(--r-full);
+                 background: #e4e7ec; color: var(--nv-text-muted); }
+.ghint { font-size: 13px; color: var(--nv-text-faint); margin: 0 0 var(--s-3); }
 .rows { list-style: none; margin: 0; padding: 0;
         display: flex; flex-direction: column; gap: 8px; }
 .row { display: flex; align-items: center; gap: var(--s-4);

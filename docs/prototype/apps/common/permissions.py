@@ -8,12 +8,23 @@ class IsRole(BasePermission):
 
     def has_permission(self, request, view):
         user = request.user
-        return bool(
-            user
-            and user.is_authenticated
-            and not getattr(user, "is_suspended", False)
-            and user.role in self.allowed_roles
-        )
+
+        if not (user and user.is_authenticated):
+            return False
+
+        # A suspended account is refused before any role is considered
+        # (UC-5.2.2): suspension must revoke access immediately, whatever
+        # authority the account otherwise holds.
+        if getattr(user, "is_suspended", False):
+            return False
+
+        # An administrator is not a seventh workflow role — they hold every
+        # role's authority. Without this an admin could configure the platform
+        # but not operate it, which is not what the role means.
+        if user.is_superuser or user.role == "ADMIN":
+            return True
+
+        return user.role in self.allowed_roles
 
 
 def role_permission(*roles):

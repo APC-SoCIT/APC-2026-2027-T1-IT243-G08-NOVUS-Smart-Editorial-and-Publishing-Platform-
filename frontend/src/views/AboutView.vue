@@ -60,7 +60,6 @@ useReveal('[data-reveal]')
           editorial workflow behind every issue runs on NOVUS, a smart editorial
           and publishing platform built for the newsroom.
         </p>
-        <router-link to="/staff/login" class="staff">Editorial team login →</router-link>
       </div>
     </section>
   </BossShell>

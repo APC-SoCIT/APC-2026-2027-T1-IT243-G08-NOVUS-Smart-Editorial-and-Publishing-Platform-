@@ -76,7 +76,6 @@ const isOn = (to) => route.path === to.split('?')[0]
           <h3>Account</h3>
           <router-link to="/login">Sign in</router-link>
           <router-link to="/register">Create account</router-link>
-          <router-link to="/staff/login">Editorial login</router-link>
         </nav>
 
         <nav aria-label="Legal">
