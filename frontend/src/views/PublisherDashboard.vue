@@ -5,6 +5,7 @@ import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import StaffLayout from '../components/StaffLayout.vue'
 import SlideOver from '../components/SlideOver.vue'
+import ArticlePreview from '../components/ArticlePreview.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import UiBadge from '../components/ui/UiBadge.vue'
 import UiEmpty from '../components/ui/UiEmpty.vue'
@@ -18,6 +19,7 @@ const issues = ref([])
 const standalone = ref([])
 const signoff = ref([])
 const pendingSign = ref(null)
+const previewId = ref(null)
 const loading = ref(true)
 const tab = ref('signoff')
 const error = ref('')
@@ -140,9 +142,7 @@ const pct = (i) => i.total_articles
           </div>
           <span v-if="a.latest_score" class="score">{{ a.latest_score }}</span>
           <div class="sacts">
-            <UiButton size="sm" @click="router.push(`/editor/review/${a.id}`)">
-              Read it
-            </UiButton>
+            <UiButton size="sm" @click="previewId = a.id">Read it</UiButton>
             <UiButton variant="primary" size="sm" :loading="busy === a.id"
                       @click="pendingSign = a">Sign off</UiButton>
           </div>
@@ -276,6 +276,8 @@ const pct = (i) => i.total_articles
     <p v-if="error" class="ferr" role="alert">{{ error }}</p>
     <UiButton variant="primary" full @click="createIssue">Create issue</UiButton>
   </SlideOver>
+
+  <ArticlePreview :article-id="previewId" @close="previewId = null" />
 
   <ConfirmDialog
     :open="!!pendingSign"

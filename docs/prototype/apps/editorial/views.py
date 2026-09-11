@@ -118,8 +118,13 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated()]
         if self.action == "request_revision":
             return [role_permission("EDITOR")()]
+        if self.action == "pull_back":
+            # Either role may pull back; which articles each may touch is
+            # decided in the view, since it depends on whether the article
+            # has been assigned to an issue.
+            return [role_permission("EDITOR", "PUBLISHER")()]
         if self.action in ("approve", "override", "assign_to_issue",
-                           "assign", "reassign"):
+                           "assign", "reassign", "set_access"):
             return [role_permission("EDITOR")()]
         if self.action in ("publish", "sign_off"):
             return [role_permission("PUBLISHER")()]
@@ -477,6 +482,89 @@ class ArticleViewSet(viewsets.ModelViewSet):
         notify(writer, Notification.Kind.ASSIGNED,
                f'"{article.title}" has been reassigned to you.',
                f"/writer/compose/{article.id}")
+        return Response(ArticleDetailSerializer(article).data)
+
+    @action(detail=True, methods=["post"], url_path="pull-back")
+    def pull_back(self, request, pk=None):
+        """Return an approved article to review.
+
+        Approval is reversible until publication: an editor who approved too
+        early needs a way back that is not withdrawal, which is destructive and
+        removes the article from its issue.
+        """
+        article = self.get_object()
+
+        if article.status != Article.Status.APPROVED:
+            return Response(
+                {"detail": f"Only an approved article can be pulled back "
+                           f"(this one is {article.get_status_display().lower()})."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Approval is not the handover — assignment to an issue is. Until
+        # then the article is still editorial and an editor may correct their
+        # own decision. Once a publisher is planning an issue around it, only
+        # they should be able to take it out.
+        is_publisher = request.user.role in (
+            request.user.Role.PUBLISHER, request.user.Role.ADMIN
+        ) or request.user.is_superuser
+
+        if article.issue_id and not is_publisher:
+            return Response(
+                {"detail": f"This article is in Issue #{article.issue.number}. "
+                           f"Only the publisher can pull it back now."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        reason = (request.data.get("reason") or "").strip()
+        if len(reason) < 5:
+            return Response({"detail": "Give a reason for pulling this back."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # A pull-back must never leave an issue quietly unpublishable. Removing
+        # the article corrects the readiness count, the same cascade UC-1.10
+        # defines for withdrawal.
+        left_issue = None
+        if article.issue_id:
+            left_issue = article.issue
+            article.issue = None
+            article.is_premium = False
+
+        article.status = Article.Status.UNDER_REVIEW
+        article.save(update_fields=["status", "issue", "is_premium", "updated_at"])
+
+        if left_issue:
+            from apps.accounts.models import User
+            from apps.notifications.services import notify_many
+            notify_many(
+                User.objects.filter(role=User.Role.PUBLISHER, is_active=True),
+                Notification.Kind.REVISION,
+                f'"{article.title}" was pulled out of Issue #{left_issue.number}.',
+                f"/publisher/issue/{left_issue.id}",
+            )
+
+        RevisionNote.objects.create(
+            article=article, editor=request.user, section="",
+            note_type="STRUCTURE",
+            instruction=f"Pulled back from approved: {reason}",
+            priority="HIGH",
+        )
+        notify(article.writer, Notification.Kind.REVISION,
+               f'"{article.title}" was pulled back into review.',
+               f"/writer/compose/{article.id}")
+        return Response(ArticleDetailSerializer(article).data)
+
+    @action(detail=True, methods=["post"], url_path="set-access")
+    def set_access(self, request, pk=None):
+        """Choose whether an article is free or subscriber-only.
+
+        Assignment to an issue defaults it to premium, since the issue is the
+        paid product — but an editor may want a piece from the issue running
+        free to draw readers in, or a standalone feature behind the paywall.
+        """
+        article = self.get_object()
+        article.is_premium = bool(request.data.get("is_premium"))
+        article.save(update_fields=["is_premium", "updated_at"])
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["post"])

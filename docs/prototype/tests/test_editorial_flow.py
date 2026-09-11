@@ -251,3 +251,60 @@ class TestDesignerArticleAccess:
         r = auth_client(designer).get(f"/api/editorial/articles/{a.id}/")
         assert r.status_code == status.HTTP_200_OK
         assert "Body for layout" in r.data["body"]
+
+
+@pytest.mark.django_db
+class TestPullBack:
+    """Approval is reversible until publication, but ownership moves to the
+    publisher once an article is assigned to an issue."""
+
+    def _approved(self, writer, issue=None):
+        return Article.objects.create(
+            writer=writer, title="Approved piece", body="<p>Copy.</p>",
+            category="Tech", status=Article.Status.APPROVED, issue=issue)
+
+    def test_editor_can_pull_back_an_unassigned_article(
+        self, auth_client, writer, editor
+    ):
+        a = self._approved(writer)
+        r = auth_client(editor).post(
+            f"/api/editorial/articles/{a.id}/pull-back/", {"reason": "Sources unverified."})
+        assert r.status_code == status.HTTP_200_OK
+        a.refresh_from_db()
+        assert a.status == Article.Status.UNDER_REVIEW
+
+    def test_editor_cannot_pull_back_once_it_is_in_an_issue(
+        self, auth_client, writer, editor, publisher
+    ):
+        from apps.issues.models import Issue
+        issue = Issue.objects.create(number=40, title="Test", created_by=publisher)
+        a = self._approved(writer, issue)
+
+        r = auth_client(editor).post(
+            f"/api/editorial/articles/{a.id}/pull-back/", {"reason": "Changed my mind."})
+        assert r.status_code == status.HTTP_403_FORBIDDEN
+        a.refresh_from_db()
+        assert a.status == Article.Status.APPROVED
+
+    def test_publisher_pull_back_removes_it_from_the_issue(
+        self, auth_client, writer, publisher
+    ):
+        from apps.issues.models import Issue
+        issue = Issue.objects.create(number=41, title="Test", created_by=publisher)
+        a = self._approved(writer, issue)
+
+        r = auth_client(publisher).post(
+            f"/api/editorial/articles/{a.id}/pull-back/", {"reason": "Holding for next month."})
+        assert r.status_code == status.HTTP_200_OK
+
+        a.refresh_from_db()
+        assert a.status == Article.Status.UNDER_REVIEW
+        # The issue must not be left permanently unpublishable.
+        assert a.issue_id is None
+        assert issue.articles.count() == 0
+
+    def test_a_reason_is_required(self, auth_client, writer, editor):
+        a = self._approved(writer)
+        r = auth_client(editor).post(
+            f"/api/editorial/articles/{a.id}/pull-back/", {"reason": "no"})
+        assert r.status_code == status.HTTP_400_BAD_REQUEST

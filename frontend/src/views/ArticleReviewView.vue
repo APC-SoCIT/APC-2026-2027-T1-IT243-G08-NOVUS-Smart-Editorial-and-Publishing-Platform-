@@ -3,7 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
-import IssueAssign from '../components/IssueAssign.vue'
+import PublishingPanel from '../components/PublishingPanel.vue'
 import MessageThread from '../components/MessageThread.vue'
 import StatusTimeline from '../components/StatusTimeline.vue'
 import VersionHistory from '../components/VersionHistory.vue'
@@ -29,6 +29,8 @@ const wasReturned = computed(() =>
   article.value?.returned_by_ai
   && !article.value?.latest_evaluation?.is_overridden)
 const withdrawOpen = ref(false)
+const pullBackOpen = ref(false)
+const pullBackReason = ref('')
 const confirmApprove = ref(false)
 
 /* Once an article is approved, published or withdrawn the editorial
@@ -73,6 +75,13 @@ async function act(fn) {
 }
 
 const approve = () => act(() => api.post(`/editorial/articles/${id}/approve/`))
+
+const pullBack = () => act(() => {
+  if (pullBackReason.value.trim().length < 5)
+    throw { response: { data: { detail: 'Give a reason for pulling this back.' } } }
+  return api.post(`/editorial/articles/${id}/pull-back/`,
+                  { reason: pullBackReason.value })
+})
 const doApprove = () => { confirmApprove.value = false; approve() }
 
 const withdraw = () => act(() => {
@@ -129,11 +138,9 @@ const submitOverride = () => act(() => {
       </div>
     </div>
 
-    <IssueAssign
+    <PublishingPanel
       v-if="['APPROVED', 'PUBLISHED'].includes(article.status)"
-      :article-id="article.id"
-      :current-issue="article.issue"
-      @assigned="load" />
+      :article="article" @changed="load" />
 
     <ImageManager :article="article" @changed="load" />
 
@@ -203,10 +210,32 @@ const submitOverride = () => act(() => {
     </div>
 
     <div v-if="isDecided" class="settled" role="status">
-      This article is <b>{{ article.status.replace(/_/g, ' ').toLowerCase() }}</b>.
-      <template v-if="article.status === 'APPROVED'">
-        Assign it to an issue below, or leave it unassigned to publish on its own.
-      </template>
+      <div class="stext">
+        This article is <b>{{ article.status.replace(/_/g, ' ').toLowerCase() }}</b>.
+        <template v-if="article.status === 'APPROVED'">
+          Set its issue and reader access below.
+        </template>
+      </div>
+      <button v-if="article.status === 'APPROVED'" class="pullback"
+              @click="pullBackOpen = true">
+        Pull back into review
+      </button>
+    </div>
+
+    <div v-if="pullBackOpen" class="composer">
+      <h5>Pull this article back into review</h5>
+      <p class="hint">
+        It returns to your review queue and the writer is notified. If it is in
+        an issue, it will be removed and the issue's readiness corrected.
+      </p>
+      <textarea v-model="pullBackReason" rows="2"
+                placeholder="Why is this coming back?"></textarea>
+      <div class="pbacts">
+        <button class="ghost" @click="pullBackOpen = false">Cancel</button>
+        <button class="warn" :disabled="busy" @click="pullBack">
+          Pull back
+        </button>
+      </div>
     </div>
 
     <div v-else-if="!isReviewable" class="settled waiting" role="status">
@@ -287,7 +316,17 @@ button:disabled { opacity: .55; }
 .settled { background: var(--ok-bg); border: 1px solid var(--ok-line);
            color: var(--ok); padding: 14px 18px; border-radius: var(--r-md);
            font-size: 15px; line-height: 1.6; margin-top: var(--s-5); }
+.settled { display: flex; align-items: center; gap: var(--s-4); }
+.stext { flex: 1; }
 .settled b { text-transform: capitalize; }
+.pullback { background: transparent; border: 1px solid currentColor;
+            color: inherit; padding: 8px 14px; border-radius: var(--r-sm);
+            font-size: 13px; cursor: pointer; white-space: nowrap;
+            font-family: inherit; opacity: .75; }
+.pullback:hover { opacity: 1; }
+.pbacts { display: flex; gap: 8px; margin-top: var(--s-3); }
+.pbacts button { flex: 1; padding: 10px; border-radius: var(--r-sm);
+                 cursor: pointer; font-size: 13px; font-family: inherit; }
 .settled.waiting { background: var(--nv-bg); border-color: var(--nv-line-strong);
                    color: var(--nv-text-muted); }
 .err { color: var(--bad); font-size: 13px; margin-top: 14px; }
