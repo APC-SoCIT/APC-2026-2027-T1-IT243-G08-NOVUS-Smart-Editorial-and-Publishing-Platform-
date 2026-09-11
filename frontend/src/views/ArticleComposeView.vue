@@ -251,16 +251,9 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
         This article is <b>{{ status.replace(/_/g, ' ').toLowerCase() }}</b>
         and cannot be edited right now.
       </div>
-
-      <div v-if="briefText" class="brief">
-        <h2>Your brief</h2>
-        <p>{{ briefText }}</p>
-        <small v-if="deadline">Deadline {{ deadline }}</small>
-      </div>
-
-      <EvaluationPanel v-if="evaluation" :evaluation="evaluation"
-                       :returned-by-ai="returnedByAi" :threshold="70" />
     </div>
+
+    <div class="compose-grid">
 
     <!-- ============ the page ============ -->
     <div class="page">
@@ -309,13 +302,27 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
       <editor-content :editor="editor" class="surface" />
     </div>
 
-    <!-- ============ below the fold ============ -->
-    <div class="after" v-if="articleId">
-      <VersionHistory :versions="versions" :current-title="title"
-                      :current-body="editor?.getHTML() || ''" />
-      <MessageThread :article-id="articleId" />
+    <!-- ---- context rail: reference while writing, not a wall to scroll past ---- -->
+    <aside class="rail" aria-label="Article context">
+      <section v-if="briefText" class="brief">
+        <h2>Your brief</h2>
+        <p>{{ briefText }}</p>
+        <small v-if="deadline">Deadline {{ deadline }}</small>
+      </section>
 
-      <button v-if="canEdit" class="wd" @click="withdrawOpen = true">
+      <EvaluationPanel v-if="evaluation" :evaluation="evaluation"
+                       :returned-by-ai="returnedByAi" :threshold="70" />
+
+      <MessageThread v-if="articleId" :article-id="articleId" />
+
+      <VersionHistory v-if="articleId" :versions="versions"
+                      :current-title="title"
+                      :current-body="editor?.getHTML() || ''" />
+    </aside>
+    </div>
+
+    <div class="after" v-if="articleId && canEdit">
+      <button class="wd" @click="withdrawOpen = true">
         Withdraw this article
       </button>
     </div>
@@ -380,7 +387,17 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
 .acts { display: flex; gap: var(--s-2); }
 
 /* ---- notices ---- */
-.notices { max-width: 740px; margin: 0 auto; padding: var(--s-5) var(--s-5) 0; }
+.notices { max-width: 1180px; margin: 0 auto; padding: var(--s-5) var(--s-5) 0; }
+
+/* The sheet keeps its comfortable measure; context sits beside it so a
+   writer can consult the brief without leaving the paragraph. */
+.compose-grid { max-width: 1180px; margin: var(--s-5) auto 0;
+                padding: 0 var(--s-5); display: grid;
+                grid-template-columns: minmax(0, 1fr) 340px;
+                gap: var(--s-5); align-items: start; }
+.rail { position: sticky; top: 76px; display: flex; flex-direction: column;
+        gap: var(--s-4); max-height: calc(100vh - 96px); overflow-y: auto;
+        padding-right: 2px; }
 .err { background: var(--bad-bg); border: 1px solid var(--bad-line);
        color: var(--bad); padding: 12px 16px; border-radius: var(--r-sm);
        font-size: 14px; margin: 0 0 var(--s-4); }
@@ -397,7 +414,7 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
                color: var(--nv-text-muted); }
 
 /* ---- the page: a quiet sheet, not a form ---- */
-.page { max-width: 740px; margin: var(--s-5) auto 0; background: var(--nv-surface);
+.page { background: var(--nv-surface);
         border: 1px solid var(--nv-line); border-radius: var(--r-md);
         padding: var(--s-8) var(--s-7); }
 
@@ -444,7 +461,7 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
 .surface :deep(img) { width: 100%; border-radius: var(--r-sm); margin: 20px 0; }
 .surface :deep(ul), .surface :deep(ol) { padding-left: 26px; margin: 0 0 18px; }
 
-.after { max-width: 740px; margin: 0 auto; padding: 0 var(--s-5); }
+.after { max-width: 1180px; margin: 0 auto; padding: 0 var(--s-5); }
 .wd { display: block; margin: var(--s-6) auto 0; background: none; border: 0;
       color: var(--bad); font-size: 14px; cursor: pointer;
       text-decoration: underline; font-family: inherit; }
@@ -457,6 +474,11 @@ label input, label select, label textarea {
   border: 1px solid var(--nv-line-strong); border-radius: var(--r-sm);
   font-family: inherit; }
 .hint { font-size: 13px; color: var(--nv-text-faint); margin: -8px 0 16px; }
+
+@media (max-width: 1080px) {
+  .compose-grid { grid-template-columns: 1fr; }
+  .rail { position: static; max-height: none; }
+}
 
 @media (max-width: 780px) {
   .page { padding: var(--s-5) var(--s-4); border-radius: 0; border-left: 0;

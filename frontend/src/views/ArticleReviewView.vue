@@ -35,6 +35,11 @@ const confirmApprove = ref(false)
    decision is made. Leaving the action bar visible invites approving
    something twice, which the backend rejects but the interface
    should not offer in the first place. */
+/* Editorial actions only make sense on an article that has been
+   submitted and assessed. A draft belongs to its writer. */
+const isReviewable = computed(() =>
+  article.value?.status === 'UNDER_REVIEW')
+
 const isDecided = computed(() =>
   ['APPROVED', 'PUBLISHED', 'WITHDRAWN'].includes(article.value?.status))
 const withdrawReason = ref('')
@@ -204,6 +209,13 @@ const submitOverride = () => act(() => {
       </template>
     </div>
 
+    <div v-else-if="!isReviewable" class="settled waiting" role="status">
+      This article is <b>{{ article.status.replace(/_/g, ' ').toLowerCase() }}</b>
+      and has not been submitted for review yet. You can read it and leave a
+      message, but it cannot be approved until the writer submits it and it
+      passes pre-screening.
+    </div>
+
     <div v-else class="actions">
       <template v-if="showComposer">
         <button class="ghost" @click="showComposer = false">Cancel</button>
@@ -276,5 +288,7 @@ button:disabled { opacity: .55; }
            color: var(--ok); padding: 14px 18px; border-radius: var(--r-md);
            font-size: 15px; line-height: 1.6; margin-top: var(--s-5); }
 .settled b { text-transform: capitalize; }
+.settled.waiting { background: var(--nv-bg); border-color: var(--nv-line-strong);
+                   color: var(--nv-text-muted); }
 .err { color: #c00; font-size: 13px; margin-top: 14px; }
 </style>

@@ -236,6 +236,16 @@ class ArticleViewSet(viewsets.ModelViewSet):
         requires a written justification so the decision is auditable."""
         article = self.get_object()
 
+        # Approval requires an article that has actually been submitted and
+        # assessed. Approving a draft would bypass the pre-screening gate
+        # entirely, which is the control the whole pipeline rests on.
+        if article.status != Article.Status.UNDER_REVIEW:
+            return Response(
+                {"detail": f"Only an article under review can be approved "
+                           f"(this one is {article.get_status_display().lower()})."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         latest = article.evaluations.order_by("-created_at").first()
         if article.returned_by_ai and not (latest and latest.is_overridden):
             return Response(
