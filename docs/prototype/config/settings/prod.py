@@ -15,7 +15,19 @@ if _host:
 CORS_ALLOWED_ORIGINS = [
     o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()
 ]
-CSRF_TRUSTED_ORIGINS = [*CORS_ALLOWED_ORIGINS, "https://*.onrender.com"]
+# Vercel gives every deployment its own hostname, so a fixed allow-list
+# only ever covers the production alias. The pattern below admits this
+# project's preview builds as well, which is what makes testing a branch
+# against the live API possible.
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://novusdeploy.*\.vercel\.app$",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    *CORS_ALLOWED_ORIGINS,
+    "https://*.onrender.com",
+    "https://*.vercel.app",
+]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True

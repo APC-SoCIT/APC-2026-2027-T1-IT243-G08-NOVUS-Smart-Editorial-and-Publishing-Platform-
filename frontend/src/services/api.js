@@ -24,4 +24,32 @@ export function mediaUrl(path) {
   return base ? `${base}${path}` : path
 }
 
+/**
+ * Rewrite relative /media paths to absolute ones.
+ *
+ * Django returns "/media/…" so the URL works behind the dev proxy. In
+ * production the frontend is on Vercel and the files are on Render, so the
+ * path must be prefixed. Doing it once here means no component has to know.
+ */
+const MEDIA_BASE = import.meta.env.VITE_MEDIA_BASE || ''
+
+function absolutiseMedia(value) {
+  if (!MEDIA_BASE || value == null) return value
+  if (typeof value === 'string') {
+    return value.startsWith('/media/') ? MEDIA_BASE + value : value
+  }
+  if (Array.isArray(value)) return value.map(absolutiseMedia)
+  if (typeof value === 'object') {
+    const out = {}
+    for (const k in value) out[k] = absolutiseMedia(value[k])
+    return out
+  }
+  return value
+}
+
+api.interceptors.response.use((response) => {
+  response.data = absolutiseMedia(response.data)
+  return response
+})
+
 export default api
