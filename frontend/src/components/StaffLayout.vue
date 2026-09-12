@@ -19,21 +19,26 @@ const NAV = {
   WRITER: [
     { to: '/writer', label: 'Dashboard' },
     { to: '/writer/compose', label: 'New submission' },
+    { to: '/archive', label: 'Archive' },
   ],
   EDITOR: [
     { to: '/editor', label: 'Dashboard' },
+    { to: '/archive', label: 'Archive' },
     { to: '/reports', label: 'Reports' },
   ],
   PUBLISHER: [
     { to: '/publisher', label: 'Pipeline' },
+    { to: '/archive', label: 'Archive' },
     { to: '/reports', label: 'Reports' },
   ],
   GRAPHIC_DESIGNER: [
     { to: '/designer', label: 'Workspace' },
+    { to: '/archive', label: 'Archive' },
   ],
   ADMIN: [
     { to: '/editor', label: 'Editorial' },
     { to: '/publisher', label: 'Publishing' },
+    { to: '/archive', label: 'Archive' },
     { to: '/reports', label: 'Reports' },
     { to: '/settings', label: 'Settings' },
   ],

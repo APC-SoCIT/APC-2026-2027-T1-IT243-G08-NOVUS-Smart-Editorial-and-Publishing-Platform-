@@ -332,6 +332,80 @@ class ArticleViewSet(viewsets.ModelViewSet):
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=False, methods=["get"])
+    def archive(self, request):
+        """The published back catalogue.
+
+        Published articles otherwise disappear from every staff view, which
+        leaves an editor unable to answer the questions they ask most often:
+        what did we run last month, has anyone covered this before, what was
+        in Issue 12. For a magazine the back catalogue is the asset, so it
+        needs to be reachable rather than merely stored.
+        """
+        from django.db.models import Q
+
+        qs = (Article.objects
+              .filter(status=Article.Status.PUBLISHED)
+              .select_related("writer", "editor", "issue")
+              .order_by("-published_at"))
+
+        p = request.query_params
+
+        term = (p.get("q") or "").strip()
+        if term:
+            qs = qs.filter(
+                Q(title__icontains=term)
+                | Q(excerpt__icontains=term)
+                | Q(body__icontains=term)
+                | Q(writer__first_name__icontains=term)
+                | Q(writer__last_name__icontains=term)
+            )
+
+        if p.get("category"):
+            qs = qs.filter(category=p["category"])
+        if p.get("issue"):
+            qs = qs.filter(issue_id=p["issue"])
+        if p.get("writer"):
+            qs = qs.filter(writer_id=p["writer"])
+        if p.get("year"):
+            qs = qs.filter(published_at__year=p["year"])
+
+        page = self.paginate_queryset(qs)
+        data = ArticleListSerializer(page or qs, many=True).data
+        return self.get_paginated_response(data) if page is not None \
+            else Response(data)
+
+    @action(detail=False, methods=["get"], url_path="archive-facets")
+    def archive_facets(self, request):
+        """The filter values that actually exist, so the interface offers only
+        categories and years something was published in."""
+        from django.db.models.functions import ExtractYear
+
+        qs = Article.objects.filter(status=Article.Status.PUBLISHED)
+
+        years = sorted(
+            {y for y in qs.annotate(y=ExtractYear("published_at"))
+                          .values_list("y", flat=True) if y},
+            reverse=True,
+        )
+        categories = sorted(
+            {c for c in qs.values_list("category", flat=True) if c}
+        )
+
+        from apps.issues.models import Issue
+        issues = list(
+            Issue.objects.filter(articles__status=Article.Status.PUBLISHED)
+            .distinct().order_by("-number")
+            .values("id", "number", "title")
+        )
+
+        return Response({
+            "years": years,
+            "categories": categories,
+            "issues": issues,
+            "total": qs.count(),
+        })
+
+    @action(detail=False, methods=["get"])
     def pipeline(self, request):
         """UC-1.16 View Pipeline Dashboard. Counts by status, deadline
         pressure, and per-writer workload — the assignment tracking the
