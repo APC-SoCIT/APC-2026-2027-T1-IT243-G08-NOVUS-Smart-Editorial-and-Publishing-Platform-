@@ -406,6 +406,77 @@ class ArticleViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=False, methods=["get"])
+    def calendar(self, request):
+        """Deadlines and release dates for a month.
+
+        Missed deadlines are the operational problem this system exists to
+        address, and until now the dates were recorded but never shown as a
+        timeline. Two caveats are built into the response rather than left to
+        the interface to infer:
+
+        Only commissioned work appears. A writer who starts their own draft
+        has no deadline, so nothing to place on a date.
+
+        An issue's target date is an intention, not a commitment — nothing
+        publishes an issue automatically. The readiness fields travel with it
+        so the interface can show a target that cannot be met as exactly that,
+        rather than implying a promise the system will not keep.
+        """
+        from datetime import date
+
+        from apps.issues.models import Issue
+
+        try:
+            year = int(request.query_params.get("year", date.today().year))
+            month = int(request.query_params.get("month", date.today().month))
+        except ValueError:
+            return Response({"detail": "Invalid year or month."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        open_statuses = [Article.Status.ASSIGNED, Article.Status.DRAFTING,
+                         Article.Status.REVISION_REQUESTED]
+
+        articles = (self.get_queryset()
+                    .filter(deadline__year=year, deadline__month=month)
+                    .select_related("writer"))
+
+        today = date.today()
+        deadlines = [{
+            "id": a.id,
+            "kind": "deadline",
+            "date": a.deadline.isoformat(),
+            "title": a.title,
+            "writer": a.writer.get_full_name(),
+            "status": a.status,
+            "is_open": a.status in open_statuses,
+            "is_overdue": a.status in open_statuses and a.deadline < today,
+        } for a in articles]
+
+        issues = Issue.objects.filter(
+            target_release_date__year=year,
+            target_release_date__month=month,
+        )
+        releases = [{
+            "id": i.id,
+            "kind": "release",
+            "date": i.target_release_date.isoformat(),
+            "title": f"Issue {i.number} — {i.title}",
+            "status": i.status,
+            "is_ready": i.is_ready,
+            "total_articles": i.total_articles,
+            "approved_articles": i.approved_articles,
+            "shipped": i.status in (Issue.Status.PUBLISHED, Issue.Status.ARCHIVED),
+        } for i in issues]
+
+        return Response({
+            "year": year,
+            "month": month,
+            "events": sorted(deadlines + releases, key=lambda e: e["date"]),
+            "open_deadlines": sum(1 for d in deadlines if d["is_open"]),
+            "overdue": sum(1 for d in deadlines if d["is_overdue"]),
+        })
+
+    @action(detail=False, methods=["get"])
     def pipeline(self, request):
         """UC-1.16 View Pipeline Dashboard. Counts by status, deadline
         pressure, and per-writer workload — the assignment tracking the
