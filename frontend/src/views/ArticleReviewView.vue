@@ -8,6 +8,8 @@ import MessageThread from '../components/MessageThread.vue'
 import StatusTimeline from '../components/StatusTimeline.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import ImageManager from '../components/ImageManager.vue'
+import StaffLayout from '../components/StaffLayout.vue'
+import UiBadge from '../components/ui/UiBadge.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
@@ -104,17 +106,13 @@ const submitOverride = () => act(() => {
 </script>
 
 <template>
-  <div class="wrap" v-if="!loading && article">
-    <header>
-      <h2>ARTICLE REVIEW</h2>
-      <router-link to="/editor" class="back">Back to dashboard</router-link>
-    </header>
-
-    <h1>{{ article.title }}</h1>
-    <p class="byline">
-      {{ article.writer_name }} · {{ article.category || 'Uncategorised' }} ·
-      <b>{{ article.status.replace('_', ' ') }}</b>
-    </p>
+  <StaffLayout v-if="!loading && article"
+               :title="article.title"
+               :subtitle="`${article.writer_name} · ${article.category || 'Uncategorised'} · ${article.reading_time} min read`">
+    <div class="topline">
+      <router-link to="/editor" class="back">← Back to dashboard</router-link>
+      <UiBadge :status="article.status" dot />
+    </div>
 
     <p v-if="wasReturned" class="gatenote">
       Pre-screening returned this article. Approving it requires an override
@@ -217,6 +215,22 @@ const submitOverride = () => act(() => {
       </aside>
     </div>
 
+    <div v-if="pullBackOpen" class="composer">
+      <h5>Pull this article back into review</h5>
+      <p class="hint">
+        It returns to your review queue and the writer is notified. If it is in
+        an issue, it will be removed and the issue's readiness corrected.
+      </p>
+      <textarea v-model="pullBackReason" rows="2"
+                placeholder="Why is this coming back?"></textarea>
+      <div class="pbacts">
+        <button class="ghost" @click="pullBackOpen = false">Cancel</button>
+        <button class="warn" :disabled="busy" @click="pullBack">
+          Pull back
+        </button>
+      </div>
+    </div>
+
     <div v-if="isDecided" class="settled" role="status">
       <div class="stext">
         This article is <b>{{ article.status.replace(/_/g, ' ').toLowerCase() }}</b>.
@@ -235,22 +249,6 @@ const submitOverride = () => act(() => {
       and has not been submitted for review yet. You can read it and leave a
       message, but it cannot be approved until the writer submits it and it
       passes pre-screening.
-    </div>
-
-    <div v-if="pullBackOpen" class="composer">
-      <h5>Pull this article back into review</h5>
-      <p class="hint">
-        It returns to your review queue and the writer is notified. If it is in
-        an issue, it will be removed and the issue's readiness corrected.
-      </p>
-      <textarea v-model="pullBackReason" rows="2"
-                placeholder="Why is this coming back?"></textarea>
-      <div class="pbacts">
-        <button class="ghost" @click="pullBackOpen = false">Cancel</button>
-        <button class="warn" :disabled="busy" @click="pullBack">
-          Pull back
-        </button>
-      </div>
     </div>
 
     <div v-else class="actions">
@@ -280,15 +278,23 @@ const submitOverride = () => act(() => {
                 @click="confirmApprove = true">Approve</button>
       </template>
     </div>
-  </div>
-  <p v-else class="wrap">Loading…</p>
+  </StaffLayout>
+  <p v-else class="loading">Loading…</p>
 </template>
 
 <style scoped>
 .wrap { max-width: 1240px; margin: 40px auto; font-family: system-ui; padding: 0 16px 60px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; font-size: 16px; }
-.back { font-size: 13px; color: var(--nv-text-muted); }
+/* align-items: center stops the badge stretching across the row, and the
+   gap keeps it clear of the back link on narrow viewports. */
+.topline { display: flex; justify-content: space-between;
+           align-items: center; gap: var(--s-4);
+           margin-bottom: var(--s-4); flex-wrap: wrap; }
+.topline > * { flex: 0 0 auto; }
+.back { font-size: 14px; color: var(--nv-text-muted); }
+.back:hover { color: var(--nv-accent); }
+.loading { padding: 60px; text-align: center; color: var(--nv-text-faint); }
 h1 { margin: 18px 0 4px; font-size: 27px; line-height: 1.25; }
 .byline { margin: 0 0 20px; font-size: 13px; color: #777; }
 /* Two columns: copy on the left at a readable measure, reference on the
