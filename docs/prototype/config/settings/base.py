@@ -160,3 +160,7 @@ STORAGES = {
 # frontend is served from a different origin in development (Vite) and in
 # production (Vercel), so an absolute backend URL is never the right one.
 UPLOADED_FILES_USE_URL = False
+
+# Shared secret for external schedulers. A cron service cannot hold a
+# session, so scheduled endpoints authenticate with this instead.
+SCHEDULER_TOKEN = os.environ.get("SCHEDULER_TOKEN", "")

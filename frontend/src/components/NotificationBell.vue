@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 
@@ -69,6 +69,38 @@ const ago = (d) => {
 }
 
 const urgent = ['DEADLINE_PASSED', 'RETURNED_BY_AI', 'REVISION', 'DESIGN_REVISION']
+
+const filter = ref('all')
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'urgent', label: 'Needs action' },
+  { key: 'unread', label: 'Unread' },
+]
+
+/* Grouped by recency rather than listed flat. Twelve kinds rendering
+   identically meant a deadline warning read the same as a routine
+   submission notice, and the one that mattered was hardest to find. */
+const groups = computed(() => {
+  let list = items.value
+  if (filter.value === 'urgent') list = list.filter(n => urgent.includes(n.kind))
+  if (filter.value === 'unread') list = list.filter(n => !n.is_read)
+
+  const start = new Date(); start.setHours(0, 0, 0, 0)
+  const week = new Date(start); week.setDate(start.getDate() - 7)
+
+  const buckets = [
+    { label: 'Today', items: [] },
+    { label: 'This week', items: [] },
+    { label: 'Earlier', items: [] },
+  ]
+  for (const n of list) {
+    const d = new Date(n.created_at)
+    if (d >= start) buckets[0].items.push(n)
+    else if (d >= week) buckets[1].items.push(n)
+    else buckets[2].items.push(n)
+  }
+  return buckets.filter(b => b.items.length)
+})
 </script>
 
 <template>
@@ -80,7 +112,12 @@ const urgent = ['DEADLINE_PASSED', 'RETURNED_BY_AI', 'REVISION', 'DESIGN_REVISIO
               ? `Notifications, ${unread} unread`
               : 'Notifications, none unread'"
             @click="toggle">
-      <span aria-hidden="true">Notifications</span>
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
       <span v-if="unread" class="badge" aria-hidden="true">
         {{ unread > 99 ? '99+' : unread }}
       </span>
@@ -93,9 +130,22 @@ const urgent = ['DEADLINE_PASSED', 'RETURNED_BY_AI', 'REVISION', 'DESIGN_REVISIO
         <button v-if="unread" class="mark" @click="markAll">Mark all read</button>
       </div>
 
-      <p v-if="!items.length" class="empty">Nothing yet.</p>
-      <ul v-else>
-        <li v-for="n in items" :key="n.id"
+      <div class="filters" role="tablist" aria-label="Filter notifications">
+        <button v-for="f in FILTERS" :key="f.key" role="tab"
+                :aria-selected="filter === f.key"
+                :class="{ on: filter === f.key }"
+                @click="filter = f.key">{{ f.label }}</button>
+      </div>
+
+      <p v-if="!groups.length" class="empty">
+        {{ filter === 'all' ? 'Nothing yet.' : 'Nothing here.' }}
+      </p>
+
+      <div v-else class="scroll">
+        <template v-for="g in groups" :key="g.label">
+          <p class="glabel">{{ g.label }}</p>
+          <ul>
+            <li v-for="n in g.items" :key="n.id"
             :class="{ unread: !n.is_read, urgent: urgent.includes(n.kind) }"
             tabindex="0" role="button"
             :aria-label="`${n.message}${n.is_read ? '' : ', unread'}`"
@@ -103,14 +153,29 @@ const urgent = ['DEADLINE_PASSED', 'RETURNED_BY_AI', 'REVISION', 'DESIGN_REVISIO
             @keyup.space.prevent="openItem(n)">
           <p>{{ n.message }}</p>
           <small>{{ ago(n.created_at) }}</small>
-        </li>
-      </ul>
+            </li>
+          </ul>
+        </template>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .bell-wrap { position: relative; }
+.filters { display: flex; gap: 2px; padding: 8px 10px;
+           border-bottom: 1px solid var(--nv-line); }
+.filters button { flex: 1; background: none; border: 0; padding: 6px;
+                  font-size: 12px; color: var(--nv-text-muted);
+                  border-radius: var(--r-sm); cursor: pointer;
+                  font-family: inherit; }
+.filters button:hover { background: var(--nv-bg); }
+.filters button.on { background: var(--nv-navy-2); color: #fff;
+                     font-weight: 600; }
+.scroll { max-height: 360px; overflow-y: auto; }
+.glabel { margin: 0; padding: 8px 14px 4px; font-size: 11px;
+          letter-spacing: .05em; text-transform: uppercase;
+          color: var(--nv-text-faint); background: var(--nv-bg); }
 .bell { position: relative; border: 1px solid var(--nv-line-strong); background: var(--nv-surface); border-radius: var(--r-sm);
         padding: 7px 13px; font-size: 13px; cursor: pointer;
         color: var(--nv-text); }
