@@ -52,10 +52,19 @@ class ArticleViewSet(viewsets.ModelViewSet):
         if user.role == user.Role.WRITER:
             return self._apply_filters(qs.filter(writer=user))
         if user.role == user.Role.GRAPHIC_DESIGNER:
-            # UC-1.12: a Designer lays out finalised copy only. Drafts and
-            # articles still under review are not theirs to see.
-            qs = qs.filter(status__in=[Article.Status.APPROVED,
-                                       Article.Status.PUBLISHED])
+            # UC-1.12: designers lay out issues, not loose articles. Approval
+            # alone is an editorial milestone — the handover to production is
+            # assignment to an issue, because that is when the article has a
+            # page to sit on. An approved article with no issue is still
+            # waiting on an editorial decision and is not theirs yet.
+            #
+            # A consequence worth naming: a standalone web article never
+            # reaches a designer, which is correct. Web-only pieces have no
+            # print layout.
+            qs = qs.filter(
+                status__in=[Article.Status.APPROVED, Article.Status.PUBLISHED],
+                issue__isnull=False,
+            ).exclude(issue__status=("ARCHIVED"))
         return self._apply_filters(qs)
 
     def _apply_filters(self, qs):

@@ -234,34 +234,76 @@ class TestMagazineDesignFlow:
 
 @pytest.mark.django_db
 class TestDesignerArticleAccess:
-    """UC-1.12: the Designer reads finalised copy, not the whole pipeline."""
+    """Designers lay out issues, not loose articles.
 
-    def test_designer_sees_only_approved_and_published(
-        self, auth_client, make_user, writer
-    ):
+    Approval is an editorial milestone; the handover to production is
+    assignment to an issue, because that is when the article has a page to sit
+    on. A designer shown approved-but-unassigned copy would be looking at work
+    they cannot act on.
+    """
+
+    def _designer(self, make_user, email):
         from apps.accounts.models import User
-        designer = make_user("designer4@boss.ph", User.Role.GRAPHIC_DESIGNER)
+        return make_user(email, User.Role.GRAPHIC_DESIGNER)
 
-        approved = Article.objects.create(
-            writer=writer, title="Ready", body="<p>Final copy.</p>",
-            category="Tech", status=Article.Status.APPROVED)
-        draft = Article.objects.create(
-            writer=writer, title="Not ready", body="<p>Notes.</p>",
-            category="Tech", status=Article.Status.DRAFTING)
+    def _issue(self, publisher, number=70):
+        from apps.issues.models import Issue
+        return Issue.objects.create(number=number, title="Layout Issue",
+                                    created_by=publisher)
+
+    def test_designer_sees_approved_copy_that_is_in_an_issue(
+        self, auth_client, make_user, writer, publisher
+    ):
+        designer = self._designer(make_user, "designer4@boss.ph")
+        issue = self._issue(publisher, 71)
+
+        in_issue = Article.objects.create(
+            writer=writer, title="Ready for layout", body="<p>Final copy.</p>",
+            category="Tech", status=Article.Status.APPROVED, issue=issue)
 
         r = auth_client(designer).get("/api/editorial/articles/")
         ids = [a["id"] for a in r.data["results"]]
-        assert approved.id in ids
-        assert draft.id not in ids, "Designer must not see drafts"
+        assert in_issue.id in ids
 
-    def test_designer_can_read_approved_article_body(
+    def test_approved_copy_without_an_issue_is_not_theirs_yet(
         self, auth_client, make_user, writer
     ):
-        from apps.accounts.models import User
-        designer = make_user("designer5@boss.ph", User.Role.GRAPHIC_DESIGNER)
+        designer = self._designer(make_user, "designer4b@boss.ph")
+
+        unassigned = Article.objects.create(
+            writer=writer, title="Approved, unscheduled", body="<p>Copy.</p>",
+            category="Tech", status=Article.Status.APPROVED)
+
+        r = auth_client(designer).get("/api/editorial/articles/")
+        ids = [a["id"] for a in r.data["results"]]
+        assert unassigned.id not in ids, (
+            "Approved copy with no issue is still an editorial decision, "
+            "not production work"
+        )
+
+    def test_drafts_are_never_visible_to_a_designer(
+        self, auth_client, make_user, writer, publisher
+    ):
+        designer = self._designer(make_user, "designer4c@boss.ph")
+        issue = self._issue(publisher, 72)
+
+        draft = Article.objects.create(
+            writer=writer, title="Not ready", body="<p>Notes.</p>",
+            category="Tech", status=Article.Status.DRAFTING, issue=issue)
+
+        r = auth_client(designer).get("/api/editorial/articles/")
+        ids = [a["id"] for a in r.data["results"]]
+        assert draft.id not in ids
+
+    def test_designer_can_read_the_body_of_copy_in_their_issue(
+        self, auth_client, make_user, writer, publisher
+    ):
+        designer = self._designer(make_user, "designer5@boss.ph")
+        issue = self._issue(publisher, 73)
+
         a = Article.objects.create(
             writer=writer, title="Layout me", body="<p>Body for layout.</p>",
-            category="Life", status=Article.Status.APPROVED)
+            category="Life", status=Article.Status.APPROVED, issue=issue)
 
         r = auth_client(designer).get(f"/api/editorial/articles/{a.id}/")
         assert r.status_code == status.HTTP_200_OK
