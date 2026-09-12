@@ -50,6 +50,11 @@ const NAV = {
 
 const nav = computed(() => NAV[auth.role] || [])
 
+/* The brand mark returns to the workspace, not to the public site. A logo
+   that navigates out of the product someone is working in is disorienting —
+   the reader portal is a different application wearing a different name. */
+const home = computed(() => nav.value[0]?.to || '/writer')
+
 const roleLabel = computed(() =>
   (auth.role || '').replace('_', ' ').toLowerCase())
 
@@ -74,7 +79,7 @@ function signOut() {
 <template>
   <div class="shell">
     <aside>
-      <router-link to="/read" class="brand">
+      <router-link :to="home" class="brand" aria-label="NOVUS workspace home">
         <span class="mark">N</span>
         <span class="word">NOVUS</span>
       </router-link>
@@ -86,6 +91,12 @@ function signOut() {
           {{ n.label }}
         </router-link>
       </nav>
+
+      <a href="/read" target="_blank" rel="noopener" class="viewsite">
+        View public site
+        <span aria-hidden="true">↗</span>
+        <span class="sr-only">(opens in a new tab)</span>
+      </a>
 
       <div class="who">
         <div class="avatar">{{ initials }}</div>
@@ -148,6 +159,13 @@ nav a.on::before { content: ''; position: absolute; left: 0; top: 8px;
                    bottom: 8px; width: 3px; border-radius: 0 2px 2px 0;
                    background: var(--nv-accent); }
 
+.viewsite { display: flex; align-items: center; gap: 7px;
+            margin: 0 12px var(--s-3); padding: 9px 14px;
+            border-radius: var(--r-sm); font-size: 13px;
+            color: #7f8fab; border: 1px solid rgba(255,255,255,.08);
+            transition: color var(--dur-fast) var(--ease-out),
+                        border-color var(--dur-fast) var(--ease-out); }
+.viewsite:hover { color: #fff; border-color: rgba(255,255,255,.2); }
 .who { display: flex; align-items: center; gap: 11px; padding: 18px 22px 0;
        margin: 0 12px; border-top: 1px solid rgba(255,255,255,.09); }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: #2c3e63;
