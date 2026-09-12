@@ -1,12 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../services/api'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 const emit = defineEmits(['assigned'])
 
 const writers = ref([])
 const busy = ref(false)
 const error = ref('')
+const confirming = ref(false)
 
 const form = ref({ title: '', brief: '', category: '', writer: '', deadline: '' })
 
@@ -20,12 +22,22 @@ function reset() {
   error.value = ''
 }
 
-async function submit() {
+function review() {
   error.value = ''
   if (!form.value.title.trim() || !form.value.writer) {
     error.value = 'A topic and a writer are required.'
     return
   }
+  confirming.value = true
+}
+
+const writerName = () => {
+  const w = writers.value.find(x => x.id === form.value.writer)
+  return w ? `${w.first_name} ${w.last_name}` : 'the writer'
+}
+
+async function submit() {
+  confirming.value = false
   busy.value = true
   try {
     await api.post('/editorial/articles/assign/', {
@@ -74,10 +86,22 @@ async function submit() {
       </label>
     </div>
     <p v-if="error" class="err" role="alert">{{ error }}</p>
-    <button class="primary" :disabled="busy" @click="submit">
+    <button class="primary" :disabled="busy" @click="review">
       {{ busy ? 'Assigning…' : 'Assign to Writer' }}
     </button>
   </div>
+
+  <ConfirmDialog
+    :open="confirming"
+    title="Assign this article?"
+    :message="`“${form.title}” will be assigned to ${writerName()}.`"
+    confirm-label="Assign"
+    :points="[
+      'They are notified immediately and it appears on their dashboard.',
+      form.deadline ? `Deadline ${form.deadline}.` : 'No deadline set — it will not appear in overdue tracking.',
+    ]"
+    @confirm="submit"
+    @cancel="confirming = false" />
 </template>
 
 <style scoped>

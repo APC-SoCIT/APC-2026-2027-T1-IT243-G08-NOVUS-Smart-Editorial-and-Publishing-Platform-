@@ -26,8 +26,10 @@ const error = ref('')
 const busy = ref(null)
 
 const newOpen = ref(false)
-const form = ref({ number: '', title: '', target_release_date: '' })
+const form = ref({ number: '', title: '', target_release_date: '',
+                   minimum_articles: 5 })
 const pendingArticle = ref(null)
+const confirmCreate = ref(false)
 
 const prep = computed(() => issues.value.filter(i =>
   !['PUBLISHED', 'ARCHIVED'].includes(i.status)))
@@ -61,19 +63,27 @@ onMounted(async () => {
   } finally { loading.value = false }
 })
 
-async function createIssue() {
+function reviewIssue() {
   error.value = ''
   if (!form.value.number || !form.value.title) {
     error.value = 'An issue number and title are required.'
     return
   }
+  confirmCreate.value = true
+}
+
+async function createIssue() {
+  confirmCreate.value = false
+  error.value = ''
   try {
     await api.post('/publication/issues/', {
       number: form.value.number,
       title: form.value.title,
       target_release_date: form.value.target_release_date || null,
+      minimum_articles: form.value.minimum_articles || 1,
     })
-    form.value = { number: '', title: '', target_release_date: '' }
+    form.value = { number: '', title: '', target_release_date: '',
+                   minimum_articles: 5 }
     newOpen.value = false
     await load()
   } catch (e) {
@@ -179,6 +189,11 @@ const pct = (i) => i.total_articles
             </div>
             <span class="cnt">
               {{ i.approved_articles }} of {{ i.total_articles }} articles approved
+              <template v-if="i.minimum_articles && i.total_articles < i.minimum_articles">
+                · <b class="short">
+                    {{ i.minimum_articles - i.total_articles }} more needed
+                  </b>
+              </template>
             </span>
           </div>
 
@@ -269,13 +284,38 @@ const pct = (i) => i.total_articles
     <label>TARGET RELEASE DATE
       <input v-model="form.target_release_date" type="date" />
     </label>
+
+    <label>PLANNED ARTICLE COUNT
+      <input v-model.number="form.minimum_articles" type="number" min="1" max="60" />
+    </label>
+    <p class="hint">
+      How many articles this issue is planned for. It will not show as ready
+      below this count, which stops a half-filled issue going out by mistake.
+      You can change it later.
+    </p>
+
     <p class="hint">
       Editors assign approved articles to this issue. It can be published once
-      every assigned article is approved.
+      it reaches the planned count and every assigned article is approved.
     </p>
     <p v-if="error" class="ferr" role="alert">{{ error }}</p>
-    <UiButton variant="primary" full @click="createIssue">Create issue</UiButton>
+    <UiButton variant="primary" full @click="reviewIssue">Create issue</UiButton>
   </SlideOver>
+
+  <ConfirmDialog
+    :open="confirmCreate"
+    title="Create this issue?"
+    :message="`Issue ${form.number} — ${form.title} will be created and editors can start assigning articles to it.`"
+    confirm-label="Create issue"
+    :points="[
+      `Planned for ${form.minimum_articles} articles.`,
+      form.target_release_date
+        ? `Target release ${form.target_release_date}.`
+        : 'No target release date set.',
+      'The issue number cannot be changed afterwards.',
+    ]"
+    @confirm="createIssue"
+    @cancel="confirmCreate = false" />
 
   <ArticlePreview :article-id="previewId" @close="previewId = null" />
 
@@ -345,6 +385,7 @@ const pct = (i) => i.total_articles
            transition: width var(--dur-base) var(--ease-out); }
 .track i.full { background: var(--ok); }
 .cnt { display: block; margin-top: 7px; font-size: 14px; color: var(--nv-text-muted); }
+.short { color: var(--warn); font-weight: 600; }
 
 .flags { display: flex; gap: var(--s-5); margin-top: 12px; font-size: 14px; }
 .flags .yes { color: var(--ok); }

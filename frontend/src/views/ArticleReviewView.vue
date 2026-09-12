@@ -121,12 +121,17 @@ const submitOverride = () => act(() => {
       with a written justification, which is recorded against the evaluation.
     </p>
 
-    <EvaluationPanel
+        <EvaluationPanel
       :evaluation="article.latest_evaluation"
       :returned-by-ai="article.returned_by_ai"
       :threshold="70" />
 
-    <div class="body" v-html="article.body"></div>
+    <div class="review-grid">
+      <div class="reading">
+        <div class="body" v-html="article.body"></div>
+      </div>
+
+      <aside class="context" aria-label="Review context">
 
     <div v-if="article.revision_notes?.length" class="history">
       <h5>Revision history</h5>
@@ -138,19 +143,19 @@ const submitOverride = () => act(() => {
       </div>
     </div>
 
-    <PublishingPanel
+        <PublishingPanel
       v-if="['APPROVED', 'PUBLISHED'].includes(article.status)"
       :article="article" @changed="load" />
 
-    <ImageManager :article="article" @changed="load" />
+        <ImageManager :article="article" @changed="load" />
 
-    <VersionHistory :versions="article.versions || []"
+        <VersionHistory :versions="article.versions || []"
                     :current-title="article.title"
                     :current-body="article.body" />
 
-    <StatusTimeline :article-id="article.id" />
+        <StatusTimeline :article-id="article.id" />
 
-    <MessageThread :article-id="article.id" />
+        <MessageThread :article-id="article.id" />
 
     <ConfirmDialog
       :open="confirmApprove"
@@ -207,6 +212,9 @@ const submitOverride = () => act(() => {
       <p class="hint">Recorded against this evaluation for audit and reporting.</p>
       <textarea v-model="overrideReason" rows="3"
                 placeholder="Why are you setting aside the automated verdict?"></textarea>
+    </div>
+
+      </aside>
     </div>
 
     <div v-if="isDecided" class="settled" role="status">
@@ -277,13 +285,35 @@ const submitOverride = () => act(() => {
 </template>
 
 <style scoped>
-.wrap { max-width: 820px; margin: 40px auto; font-family: system-ui; padding: 0 16px 60px; }
+.wrap { max-width: 1240px; margin: 40px auto; font-family: system-ui; padding: 0 16px 60px; }
 header { display: flex; justify-content: space-between; align-items: center; }
 h2 { margin: 0; letter-spacing: 1px; font-size: 16px; }
 .back { font-size: 13px; color: var(--nv-text-muted); }
 h1 { margin: 18px 0 4px; font-size: 27px; line-height: 1.25; }
 .byline { margin: 0 0 20px; font-size: 13px; color: #777; }
-.body { border: 1px solid var(--nv-line); border-radius: 8px; padding: 20px; line-height: 1.7; background: var(--nv-surface); }
+/* Two columns: copy on the left at a readable measure, reference on the
+   right. Stacking them meant the body was always squeezed between panels. */
+.review-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px;
+               gap: var(--s-5); align-items: start; margin-top: var(--s-5); }
+.reading { min-width: 0; }
+.context { position: sticky; top: var(--s-4); display: flex;
+           flex-direction: column; gap: var(--s-4);
+           max-height: calc(100vh - 32px); overflow-y: auto; padding-right: 2px; }
+
+.body { border: 1px solid var(--nv-line); border-radius: var(--r-md);
+        padding: var(--s-6); background: var(--nv-surface);
+        font-size: 17px; line-height: 1.75; color: var(--nv-text); }
+.body :deep(p) { margin: 0 0 18px; }
+.body :deep(h2) { font-size: 22px; margin: 28px 0 12px; }
+.body :deep(h3) { font-size: 19px; margin: 22px 0 10px; }
+.body :deep(img) { width: 100%; border-radius: var(--r-sm); margin: 20px 0; }
+.body :deep(blockquote) { border-left: 3px solid var(--nv-line-strong);
+                          padding-left: 18px; color: var(--nv-text-muted); }
+
+@media (max-width: 1080px) {
+  .review-grid { grid-template-columns: 1fr; }
+  .context { position: static; max-height: none; }
+}
 .body :deep(h2) { font-size: 20px; margin: 18px 0 8px; }
 .body :deep(p) { margin: 0 0 12px; }
 .history { margin-top: 24px; }

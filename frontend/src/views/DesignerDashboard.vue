@@ -24,6 +24,8 @@ const issueId = ref('')
 const version = ref('v1.0')
 const notes = ref('')
 const file = ref(null)
+const coverFile = ref(null)
+const coverPreview = ref(null)
 const uploading = ref(false)
 const error = ref('')
 const ok = ref('')
@@ -64,10 +66,17 @@ onMounted(async () => {
 
 function pick(e) { file.value = e.target.files[0] || null }
 
+function pickCover(e) {
+  const f = e.target.files[0]
+  if (!f) return
+  coverFile.value = f
+  coverPreview.value = URL.createObjectURL(f)
+}
+
 async function upload() {
   error.value = ''; ok.value = ''
   if (!issueId.value) { error.value = 'Choose the issue this layout is for.'; return }
-  if (!file.value) { error.value = 'Choose a layout file.'; return }
+  if (!file.value) { error.value = 'Choose a layout PDF.'; return }
 
   uploading.value = true
   const fd = new FormData()
@@ -75,6 +84,7 @@ async function upload() {
   fd.append('version', version.value)
   fd.append('notes_to_editor', notes.value)
   fd.append('file', file.value)
+  if (coverFile.value) fd.append('cover_image', coverFile.value)
   try {
     await api.post('/design/designs/', fd,
       { headers: { 'Content-Type': 'multipart/form-data' } })
@@ -89,6 +99,27 @@ async function upload() {
 }
 
 const photos = (a) => a.image_count || 0
+
+/* A designer lays out by issue, so the issue is the first thing they need to
+   know about a piece of approved copy — not the writer or the category. */
+const issueLabel = (a) => {
+  if (!a.issue) return null
+  const i = issues.value.find(x => x.id === a.issue)
+  return i ? `Issue ${i.number}` : `Issue #${a.issue}`
+}
+
+const grouped = computed(() => {
+  const map = new Map()
+  for (const a of articles.value) {
+    const key = issueLabel(a) || 'Not yet in an issue'
+    if (!map.has(key)) map.set(key, [])
+    map.get(key).push(a)
+  }
+  // Unassigned last: it is the group a designer can do nothing with yet.
+  return [...map.entries()]
+    .sort(([a], [b]) => a === 'Not yet in an issue' ? 1 : b === 'Not yet in an issue' ? -1 : a.localeCompare(b))
+    .map(([label, items]) => ({ label, items }))
+})
 </script>
 
 <template>
@@ -125,21 +156,27 @@ const photos = (a) => a.image_count || 0
     <template v-else-if="tab === 'copy'">
       <UiEmpty v-if="!articles.length" icon="○" title="No approved copy yet"
                body="Articles appear here once an editor approves them, ready to be laid out." />
-      <ul v-else class="rows">
-        <li v-for="a in articles" :key="a.id" class="row" tabindex="0" role="button"
-            @click="router.push(`/designer/article/${a.id}`)"
-            @keyup.enter="router.push(`/designer/article/${a.id}`)">
-          <div class="meta">
-            <span class="t">{{ a.title }}</span>
-            <span class="sub">
-              {{ a.writer_name }} · {{ a.category || 'Uncategorised' }}
-              · {{ a.reading_time }} min read
-            </span>
-          </div>
-          <span class="photos">{{ photos(a) }} photo{{ photos(a) === 1 ? '' : 's' }}</span>
-          <span class="go" aria-hidden="true">→</span>
-        </li>
-      </ul>
+      <section v-else v-for="g in grouped" :key="g.label" class="igroup">
+        <h3>
+          {{ g.label }}
+          <span>{{ g.items.length }} article{{ g.items.length === 1 ? '' : 's' }}</span>
+        </h3>
+        <ul class="rows">
+          <li v-for="a in g.items" :key="a.id" class="row" tabindex="0" role="button"
+              @click="router.push(`/designer/article/${a.id}`)"
+              @keyup.enter="router.push(`/designer/article/${a.id}`)">
+            <div class="meta">
+              <span class="t">{{ a.title }}</span>
+              <span class="sub">
+                {{ a.writer_name }} · {{ a.category || 'Uncategorised' }}
+                · {{ a.reading_time }} min read
+              </span>
+            </div>
+            <span class="photos">{{ photos(a) }} photo{{ photos(a) === 1 ? '' : 's' }}</span>
+            <span class="go" aria-hidden="true">→</span>
+          </li>
+        </ul>
+      </section>
     </template>
 
     <!-- my layouts -->
@@ -210,13 +247,23 @@ const photos = (a) => a.image_count || 0
       <input v-model="version" placeholder="v1.0" />
     </label>
 
-    <label>LAYOUT FILE
-      <input type="file" accept=".pdf,.indd,.ai,.psd,.png,.jpg,.jpeg"
-             @change="pick" />
+    <label>LAYOUT PDF
+      <input type="file" accept=".pdf" @change="pick" />
     </label>
     <p class="hint">
-      PDF, INDD, AI, PSD or image, up to 100 MB. A PDF can be read in the
-      browser by subscribers; other formats download only.
+      Export from InDesign as PDF, up to 100 MB. This file becomes the edition
+      subscribers read in the browser and download, so it has to be a PDF.
+    </p>
+
+    <label>COVER IMAGE
+      <input type="file" accept="image/*" @change="pickCover" />
+    </label>
+    <div v-if="coverPreview" class="cprev">
+      <img :src="coverPreview" alt="Preview of the cover you selected" />
+    </div>
+    <p class="hint">
+      The newsstand thumbnail readers see in the archive. Required with the
+      first layout for an issue; later versions reuse it.
     </p>
 
     <label>NOTES TO EDITOR
@@ -251,6 +298,12 @@ const photos = (a) => a.image_count || 0
          border-radius: var(--r-full); background: var(--nv-line); color: var(--nv-text-muted); }
 .tabs button.on .count { background: rgba(255,255,255,.22); color: #fff; }
 
+.igroup { margin-bottom: var(--s-6); }
+.igroup h3 { display: flex; align-items: baseline; gap: 10px;
+             font-size: 15px; margin: 0 0 var(--s-3);
+             color: var(--nv-text); }
+.igroup h3 span { font-size: 13px; font-weight: 400;
+                  color: var(--nv-text-faint); }
 .rows { list-style: none; margin: 0; padding: 0;
         display: flex; flex-direction: column; gap: 8px; }
 .row { display: flex; align-items: center; gap: var(--s-4);
@@ -294,6 +347,9 @@ label input, label select, label textarea {
   border: 1px solid var(--nv-line-strong); border-radius: var(--r-sm);
   font-family: inherit; }
 textarea { resize: vertical; }
+.cprev { margin: -8px 0 16px; }
+.cprev img { width: 120px; aspect-ratio: 3/4; object-fit: cover;
+             border-radius: var(--r-sm); border: 1px solid var(--nv-line); }
 .hint { font-size: 14px; color: var(--nv-text-muted); line-height: 1.6;
         margin: -8px 0 16px; }
 .ferr { color: var(--bad); font-size: 14px; margin: 0 0 var(--s-3); }

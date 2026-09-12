@@ -20,6 +20,7 @@ const pipeline = ref(null)
 const loading = ref(true)
 const tab = ref('attention')
 const search = ref('')
+const highlightOverdue = ref(false)
 const assignOpen = ref(false)
 
 const match = (a) => {
@@ -53,7 +54,11 @@ const grouped = computed(() => [
   { label: 'Not started',
     hint: 'Assigned but untouched.',
     items: working.value.filter(a => !a.returned_by_ai && a.status === 'ASSIGNED') },
-].filter(g => g.items.length))
+].filter(g => g.items.length)
+ .map(g => highlightOverdue.value
+   ? { ...g, items: g.items.filter(a => a.is_overdue) }
+   : g)
+ .filter(g => g.items.length))
 const approved = computed(() => articles.value.filter(a =>
   a.status === 'APPROVED' && match(a)))
 
@@ -83,6 +88,15 @@ onMounted(async () => {
     await load()
   } finally { loading.value = false }
 })
+
+/* Switching tabs alone leaves the editor to find the late ones among
+   everything else. Filtering to them and marking them is the actual answer
+   to "show me". */
+function showOverdue() {
+  tab.value = 'working'
+  highlightOverdue.value = true
+  search.value = ''
+}
 
 const open = (a) => router.push(`/editor/review/${a.id}`)
 const initials = (n) => (n || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
@@ -116,7 +130,7 @@ const EMPTY = {
         Latest: {{ pipeline.overdue_articles[0].title }}
         ({{ Math.abs(pipeline.overdue_articles[0].days_to_deadline) }} days late)
       </span>
-      <button class="alink" @click="tab = 'working'">Show me</button>
+      <button class="alink" @click="showOverdue">Show me</button>
     </div>
 
     <div class="toolbar">
@@ -137,6 +151,11 @@ const EMPTY = {
     <DesignReview v-if="tab === 'layouts'" />
 
     <template v-else>
+      <div v-if="highlightOverdue" class="filtered" role="status">
+        <span>Showing overdue articles only.</span>
+        <button @click="highlightOverdue = false">Show everything</button>
+      </div>
+
       <UiSkeleton v-if="loading" :rows="4" label="Loading articles" />
 
       <UiEmpty v-else-if="!current.length" v-bind="EMPTY[tab]" />
@@ -147,8 +166,9 @@ const EMPTY = {
           <h3>{{ g.label }} <span>{{ g.items.length }}</span></h3>
           <p class="ghint">{{ g.hint }}</p>
           <ul class="rows">
-            <li v-for="a in g.items" :key="a.id" class="row" tabindex="0"
-                role="button" @click="open(a)" @keyup.enter="open(a)">
+            <li v-for="a in g.items" :key="a.id" class="row"
+                :class="{ late: a.is_overdue && highlightOverdue }"
+                tabindex="0" role="button" @click="open(a)" @keyup.enter="open(a)">
               <span class="who" aria-hidden="true">{{ initials(a.writer_name) }}</span>
               <div class="meta">
                 <span class="t">{{ a.title }}</span>
@@ -263,6 +283,14 @@ const EMPTY = {
           font-family: inherit; background: var(--nv-surface); }
 
 /* ---- rows ---- */
+.filtered { display: flex; align-items: center; gap: var(--s-3);
+            background: var(--bad-bg); border: 1px solid var(--bad-line);
+            color: var(--bad); padding: 10px 14px; border-radius: var(--r-sm);
+            font-size: 14px; margin-bottom: var(--s-4); }
+.filtered button { margin-left: auto; background: none; border: 0;
+                   color: inherit; text-decoration: underline;
+                   font-size: 13px; cursor: pointer; font-family: inherit; }
+.row.late { border-color: var(--bad-line); background: var(--bad-bg); }
 .group { margin-bottom: var(--s-6); }
 .group h3 { display: flex; align-items: center; gap: 8px;
             font-size: 13px; letter-spacing: .05em; text-transform: uppercase;
