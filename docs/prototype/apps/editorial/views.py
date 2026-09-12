@@ -314,9 +314,15 @@ class ArticleViewSet(viewsets.ModelViewSet):
         evaluation.overridden_at = timezone.now()
         evaluation.save()
 
+        # The override resolves the gate's verdict, so the flag no longer
+        # applies: the decision now rests with the editor, on record. Leaving
+        # it set makes the interface keep offering an override that has
+        # already happened.
         article.status = Article.Status.APPROVED
         article.editor = request.user
-        article.save(update_fields=["status", "editor", "updated_at"])
+        article.returned_by_ai = False
+        article.save(update_fields=["status", "editor", "returned_by_ai",
+                                    "updated_at"])
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=False, methods=["get"])
