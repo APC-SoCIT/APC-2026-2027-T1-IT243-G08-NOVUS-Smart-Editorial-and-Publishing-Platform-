@@ -39,21 +39,34 @@ const awaitingReview = computed(() => articles.value.filter(a =>
   a.status === 'UNDER_REVIEW' && !a.returned_by_ai && match(a)))
 const attention = awaitingReview
 
+/* An editor's own drafts are not delegated work. Mixing them into "with
+   writers" made that count meaningless — it should mean work sitting with
+   someone else. */
+const mine = computed(() => articles.value.filter(a =>
+  a.writer === auth.user?.id
+  && ['ASSIGNED', 'DRAFTING', 'REVISION_REQUESTED', 'PENDING_SIGNOFF'].includes(a.status)
+  && match(a)))
+
+/* Status decides where an article belongs, not the flag. A published article
+   that was once returned is published, and grouping on the flag alone put it
+   back among work in progress. */
 const working = computed(() => articles.value.filter(a =>
-  (['ASSIGNED', 'DRAFTING'].includes(a.status) || a.returned_by_ai) && match(a)))
+  a.writer !== auth.user?.id
+  && ['ASSIGNED', 'DRAFTING', 'REVISION_REQUESTED'].includes(a.status)
+  && match(a)))
 
 /* Within "being written", the three states mean different things to an
    editor: one has not started, one is in hand, one came back from the gate. */
 const grouped = computed(() => [
   { label: 'Returned by pre-screening',
     hint: 'Below the passing mark. The writer is revising.',
-    items: working.value.filter(a => a.returned_by_ai) },
+    items: working.value.filter(a => a.status === 'REVISION_REQUESTED') },
   { label: 'Being drafted',
     hint: 'Started, not yet submitted.',
-    items: working.value.filter(a => !a.returned_by_ai && a.status === 'DRAFTING') },
+    items: working.value.filter(a => a.status === 'DRAFTING') },
   { label: 'Not started',
     hint: 'Assigned but untouched.',
-    items: working.value.filter(a => !a.returned_by_ai && a.status === 'ASSIGNED') },
+    items: working.value.filter(a => a.status === 'ASSIGNED') },
 ].filter(g => g.items.length)
  .map(g => highlightOverdue.value
    ? { ...g, items: g.items.filter(a => a.is_overdue) }
@@ -66,11 +79,13 @@ const TABS = computed(() => [
   { key: 'attention', label: 'Needs you',     count: attention.value.length },
   { key: 'working',   label: 'With writers',  count: working.value.length },
   { key: 'approved',  label: 'Approved',    count: approved.value.length },
+  { key: 'mine',      label: 'My drafts',   count: mine.value.length },
   { key: 'layouts',   label: 'Layouts',     count: null },
 ])
 
 const current = computed(() => ({
-  attention: attention.value, working: working.value, approved: approved.value,
+  attention: attention.value, working: working.value,
+  approved: approved.value, mine: mine.value,
 }[tab.value] || []))
 
 async function load() {
@@ -106,6 +121,8 @@ const EMPTY = {
     body: 'Submissions arrive here once they have been pre-screened.' },
   working: { icon: '○', title: 'Nothing being written',
     body: 'Assign a topic and it will appear here until the writer submits it.' },
+  mine: { icon: '✎', title: 'You have no drafts',
+    body: 'Articles you write yourself appear here. They go to the publisher for sign-off rather than back to you.' },
   approved: { icon: '□', title: 'Nothing approved yet',
     body: 'Approved articles wait here until you assign them to an issue.' },
 }

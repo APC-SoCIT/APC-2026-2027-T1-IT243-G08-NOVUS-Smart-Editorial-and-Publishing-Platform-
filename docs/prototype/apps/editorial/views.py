@@ -288,9 +288,15 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        # Sign-off resolves the gate the same way an override does: the
+        # article has been accepted on a person's judgement, so the flag no
+        # longer describes where it sits. Leaving it set made published
+        # articles keep appearing in the editor's "returned" group.
         article.status = Article.Status.APPROVED
         article.editor = request.user
-        article.save(update_fields=["status", "editor", "updated_at"])
+        article.returned_by_ai = False
+        article.save(update_fields=["status", "editor", "returned_by_ai",
+                                    "updated_at"])
         notify(article.writer, Notification.Kind.APPROVED,
                f'"{article.title}" was signed off by the publisher.',
                f"/editor/review/{article.id}")
