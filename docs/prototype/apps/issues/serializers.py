@@ -15,11 +15,16 @@ class IssueListSerializer(serializers.ModelSerializer):
         model = Issue
         fields = [
             "id", "number", "title", "target_release_date", "cover_image",
+            "minimum_articles",
             "status", "scheduled_for", "published_at",
             "total_articles", "approved_articles", "is_ready",
             "has_approved_design", "replica_available", "created_at",
         ]
         read_only_fields = ["id", "status", "scheduled_for", "published_at", "created_at"]
+
+    def get_cover_image(self, obj):
+        c = obj.effective_cover
+        return c.url if c else None
 
     def get_has_approved_design(self, obj):
         return obj.approved_design is not None

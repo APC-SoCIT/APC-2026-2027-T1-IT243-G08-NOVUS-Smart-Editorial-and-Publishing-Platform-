@@ -23,6 +23,10 @@ class Issue(TimeStampedModel):
         ARCHIVED = "ARCHIVED", "Archived"
 
     number = models.PositiveIntegerField(unique=True)
+    minimum_articles = models.PositiveSmallIntegerField(
+        default=1,
+        help_text='An issue below this count is not considered ready.',
+    )
     title = models.CharField(max_length=200)
     target_release_date = models.DateField(null=True, blank=True)
     cover_image = models.ImageField(upload_to="covers/%Y/%m/", null=True, blank=True)
@@ -75,9 +79,20 @@ class Issue(TimeStampedModel):
         an approved layout gates the downloadable replica (UC-8.1), not the
         articles, which publish as responsive web pages regardless."""
         return (
-            self.total_articles > 0
+            self.total_articles >= self.minimum_articles
+            and self.total_articles > 0
             and self.approved_articles == self.total_articles
         )
+
+    @property
+    def effective_cover(self):
+        """The cover comes from the approved layout, falling back to any
+        uploaded directly on the issue. The designer owns it, since they are
+        already producing the artwork."""
+        design = self.approved_design
+        if design and design.cover_image:
+            return design.cover_image
+        return self.cover_image or None
 
     @property
     def replica_available(self):
@@ -90,6 +105,12 @@ class Issue(TimeStampedModel):
         reasons = []
         if self.total_articles == 0:
             reasons.append("No articles have been assigned to this issue.")
+        elif self.total_articles < self.minimum_articles:
+            short = self.minimum_articles - self.total_articles
+            reasons.append(
+                f"This issue is planned for {self.minimum_articles} articles; "
+                f"{short} more {'is' if short == 1 else 'are'} needed."
+            )
         outstanding = self.total_articles - self.approved_articles
         if outstanding:
             reasons.append(

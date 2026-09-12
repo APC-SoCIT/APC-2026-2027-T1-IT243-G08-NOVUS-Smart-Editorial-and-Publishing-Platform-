@@ -222,6 +222,13 @@ const submitOverride = () => act(() => {
       </button>
     </div>
 
+    <div v-else-if="!isReviewable" class="settled waiting" role="status">
+      This article is <b>{{ article.status.replace(/_/g, ' ').toLowerCase() }}</b>
+      and has not been submitted for review yet. You can read it and leave a
+      message, but it cannot be approved until the writer submits it and it
+      passes pre-screening.
+    </div>
+
     <div v-if="pullBackOpen" class="composer">
       <h5>Pull this article back into review</h5>
       <p class="hint">
@@ -236,13 +243,6 @@ const submitOverride = () => act(() => {
           Pull back
         </button>
       </div>
-    </div>
-
-    <div v-else-if="!isReviewable" class="settled waiting" role="status">
-      This article is <b>{{ article.status.replace(/_/g, ' ').toLowerCase() }}</b>
-      and has not been submitted for review yet. You can read it and leave a
-      message, but it cannot be approved until the writer submits it and it
-      passes pre-screening.
     </div>
 
     <div v-else class="actions">

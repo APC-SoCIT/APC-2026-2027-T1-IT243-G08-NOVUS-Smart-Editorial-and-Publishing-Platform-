@@ -8,6 +8,18 @@ rather than inventing a new test style per app.
 import pytest
 from rest_framework import status
 
+
+def _tiny_png():
+    """A real 1x1 PNG. ImageField opens uploads with Pillow, so a fabricated
+    header is rejected as a corrupt image."""
+    import io
+    from PIL import Image
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1), "white").save(buf, format="PNG")
+    return SimpleUploadedFile("cover.png", buf.getvalue(), content_type="image/png")
+
 from apps.accounts.models import User
 from apps.editorial.models import Article
 
@@ -157,14 +169,17 @@ class TestMagazineDesignFlow:
         return Issue.objects.create(number=number, title="Test Issue",
                                     created_by=publisher)
 
-    def _upload(self, client, issue, version="v1.0"):
+    def _upload(self, client, issue, version="v1.0", cover=True):
+        """A first layout must carry a cover image — it is what readers see in
+        the archive. Later versions inherit it."""
         from django.core.files.uploadedfile import SimpleUploadedFile
         f = SimpleUploadedFile("layout.pdf", b"%PDF-1.4 fake",
                                content_type="application/pdf")
-        return client.post("/api/design/designs/",
-                           {"issue": issue.id, "version": version, "file": f,
-                            "notes_to_editor": "First pass."},
-                           format="multipart")
+        payload = {"issue": issue.id, "version": version, "file": f,
+                   "notes_to_editor": "First pass."}
+        if cover:
+            payload["cover_image"] = _tiny_png()
+        return client.post("/api/design/designs/", payload, format="multipart")
 
     def test_designer_uploads_and_editor_approves(
         self, auth_client, make_user, editor, publisher
@@ -210,7 +225,7 @@ class TestMagazineDesignFlow:
         designer = make_user("designer3@boss.ph", User.Role.GRAPHIC_DESIGNER)
         issue = self._issue(publisher, number=14)
 
-        f = SimpleUploadedFile("notes.exe", b"nope",
+        f = SimpleUploadedFile("layout.indd", b"nope",
                                content_type="application/octet-stream")
         r = auth_client(designer).post("/api/design/designs/",
             {"issue": issue.id, "version": "v1.0", "file": f}, format="multipart")
@@ -308,3 +323,54 @@ class TestPullBack:
         r = auth_client(editor).post(
             f"/api/editorial/articles/{a.id}/pull-back/", {"reason": "no"})
         assert r.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+class TestLayoutRequirements:
+    """The layout is the edition subscribers read, so it must be a PDF, and
+    the first one must bring the cover the archive displays."""
+
+    def _issue(self, publisher, number=60):
+        from apps.issues.models import Issue
+        return Issue.objects.create(number=number, title="Test Issue",
+                                    created_by=publisher)
+
+    def _designer(self, make_user, email):
+        from apps.accounts.models import User
+        return make_user(email, User.Role.GRAPHIC_DESIGNER)
+
+    def test_first_layout_requires_a_cover(self, auth_client, make_user, publisher):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        d = self._designer(make_user, "cover1@boss.ph")
+        issue = self._issue(publisher, 61)
+
+        r = auth_client(d).post("/api/design/designs/", {
+            "issue": issue.id, "version": "v1.0",
+            "file": SimpleUploadedFile("l.pdf", b"%PDF-1.4", content_type="application/pdf"),
+        }, format="multipart")
+        assert r.status_code == status.HTTP_400_BAD_REQUEST
+        assert "cover_image" in r.data
+
+    def test_a_working_file_is_rejected(self, auth_client, make_user, publisher):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        d = self._designer(make_user, "cover2@boss.ph")
+        issue = self._issue(publisher, 62)
+
+        r = auth_client(d).post("/api/design/designs/", {
+            "issue": issue.id, "version": "v1.0",
+            "file": SimpleUploadedFile("l.indd", b"x", content_type="application/octet-stream"),
+            "cover_image": _tiny_png(),
+        }, format="multipart")
+        assert r.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_an_issue_below_its_minimum_is_not_ready(self, writer, publisher):
+        from apps.editorial.models import Article
+        from apps.issues.models import Issue
+        issue = Issue.objects.create(number=63, title="Big Issue",
+                                     minimum_articles=3, created_by=publisher)
+        Article.objects.create(writer=writer, title="Only one",
+                               body="<p>x</p>", category="Tech",
+                               status=Article.Status.APPROVED, issue=issue)
+
+        assert issue.is_ready is False
+        assert any("2 more" in r for r in issue.blocking_reasons())
