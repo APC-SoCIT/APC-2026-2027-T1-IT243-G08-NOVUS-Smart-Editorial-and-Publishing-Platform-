@@ -8,6 +8,7 @@ import ArticleComposeView from '../views/ArticleComposeView.vue'
 import EditorDashboard from '../views/EditorDashboard.vue'
 import ReportsView from '../views/ReportsView.vue'
 import ArchiveView from '../views/ArchiveView.vue'
+import IssuesOverview from '../views/IssuesOverview.vue'
 import PlatformSettings from '../views/PlatformSettings.vue'
 import ArticleReviewView from '../views/ArticleReviewView.vue'
 import PublisherDashboard from '../views/PublisherDashboard.vue'
@@ -33,6 +34,7 @@ const routes = [
   { path: '/compose', component: ArticleComposeView, meta: { requiresAuth: true } },
   { path: '/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true } },
   { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true } },
+  { path: '/issues-overview', component: IssuesOverview, meta: { requiresAuth: true } },
   { path: '/archive', component: ArchiveView, meta: { requiresAuth: true } },
   { path: '/reports', component: ReportsView, meta: { requiresAuth: true } },
   { path: '/settings', component: PlatformSettings, meta: { requiresAuth: true } },

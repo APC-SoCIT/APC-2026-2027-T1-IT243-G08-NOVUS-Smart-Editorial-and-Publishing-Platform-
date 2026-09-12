@@ -23,6 +23,7 @@ const NAV = {
   ],
   EDITOR: [
     { to: '/editor', label: 'Dashboard' },
+    { to: '/issues-overview', label: 'Issues' },
     { to: '/archive', label: 'Archive' },
     { to: '/reports', label: 'Reports' },
   ],
@@ -33,6 +34,7 @@ const NAV = {
   ],
   GRAPHIC_DESIGNER: [
     { to: '/designer', label: 'Workspace' },
+    { to: '/issues-overview', label: 'Issues' },
     { to: '/archive', label: 'Archive' },
   ],
   ADMIN: [
