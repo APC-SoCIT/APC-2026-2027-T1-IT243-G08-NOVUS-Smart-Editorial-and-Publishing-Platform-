@@ -18,7 +18,6 @@ const router = useRouter()
 const NAV = {
   WRITER: [
     { to: '/writer', label: 'Dashboard' },
-    { to: '/writer/compose', label: 'New submission' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/archive', label: 'Archive' },
   ],
@@ -60,6 +59,9 @@ const initials = computed(() => {
   return ((u.first_name?.[0] || '') + (u.last_name?.[0] || '')).toUpperCase() || '?'
 })
 
+/* Vue Router applies active-class itself and keeps it in sync through
+   navigation; this is only used for aria-current, where a stale value is
+   harmless but a missing one is not. */
 const isActive = (to) =>
   to === route.path || (to !== '/' && route.path.startsWith(to + '/'))
 
@@ -79,7 +81,8 @@ function signOut() {
 
       <nav>
         <router-link v-for="n in nav" :key="n.to" :to="n.to"
-                     :class="{ on: isActive(n.to) }">
+                     active-class="on" exact-active-class="on"
+                     :aria-current="isActive(n.to) ? 'page' : undefined">
           {{ n.label }}
         </router-link>
       </nav>
@@ -137,7 +140,13 @@ nav { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; flex: 1;
 nav a { display: block; padding: 10px 14px; border-radius: 7px; font-size: 14px;
         color: #9fb0cc; transition: background .15s, color .15s; }
 nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
-nav a.on { background: rgba(255,255,255,.11); color: #fff; font-weight: 600; }
+nav a.on { background: rgba(255,255,255,.14); color: #fff; font-weight: 600;
+           position: relative; }
+/* A left marker reads faster than a background tint alone, especially
+   against a dark sidebar where the tint is necessarily subtle. */
+nav a.on::before { content: ''; position: absolute; left: 0; top: 8px;
+                   bottom: 8px; width: 3px; border-radius: 0 2px 2px 0;
+                   background: var(--nv-accent); }
 
 .who { display: flex; align-items: center; gap: 11px; padding: 18px 22px 0;
        margin: 0 12px; border-top: 1px solid rgba(255,255,255,.09); }

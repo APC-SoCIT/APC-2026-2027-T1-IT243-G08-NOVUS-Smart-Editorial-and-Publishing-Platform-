@@ -438,14 +438,19 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
       border-radius: 50%; background: rgba(0,0,0,.7); color: #fff; border: 0;
       font-size: 18px; cursor: pointer; }
 
-.tools { display: flex; align-items: center; gap: 2px; margin-bottom: var(--s-4);
+.tools { display: flex; align-items: center; gap: 5px; margin-bottom: var(--s-4);
          padding-bottom: var(--s-3); border-bottom: 1px solid var(--nv-line); }
-.tools button, .imgbtn { border: 0; background: none; padding: 7px 11px;
+/* A borderless toolbar on a white sheet read as decoration rather than
+   controls. Giving each button a surface makes it legible as a button. */
+.tools button, .imgbtn { border: 1px solid var(--nv-line);
+                         background: var(--nv-surface); padding: 7px 12px;
                          border-radius: var(--r-sm); font-size: 14px;
-                         cursor: pointer; color: var(--nv-text-muted);
-                         font-family: inherit; margin: 0;
-                         transition: background var(--dur-fast) var(--ease-out); }
-.tools button:hover, .imgbtn:hover { background: var(--nv-bg); color: var(--nv-text); }
+                         font-weight: 600; cursor: pointer;
+                         color: var(--nv-text); font-family: inherit; margin: 0;
+                         transition: background var(--dur-fast) var(--ease-out),
+                                     border-color var(--dur-fast) var(--ease-out); }
+.tools button:hover, .imgbtn:hover { background: var(--nv-bg);
+                                     border-color: var(--nv-line-strong); }
 .tools button.on { background: var(--nv-navy-2); color: #fff; }
 .sep { width: 1px; height: 18px; background: var(--nv-line); margin: 0 6px; }
 
