@@ -12,16 +12,23 @@ const typeLabel = {
 </script>
 
 <template>
-  <div v-if="evaluation" class="panel" :class="returnedByAi ? 'failed' : 'passed'">
+  <div v-if="evaluation" class="panel"
+       :class="evaluation.is_overridden ? 'overridden' : (returnedByAi ? 'failed' : 'passed')">
     <div class="head">
-      <div class="ring" :class="returnedByAi ? 'r-fail' : 'r-pass'">
+      <div class="ring"
+           :class="evaluation.is_overridden ? 'r-over' : (returnedByAi ? 'r-fail' : 'r-pass')">
         <b>{{ evaluation.overall_score }}</b>
         <small>/ 100</small>
       </div>
       <div class="headline">
-        <h4 v-if="returnedByAi">Returned for revision</h4>
+        <h4 v-if="evaluation.is_overridden">Overridden by an editor</h4>
+        <h4 v-else-if="returnedByAi">Returned for revision</h4>
         <h4 v-else>Passed pre-screening</h4>
-        <p v-if="returnedByAi">
+        <p v-if="evaluation.is_overridden">
+          This scored {{ evaluation.overall_score }}, below the passing mark of
+          {{ threshold }}. An editor approved it anyway and recorded why.
+        </p>
+        <p v-else-if="returnedByAi">
           This draft scored below the passing mark of {{ threshold }}.
           Address the points below and submit again.
         </p>
@@ -66,6 +73,17 @@ const typeLabel = {
 .panel { border: 1px solid var(--nv-line); border-radius: 10px; padding: 18px; margin-bottom: 22px; background: var(--nv-surface); }
 .panel.failed { border-color: var(--bad-line); background: var(--nv-surface)afa; }
 .panel.passed { border-color: var(--ok-line); background: var(--ok-bg); }
+.panel.overridden { border-color: var(--warn-line); background: var(--warn-bg); }
+.r-over { border-color: var(--warn); color: var(--warn); }
+.override-note { margin-top: 14px; padding: 12px 14px;
+                 background: var(--nv-surface); border-radius: var(--r-sm);
+                 border: 1px solid var(--warn-line); }
+.olabel { font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+          color: var(--warn); }
+.override-note p { margin: 5px 0 0; font-size: 14px; line-height: 1.55;
+                   color: var(--nv-text); }
+.override-note small { display: block; margin-top: 6px; font-size: 12px;
+                       color: var(--nv-text-faint); }
 .head { display: flex; gap: 18px; align-items: center; }
 .ring { width: 76px; height: 76px; border-radius: 50%; display: flex; flex-direction: column;
         align-items: center; justify-content: center; flex-shrink: 0; border: 4px solid; }

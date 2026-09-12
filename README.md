@@ -173,7 +173,8 @@ needs adding to `vite.config.js`.
 
 ### Render — the API
 
-- **Root Directory**: `docs/prototype` (easy to miss; nothing works without it)
+- **Root Directory**: `docs/prototype` (easy to miss; nothing works without it)cd ../docs/prototype && source .venv/bin/activate
+grep -n -A6 "evaluation.save()" apps/editorial/views.py | head -12
 - **Build Command**: `./build.sh`
 - **Start Command**: `gunicorn config.wsgi:application`
 
