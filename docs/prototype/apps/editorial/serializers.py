@@ -6,7 +6,11 @@ class RelativeImageField(serializers.ImageField):
     image resolves through whichever origin serves the frontend."""
 
     def to_representation(self, value):
-        return value.url if value else None
+        if not value:
+            return None
+        # With object storage the URL is already absolute and points at
+        # the CDN. Only the local-disk fallback needs the relative form.
+        return value.url
 
 from .models import Article, ArticleImage, ArticleVersion, RevisionNote
 

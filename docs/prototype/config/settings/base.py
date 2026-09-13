@@ -164,3 +164,44 @@ UPLOADED_FILES_USE_URL = False
 # Shared secret for external schedulers. A cron service cannot hold a
 # session, so scheduled endpoints authenticate with this instead.
 SCHEDULER_TOKEN = os.environ.get("SCHEDULER_TOKEN", "")
+
+
+# ---------------------------------------------------------------------------
+# Object storage
+#
+# R2 is S3-compatible, so django-storages' S3 backend works unmodified — which
+# is why the architecture could specify R2 without a custom storage layer.
+#
+# Falls back to local disk when unconfigured, so a checkout without credentials
+# still runs. The fallback is development-only: a deployed instance writing to
+# local disk loses every upload on redeploy.
+# ---------------------------------------------------------------------------
+
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "")
+R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
+
+USE_R2 = all([R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+              R2_BUCKET_NAME])
+
+if USE_R2:
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": R2_BUCKET_NAME,
+            "access_key": R2_ACCESS_KEY_ID,
+            "secret_key": R2_SECRET_ACCESS_KEY,
+            "endpoint_url": f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+            "region_name": "auto",
+            # R2 does not implement ACLs; sending one is rejected.
+            "default_acl": None,
+            "querystring_auth": False,
+            "custom_domain": R2_PUBLIC_URL.replace("https://", "").replace("http://", ""),
+            # Keep both copies rather than overwriting: two writers uploading
+            # the same filename should not silently replace each other's work.
+            "file_overwrite": False,
+            "signature_version": "s3v4",
+        },
+    }
