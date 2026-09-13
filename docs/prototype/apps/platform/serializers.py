@@ -35,8 +35,10 @@ class PlatformSettingSerializer(serializers.ModelSerializer):
              "detail": dj.DATABASES["default"].get("HOST") or "local"},
             {"name": "Cloudflare R2",
              "purpose": "Magazine designs and article media",
-             "configured": False,
-             "detail": "Phase 2 — files are on local storage"},
+             "configured": dj.USE_R2,
+             "detail": (dj.R2_BUCKET_NAME if dj.USE_R2
+                        else "Not configured — files are on local storage, "
+                             "which the hosting filesystem erases on redeploy")},
             {"name": "PayMongo",
              "purpose": "Subscription payments",
              "configured": False,
