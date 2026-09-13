@@ -52,4 +52,74 @@ api.interceptors.response.use((response) => {
   return response
 })
 
+/**
+ * Transparent token refresh.
+ *
+ * Access tokens last an hour, so a writer working on a long piece is logged
+ * out mid-draft and loses whatever is unsaved. On a 401 we exchange the
+ * refresh token once and retry the original request; only if that exchange
+ * fails is the session genuinely over.
+ *
+ * The single-flight guard matters: a dashboard fires several requests at
+ * once, and without it an expired token would trigger one refresh per
+ * request. With rotation enabled, the first would invalidate the token the
+ * others are still using, and they would all fail.
+ */
+let refreshing = null
+
+function clearSession() {
+  localStorage.removeItem('access')
+  localStorage.removeItem('refresh')
+}
+
+async function refreshAccess() {
+  const refresh = localStorage.getItem('refresh')
+  if (!refresh) throw new Error('no refresh token')
+
+  // A bare axios call, not `api` — going through the instance would attach
+  // the dead access token and recurse into this same interceptor.
+  const { data } = await axios.post(
+    `${api.defaults.baseURL}/auth/token/refresh/`, { refresh })
+
+  localStorage.setItem('access', data.access)
+  if (data.refresh) localStorage.setItem('refresh', data.refresh)
+  return data.access
+}
+
+api.interceptors.response.use(
+  (r) => r,
+  async (error) => {
+    const original = error.config
+    const status = error.response?.status
+
+    // Never retry the refresh endpoint itself, and never retry twice.
+    const refreshable =
+      status === 401
+      && original
+      && !original._retried
+      && !original.url?.includes('/auth/token/')
+
+    if (!refreshable) return Promise.reject(error)
+
+    original._retried = true
+
+    try {
+      refreshing = refreshing || refreshAccess()
+      const token = await refreshing
+      refreshing = null
+
+      original.headers = original.headers || {}
+      original.headers.Authorization = `Bearer ${token}`
+      return api(original)
+    } catch (e) {
+      refreshing = null
+      // The refresh token is spent or expired: the session really is over.
+      // Public pages must still work, so clear rather than redirect — a
+      // lapsed reader loses their subscriber access, not the magazine.
+      clearSession()
+      return Promise.reject(error)
+    }
+  },
+)
+
 export default api
