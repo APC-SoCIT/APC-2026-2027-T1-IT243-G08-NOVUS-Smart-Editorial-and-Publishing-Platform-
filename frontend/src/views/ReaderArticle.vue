@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import api from '../services/api'
 import BossShell from '../components/BossShell.vue'
 import Paywall from '../components/Paywall.vue'
+import BookmarkButton from '../components/BookmarkButton.vue'
 import { useIntro } from '../composables/useReveal'
 
 const route = useRoute()
@@ -22,7 +23,7 @@ async function load() {
   } catch { missing.value = true }
   finally { loading.value = false }
 }
-onMounted(load)
+onMounted(async () => { await load(); await loadSaved() })
 watch(() => route.params.id, load)
 
 // Reading progress, a small orientation aid on long pieces.
@@ -50,6 +51,18 @@ async function share() {
   }
 }
 const shared = ref(false)
+const isSaved = ref(false)
+
+// Fetched alongside the article so the control renders in its correct
+// state rather than flipping after load.
+async function loadSaved() {
+  if (!useAuthStore().isAuthenticated) return
+  try {
+    const { data } = await api.get('/content/bookmarks/status/',
+                                   { params: { ids: route.params.id } })
+    isSaved.value = data.saved.includes(Number(route.params.id))
+  } catch { /* not signed in, or the article is gone */ }
+}
 </script>
 
 <template>
@@ -80,9 +93,13 @@ const shared = ref(false)
               <span>{{ fmt(article.published_at) }} · {{ article.reading_time }} min read</span>
             </div>
           </div>
-          <button class="share" @click="share">
-            {{ shared ? 'Link copied' : 'Share' }}
-          </button>
+          <div class="acts">
+            <BookmarkButton :article-id="article.id" :saved="isSaved"
+                            variant="full" />
+            <button class="share" @click="share">
+              {{ shared ? 'Link copied' : 'Share' }}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -135,6 +152,7 @@ h1 { font-family: var(--font-serif); font-size: var(--t-3xl);
           justify-content: center; font-weight: 600; flex-shrink: 0; }
 .who b { display: block; font-size: var(--t-sm); }
 .who span { font-size: var(--t-xs); color: var(--boss-text-faint); }
+.acts { display: flex; gap: var(--s-2); align-items: center; }
 .share { background: transparent; border: 1px solid var(--boss-line);
          color: var(--boss-text-muted); padding: var(--s-2) var(--s-4);
          font-size: var(--t-xs); letter-spacing: var(--track-caps);

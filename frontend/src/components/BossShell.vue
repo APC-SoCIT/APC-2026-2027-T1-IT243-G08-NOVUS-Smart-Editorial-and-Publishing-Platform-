@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
 const scrolled = ref(false)
 const menuOpen = ref(false)
 
@@ -30,6 +32,8 @@ const isOn = (to) => route.path === to.split('?')[0]
       </router-link>
 
       <nav aria-label="Primary">
+        <router-link v-if="auth.isAuthenticated" to="/saved"
+                     :class="{ on: route.path === '/saved' }">Saved</router-link>
         <router-link v-for="n in NAV" :key="n.label" :to="n.to"
                      :class="{ on: isOn(n.to) }"
                      :aria-current="isOn(n.to) ? 'page' : undefined">

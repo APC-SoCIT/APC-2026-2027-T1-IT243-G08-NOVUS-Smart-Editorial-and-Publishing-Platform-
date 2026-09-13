@@ -1,4 +1,6 @@
 from rest_framework import generics, permissions
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.editorial.models import Article
 
@@ -58,3 +60,68 @@ class PublicIssueDetailView(generics.RetrieveAPIView):
         return Issue.objects.filter(
             status__in=[Issue.Status.PUBLISHED, Issue.Status.ARCHIVED]
         )
+
+
+class BookmarkListView(generics.ListAPIView):
+    """UC-7.1.1: the reader's saved articles."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        return PublicArticleListSerializer
+
+    def get_queryset(self):
+        from apps.editorial.models import Article
+        return (Article.objects
+                .filter(bookmarked_by__reader=self.request.user,
+                        status=Article.Status.PUBLISHED)
+                .order_by("-bookmarked_by__created_at"))
+
+
+class BookmarkToggleView(APIView):
+    """Save or unsave an article.
+
+    A toggle rather than separate create and delete endpoints: the interface
+    shows one control whose meaning depends on current state, and splitting it
+    would mean the client has to know that state before it can act.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from apps.content.models import Bookmark
+        from apps.editorial.models import Article
+
+        try:
+            article = Article.objects.get(pk=pk, status=Article.Status.PUBLISHED)
+        except Article.DoesNotExist:
+            return Response({"detail": "Article not found."}, status=404)
+
+        bookmark, created = Bookmark.objects.get_or_create(
+            reader=request.user, article=article)
+
+        if not created:
+            bookmark.delete()
+            return Response({"saved": False})
+
+        return Response({"saved": True}, status=201)
+
+
+class BookmarkStatusView(APIView):
+    """Which of a set of articles the reader has saved.
+
+    Batched deliberately: a listing page showing twelve articles would
+    otherwise make twelve requests to render twelve icons.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.content.models import Bookmark
+        ids = request.query_params.get("ids", "")
+        wanted = [int(i) for i in ids.split(",") if i.strip().isdigit()]
+        saved = set(
+            Bookmark.objects.filter(reader=request.user, article_id__in=wanted)
+            .values_list("article_id", flat=True)
+        )
+        return Response({"saved": sorted(saved)})
