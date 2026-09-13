@@ -12,7 +12,11 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const canvas = ref(null)
-const doc = ref(null)
+// Not a ref: pdf.js documents use private class fields, and Vue's Proxy
+// wrapper is not an instance of the class, so reading them throws. Nothing
+// in the template depends on the document itself — only on pages and page,
+// which are refs — so it does not need to be reactive.
+let doc = null
 const page = ref(1)
 const pages = ref(0)
 const loading = ref(true)
@@ -23,10 +27,10 @@ const turning = ref(null)   // 'next' | 'prev'
 let renderTask = null
 
 async function render() {
-  if (!doc.value || !canvas.value) return
+  if (!doc || !canvas.value) return
   renderTask?.cancel?.()
 
-  const p = await doc.value.getPage(page.value)
+  const p = await doc.getPage(page.value)
   const el = canvas.value
   const ctx = el.getContext('2d')
 
@@ -74,8 +78,8 @@ onMounted(async () => {
     // Newer pdf.js builds expect an options object rather than a bare string;
     // passing the URL positionally silently produces 'expected either data,
     // range, or url parameter'.
-    doc.value = await pdfjsLib.getDocument({ url: props.src }).promise
-    pages.value = doc.value.numPages
+    doc = await pdfjsLib.getDocument({ url: props.src }).promise
+    pages.value = doc.numPages
     loading.value = false
     await nextTick()
     await render()
@@ -93,7 +97,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onKey)
   window.removeEventListener('resize', render)
   renderTask?.cancel?.()
-  doc.value?.destroy?.()
+  doc?.destroy?.()
 })
 
 watch(zoom, render)
