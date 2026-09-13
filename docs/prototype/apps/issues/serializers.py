@@ -10,6 +10,7 @@ class IssueListSerializer(serializers.ModelSerializer):
     is_ready = serializers.BooleanField(read_only=True)
     has_approved_design = serializers.SerializerMethodField()
     replica_available = serializers.BooleanField(read_only=True)
+    is_closed = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Issue
@@ -18,7 +19,8 @@ class IssueListSerializer(serializers.ModelSerializer):
             "minimum_articles",
             "status", "scheduled_for", "published_at",
             "total_articles", "approved_articles", "is_ready",
-            "has_approved_design", "replica_available", "created_at",
+            "has_approved_design", "replica_available",
+            "is_closed", "closed_at", "reopen_reason", "created_at",
         ]
         read_only_fields = ["id", "status", "scheduled_for", "published_at", "created_at"]
 

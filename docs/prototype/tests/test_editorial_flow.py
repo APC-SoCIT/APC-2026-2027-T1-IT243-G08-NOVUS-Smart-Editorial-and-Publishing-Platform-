@@ -416,3 +416,159 @@ class TestLayoutRequirements:
 
         assert issue.is_ready is False
         assert any("2 more" in r for r in issue.blocking_reasons())
+
+
+@pytest.mark.django_db
+class TestIssueClosingAndPublishing:
+    """UC-2.2 Compile Issue and UC-2.5 Execute Live Publishing.
+
+    An issue goes to press closed: the table of contents is fixed so the art
+    department can lay out pages knowing they will not be redone. These tests
+    cover the lock, the reopening that keeps it workable, and the atomic
+    publication itself.
+    """
+
+    def _issue(self, publisher, number=80, minimum=1):
+        from apps.issues.models import Issue
+        return Issue.objects.create(number=number, title="Test Issue",
+                                    minimum_articles=minimum,
+                                    created_by=publisher)
+
+    def _approved(self, writer, issue):
+        return Article.objects.create(
+            writer=writer, title="Ready copy", body="<p>Final.</p>",
+            category="Tech", status=Article.Status.APPROVED, issue=issue)
+
+    def _layout(self, issue, designer):
+        from django.core.files.base import ContentFile
+        from apps.design.models import MagazineDesign
+        d = MagazineDesign.objects.create(
+            issue=issue, version="v1.0", designer=designer,
+            status=MagazineDesign.Status.APPROVED)
+        d.file.save("layout.pdf", ContentFile(b"%PDF-1.4"), save=True)
+        return d
+
+    def _designer(self, make_user, email):
+        from apps.accounts.models import User
+        return make_user(email, User.Role.GRAPHIC_DESIGNER)
+
+    # ---- closing ----------------------------------------------------------
+
+    def test_closing_fixes_the_contents(self, auth_client, writer, publisher):
+        from apps.issues.models import Issue
+        issue = self._issue(publisher, 81)
+        self._approved(writer, issue)
+
+        r = auth_client(publisher).post(f"/api/publication/issues/{issue.id}/close/")
+        assert r.status_code == status.HTTP_200_OK
+
+        issue.refresh_from_db()
+        assert issue.status == Issue.Status.COMPILED
+        assert issue.closed_at is not None
+        assert issue.is_closed
+
+    def test_an_empty_issue_cannot_be_closed(self, auth_client, publisher):
+        issue = self._issue(publisher, 82)
+        r = auth_client(publisher).post(f"/api/publication/issues/{issue.id}/close/")
+        assert r.status_code == status.HTTP_409_CONFLICT
+
+    def test_a_closed_issue_refuses_new_articles(
+        self, auth_client, writer, editor, publisher
+    ):
+        issue = self._issue(publisher, 83)
+        self._approved(writer, issue)
+        auth_client(publisher).post(f"/api/publication/issues/{issue.id}/close/")
+
+        loose = Article.objects.create(
+            writer=writer, title="Late piece", body="<p>x</p>",
+            category="Life", status=Article.Status.APPROVED)
+
+        r = auth_client(editor).post(
+            f"/api/editorial/articles/{loose.id}/assign-issue/", {"issue": issue.id})
+        assert r.status_code == status.HTTP_409_CONFLICT
+        assert "closed" in r.data["detail"].lower()
+
+    def test_reopening_requires_a_reason_and_restores_assignment(
+        self, auth_client, writer, editor, publisher
+    ):
+        from apps.issues.models import Issue
+        issue = self._issue(publisher, 84)
+        self._approved(writer, issue)
+        auth_client(publisher).post(f"/api/publication/issues/{issue.id}/close/")
+
+        bare = auth_client(publisher).post(
+            f"/api/publication/issues/{issue.id}/reopen/", {"reason": "no"})
+        assert bare.status_code == status.HTTP_400_BAD_REQUEST
+
+        ok = auth_client(publisher).post(
+            f"/api/publication/issues/{issue.id}/reopen/",
+            {"reason": "Late feature confirmed for this issue."})
+        assert ok.status_code == status.HTTP_200_OK
+
+        issue.refresh_from_db()
+        assert issue.status == Issue.Status.PLANNING
+        assert not issue.is_closed
+        assert "Late feature" in issue.reopen_reason
+
+    # ---- publishing -------------------------------------------------------
+
+    def test_an_open_issue_cannot_be_published(
+        self, auth_client, writer, publisher, make_user
+    ):
+        issue = self._issue(publisher, 85)
+        self._approved(writer, issue)
+        self._layout(issue, self._designer(make_user, "d85@boss.ph"))
+
+        r = auth_client(publisher).post(f"/api/publication/issues/{issue.id}/publish/")
+        assert r.status_code == status.HTTP_409_CONFLICT
+        assert any("not been closed" in x for x in r.data["reasons"])
+
+    def test_publishing_releases_every_article_together(
+        self, auth_client, writer, publisher, make_user
+    ):
+        from apps.issues.models import Issue
+        issue = self._issue(publisher, 86, minimum=2)
+        a1 = self._approved(writer, issue)
+        a2 = self._approved(writer, issue)
+        self._layout(issue, self._designer(make_user, "d86@boss.ph"))
+
+        auth_client(publisher).post(f"/api/publication/issues/{issue.id}/close/")
+        r = auth_client(publisher).post(f"/api/publication/issues/{issue.id}/publish/")
+        assert r.status_code == status.HTTP_200_OK
+
+        issue.refresh_from_db(); a1.refresh_from_db(); a2.refresh_from_db()
+        assert issue.status == Issue.Status.PUBLISHED
+        assert a1.status == Article.Status.PUBLISHED
+        assert a2.status == Article.Status.PUBLISHED
+        assert a1.published_at is not None
+
+    def test_an_unapproved_article_blocks_publication(
+        self, auth_client, writer, publisher, make_user
+    ):
+        issue = self._issue(publisher, 87)
+        self._approved(writer, issue)
+        Article.objects.create(writer=writer, title="Still in review",
+                               body="<p>x</p>", category="Tech",
+                               status=Article.Status.UNDER_REVIEW, issue=issue)
+        self._layout(issue, self._designer(make_user, "d87@boss.ph"))
+        auth_client(publisher).post(f"/api/publication/issues/{issue.id}/close/")
+
+        r = auth_client(publisher).post(f"/api/publication/issues/{issue.id}/publish/")
+        assert r.status_code == status.HTTP_409_CONFLICT
+        assert any("not yet approved" in x for x in r.data["reasons"])
+
+    def test_publishing_without_a_layout_is_allowed(
+        self, auth_client, writer, publisher
+    ):
+        """The layout gates the downloadable edition, not the web articles —
+        those publish as responsive pages regardless."""
+        from apps.issues.models import Issue
+        issue = self._issue(publisher, 88)
+        self._approved(writer, issue)
+        auth_client(publisher).post(f"/api/publication/issues/{issue.id}/close/")
+
+        r = auth_client(publisher).post(f"/api/publication/issues/{issue.id}/publish/")
+        assert r.status_code == status.HTTP_200_OK
+        issue.refresh_from_db()
+        assert issue.status == Issue.Status.PUBLISHED
+        assert issue.replica_available is False

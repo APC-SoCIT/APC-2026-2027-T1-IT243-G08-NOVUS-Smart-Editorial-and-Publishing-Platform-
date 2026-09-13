@@ -758,11 +758,27 @@ class ArticleViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         # UC-1.10 A1: leaving it in an issue would corrupt the readiness count.
+        # Withdrawal is permitted even from a closed issue — a legal or
+        # factual problem cannot wait for a reopening — but the publisher is
+        # told, because they planned a layout around those contents.
+        was_closed_issue = article.issue if (
+            article.issue_id and article.issue.is_closed) else None
         article.issue = None
         article.status = Article.Status.WITHDRAWN
         article.withdrawal_reason = serializer.validated_data["reason"]
         article.save(update_fields=["issue", "status", "withdrawal_reason",
                                     "updated_at"])
+
+        if was_closed_issue:
+            from apps.accounts.models import User
+            from apps.notifications.services import notify_many
+            notify_many(
+                User.objects.filter(role=User.Role.PUBLISHER, is_active=True),
+                Notification.Kind.REVISION,
+                f'"{article.title}" was taken out of closed Issue '
+                f"#{was_closed_issue.number}.",
+                f"/publisher/issue/{was_closed_issue.id}",
+            )
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["post"], url_path="assign-issue")
@@ -792,11 +808,15 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Issue not found."},
                             status=status.HTTP_404_NOT_FOUND)
 
-        if issue.status in (Issue.Status.PUBLISHED, Issue.Status.ARCHIVED):
-            return Response(
-                {"detail": f"Issue #{issue.number} no longer accepts articles."},
-                status=status.HTTP_409_CONFLICT,
-            )
+        if issue.is_closed:
+            # UC-2.2: a closed issue has a fixed table of contents. The
+            # message names the way back rather than just refusing, because
+            # the publisher can reopen it and the editor needs to know that.
+            detail = (f"Issue #{issue.number} is closed and its contents are "
+                      f"fixed. Ask the publisher to reopen it.")
+            if issue.status in (Issue.Status.PUBLISHED, Issue.Status.ARCHIVED):
+                detail = f"Issue #{issue.number} has already been published."
+            return Response({"detail": detail}, status=status.HTTP_409_CONFLICT)
 
         # The issue is the paid product (UC-8.2).
         article.issue = issue

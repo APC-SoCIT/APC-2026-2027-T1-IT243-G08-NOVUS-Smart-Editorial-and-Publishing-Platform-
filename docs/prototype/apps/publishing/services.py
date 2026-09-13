@@ -34,6 +34,15 @@ def publish_issue(issue, publisher):
     if issue.status in (Issue.Status.PUBLISHED, Issue.Status.ARCHIVED):
         raise NotReady([f"Issue is already {issue.get_status_display().lower()}."])
 
+    # UC-2.2: an issue goes to press closed. Publishing one whose contents
+    # could still change is precisely what closing prevents, so leaving the
+    # step optional would make the lock ceremony rather than a control.
+    if issue.status == Issue.Status.PLANNING:
+        raise NotReady([
+            "This issue has not been closed. Close it to fix the table of "
+            "contents, then publish."
+        ])
+
     if not issue.is_ready:
         raise NotReady(issue.blocking_reasons())
 

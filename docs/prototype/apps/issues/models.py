@@ -34,6 +34,19 @@ class Issue(TimeStampedModel):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PLANNING
     )
+    # UC-2.2 Compile Issue. Magazines call this closing an issue: the table
+    # of contents is fixed so the art department can lay out pages knowing
+    # they will not be redone. Reopening is permitted and recorded, because a
+    # lock nobody can lift gets worked around rather than respected.
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="issues_closed",
+    )
+    reopen_reason = models.CharField(max_length=255, blank=True)
+
     scheduled_for = models.DateTimeField(null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
 
@@ -93,6 +106,17 @@ class Issue(TimeStampedModel):
         if design and design.cover_image:
             return design.cover_image
         return self.cover_image or None
+
+    @property
+    def is_closed(self):
+        """A closed issue accepts no further articles. Publication and
+        archival both leave it closed — it was never reopened, the issue
+        simply moved on."""
+        return self.status in (
+            self.Status.COMPILED, self.Status.READY,
+            self.Status.SCHEDULED, self.Status.PUBLISHED,
+            self.Status.ARCHIVED,
+        )
 
     @property
     def replica_available(self):
