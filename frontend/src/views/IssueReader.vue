@@ -37,7 +37,6 @@ async function openReader() {
   const url = replicaUrl.value || await requestDownload()
   if (!url) return
   replicaUrl.value = url
-  console.log('opening reader with:', url)
   await nextTick()
   reading.value = true
 }
