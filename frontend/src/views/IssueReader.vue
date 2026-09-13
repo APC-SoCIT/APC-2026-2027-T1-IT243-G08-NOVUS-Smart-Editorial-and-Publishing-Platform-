@@ -93,17 +93,19 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
           </p>
 
           <template v-if="issue.replica_available">
-            <div v-if="issue.can_access" class="actions" data-intro>
-              <button class="read" :disabled="fetching" @click="openReader">
-                {{ fetching ? 'Opening…' : 'Read this issue' }}
-              </button>
-              <button class="dl" :disabled="fetching" @click="download">
-                Download the edition
-              </button>
+            <div v-if="issue.can_access" data-intro>
+              <div class="actions">
+                <button class="read" :disabled="fetching" @click="openReader">
+                  {{ fetching ? 'Opening…' : 'Read this issue' }}
+                </button>
+                <button class="dl" :disabled="fetching" @click="download">
+                  Download the edition
+                </button>
+              </div>
+              <p v-if="downloadError" class="dlerr" role="alert">
+                {{ downloadError }}
+              </p>
             </div>
-            <p v-if="downloadError" class="dlerr" role="alert">
-              {{ downloadError }}
-            </p>
 
             <div v-else class="locked" data-intro>
               <span class="badge">Subscribers only</span>
