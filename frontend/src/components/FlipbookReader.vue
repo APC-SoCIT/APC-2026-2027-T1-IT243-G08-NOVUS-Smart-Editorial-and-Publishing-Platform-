@@ -24,6 +24,30 @@ const error = ref('')
 const zoom = ref(1)
 const turning = ref(null)   // 'next' | 'prev'
 
+/* Page-turn animation is a preference, not a default anyone should be stuck
+   with. A page curl is pleasant the first few times and tiresome by the
+   twentieth, so the choice persists and the reader keeps it.
+
+   'off' also serves anyone who has asked their system to reduce motion —
+   checked below so the preference is honoured without them setting it. */
+const FLIP_KEY = 'boss.flip-style'
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const flipStyle = ref(
+  reduced ? 'off' : (localStorage.getItem(FLIP_KEY) || 'subtle'))
+const settingsOpen = ref(false)
+
+const FLIP_OPTIONS = [
+  { key: 'off', label: 'None', hint: 'Pages change instantly' },
+  { key: 'subtle', label: 'Subtle', hint: 'A slight lift as the page turns' },
+  { key: 'page', label: 'Page turn', hint: 'The page swings across like paper' },
+]
+
+function setFlip(v) {
+  flipStyle.value = v
+  localStorage.setItem(FLIP_KEY, v)
+  settingsOpen.value = false
+}
+
 let renderTask = null
 
 async function render() {
@@ -36,8 +60,12 @@ async function render() {
 
   // Fit the page to the viewport, then apply the reader's zoom on top.
   const base = p.getViewport({ scale: 1 })
-  const avail = el.parentElement.clientHeight - 32
-  const fit = avail / base.height
+  const stage = el.closest('.stage')
+  const availH = (stage?.clientHeight || window.innerHeight) - 48
+  const availW = (stage?.clientWidth || window.innerWidth) - 140
+  // Fit to whichever dimension binds first, so a portrait page fills the
+  // height and a landscape spread fills the width.
+  const fit = Math.min(availH / base.height, availW / base.width)
   const dpr = window.devicePixelRatio || 1
   const viewport = p.getViewport({ scale: fit * zoom.value })
 
@@ -58,7 +86,9 @@ async function turn(dir) {
   page.value = next
   await nextTick()
   await render()
-  setTimeout(() => (turning.value = null), 260)
+  const ms = flipStyle.value === 'page' ? 520
+           : flipStyle.value === 'subtle' ? 280 : 0
+  setTimeout(() => (turning.value = null), ms)
 }
 
 function onKey(e) {
@@ -112,6 +142,22 @@ watch(zoom, render)
         <button @click="zoom = Math.max(.6, zoom - .2)" aria-label="Zoom out">−</button>
         <span class="zoom">{{ Math.round(zoom * 100) }}%</span>
         <button @click="zoom = Math.min(2.5, zoom + .2)" aria-label="Zoom in">+</button>
+        <div class="setwrap">
+          <button class="cog" :aria-expanded="settingsOpen"
+                  aria-label="Reading settings"
+                  @click="settingsOpen = !settingsOpen">Aa</button>
+          <div v-if="settingsOpen" class="setmenu" role="menu">
+            <p class="sethead">Page turn</p>
+            <button v-for="o in FLIP_OPTIONS" :key="o.key" role="menuitemradio"
+                    :aria-checked="flipStyle === o.key"
+                    :class="{ on: flipStyle === o.key }"
+                    @click="setFlip(o.key)">
+              <b>{{ o.label }}</b>
+              <span>{{ o.hint }}</span>
+            </button>
+          </div>
+        </div>
+
         <a :href="src" download class="dl">Download</a>
         <button class="close" @click="emit('close')" aria-label="Close reader">×</button>
       </div>
@@ -125,7 +171,7 @@ watch(zoom, render)
         <button class="nav prev" :disabled="page <= 1"
                 aria-label="Previous page" @click="turn(-1)">‹</button>
 
-        <div class="sheet" :class="turning">
+        <div class="sheet" :class="[turning, `flip-${flipStyle}`]">
           <canvas ref="canvas" :aria-label="`Page ${page} of ${pages}`"></canvas>
         </div>
 
@@ -174,22 +220,67 @@ header { display: flex; align-items: center; gap: var(--s-4);
 
 /* The page lifts and tilts fractionally as it turns — enough to read as a
    page turn without the parody of a full 3D flip. */
-.sheet { box-shadow: 0 20px 60px rgba(0,0,0,.7); background: #fff;
+.sheet { box-shadow: 0 24px 70px rgba(0,0,0,.75); background: #fff;
+         border-radius: 2px;
          transform-origin: center left;
          transition: transform var(--dur-base) var(--ease-out),
                      opacity var(--dur-base) var(--ease-out); }
-.sheet.next { animation: turnNext 280ms var(--ease-out); }
-.sheet.prev { animation: turnPrev 280ms var(--ease-out); }
+/* Three intensities. The transform origin sits on the spine so the page
+   pivots where a real one would, rather than rotating about its centre. */
+.sheet.flip-off.next, .sheet.flip-off.prev { animation: none; }
+
+.sheet.flip-subtle.next { animation: liftNext 280ms var(--ease-out); }
+.sheet.flip-subtle.prev { animation: liftPrev 280ms var(--ease-out); }
+@keyframes liftNext {
+  0%   { transform: perspective(1600px) rotateY(0); opacity: 1; }
+  45%  { transform: perspective(1600px) rotateY(-9deg); opacity: .85; }
+  100% { transform: perspective(1600px) rotateY(0); opacity: 1; }
+}
+@keyframes liftPrev {
+  0%   { transform: perspective(1600px) rotateY(0); opacity: 1; }
+  45%  { transform: perspective(1600px) rotateY(9deg); opacity: .85; }
+  100% { transform: perspective(1600px) rotateY(0); opacity: 1; }
+}
+
+.sheet.flip-page { transform-origin: left center; }
+.sheet.flip-page.next { animation: turnNext 520ms cubic-bezier(.36,.1,.3,1); }
+.sheet.flip-page.prev { animation: turnPrev 520ms cubic-bezier(.36,.1,.3,1); }
 @keyframes turnNext {
-  0%   { transform: perspective(1400px) rotateY(0); opacity: 1; }
-  45%  { transform: perspective(1400px) rotateY(-11deg); opacity: .82; }
-  100% { transform: perspective(1400px) rotateY(0); opacity: 1; }
+  0%   { transform: perspective(1800px) rotateY(0); filter: brightness(1); }
+  50%  { transform: perspective(1800px) rotateY(-72deg); filter: brightness(.72); }
+  51%  { transform: perspective(1800px) rotateY(72deg); filter: brightness(.72); }
+  100% { transform: perspective(1800px) rotateY(0); filter: brightness(1); }
 }
 @keyframes turnPrev {
-  0%   { transform: perspective(1400px) rotateY(0); opacity: 1; }
-  45%  { transform: perspective(1400px) rotateY(11deg); opacity: .82; }
-  100% { transform: perspective(1400px) rotateY(0); opacity: 1; }
+  0%   { transform: perspective(1800px) rotateY(0); filter: brightness(1); }
+  50%  { transform: perspective(1800px) rotateY(72deg); filter: brightness(.72); }
+  51%  { transform: perspective(1800px) rotateY(-72deg); filter: brightness(.72); }
+  100% { transform: perspective(1800px) rotateY(0); filter: brightness(1); }
 }
+
+.setwrap { position: relative; }
+.cog { background: transparent; border: 1px solid var(--boss-line);
+       color: var(--boss-text-muted); width: 32px; height: 32px;
+       border-radius: var(--r-sm); font-size: 13px; font-weight: 600;
+       cursor: pointer; font-family: var(--font-serif); }
+.cog:hover { border-color: var(--boss-gold); color: var(--boss-gold); }
+.setmenu { position: absolute; right: 0; top: 40px; z-index: 10;
+           background: var(--boss-surface); border: 1px solid var(--boss-line);
+           border-radius: var(--r-md); padding: 6px; min-width: 210px;
+           box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.sethead { margin: 6px 10px 8px; font-size: 10px;
+           letter-spacing: var(--track-caps); text-transform: uppercase;
+           color: var(--boss-text-faint); }
+.setmenu button { display: block; width: 100%; text-align: left;
+                  background: none; border: 0; padding: 8px 10px;
+                  border-radius: var(--r-sm); cursor: pointer;
+                  font-family: var(--font-ui); }
+.setmenu button:hover { background: var(--boss-surface-2); }
+.setmenu button.on b { color: var(--boss-gold); }
+.setmenu b { display: block; font-size: 13px; color: var(--boss-text);
+             font-weight: 500; }
+.setmenu span { font-size: 11px; color: var(--boss-text-faint); }
+
 canvas { display: block; }
 
 .nav { background: transparent; border: 1px solid var(--boss-line);

@@ -12,6 +12,7 @@ const busy = ref(false)
 const error = ref('')
 const reasons = ref([])
 const confirmPublish = ref(false)
+const confirmArchive = ref(false)
 
 async function load() {
   const { data } = await api.get(`/publication/issues/${route.params.id}/`)
@@ -23,6 +24,18 @@ onMounted(load)
 async function doPublish() {
   confirmPublish.value = false
   await publish()
+}
+
+async function archive() {
+  confirmArchive.value = false
+  error.value = ''
+  busy.value = true
+  try {
+    await api.post(`/publication/issues/${route.params.id}/archive/`)
+    await load()
+  } catch (e) {
+    error.value = e.response?.data?.detail || 'Could not archive this issue.'
+  } finally { busy.value = false }
 }
 
 async function publish() {
@@ -91,6 +104,20 @@ const label = (s) => s.replace(/_/g, ' ')
     <p v-else class="empty">No approved layout yet.</p>
 
     <ConfirmDialog
+      :open="confirmArchive"
+      :title="`Archive Issue #${issue.number}?`"
+      message="It moves out of the active publishing list. Readers keep access to it in the public archive."
+      confirm-label="Archive"
+      :busy="busy"
+      :points="[
+        'It stops appearing among issues in preparation.',
+        'Its articles remain published and readable.',
+        'No new articles can be assigned to it.',
+      ]"
+      @confirm="archive"
+      @cancel="confirmArchive = false" />
+
+    <ConfirmDialog
       :open="confirmPublish"
       :title="`Publish Issue #${issue.number}?`"
       message="Every article in this issue goes live at once and becomes publicly readable."
@@ -116,7 +143,17 @@ const label = (s) => s.replace(/_/g, ' ')
             @click="confirmPublish = true">
       {{ busy ? 'Publishing…' : `Confirm and Publish Issue #${issue.number}` }}
     </button>
-    <p v-else class="done">This issue is live on the reader portal.</p>
+    <div v-else-if="issue.status === 'PUBLISHED'" class="live">
+      <p>This issue is live on the reader portal.</p>
+      <button class="archive" :disabled="busy" @click="confirmArchive = true">
+        Archive this issue
+      </button>
+    </div>
+
+    <p v-else-if="issue.status === 'ARCHIVED'" class="done">
+      This issue is archived. Readers can still find it in the public archive;
+      it no longer appears among issues in preparation.
+    </p>
   </div>
   <p v-else class="wrap">Loading…</p>
 </template>
@@ -151,6 +188,13 @@ em { font-size: 12px; color: var(--nv-text-faint); font-style: normal; }
 .publish { width: 100%; margin-top: 26px; padding: 15px; border: 0; background: var(--nv-navy-2);
            color: #fff; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; }
 .publish:disabled { opacity: .4; cursor: not-allowed; }
+.live { margin-top: 26px; text-align: center; }
+.live p { color: var(--ok); font-size: 14px; margin: 0 0 14px; }
+.archive { border: 1px solid var(--nv-line-strong);
+           background: var(--nv-surface); color: var(--nv-text-muted);
+           padding: 10px 20px; border-radius: var(--r-sm);
+           font-size: 14px; cursor: pointer; font-family: inherit; }
+.archive:hover { border-color: var(--nv-text-faint); color: var(--nv-text); }
 .done { margin-top: 26px; text-align: center; color: var(--ok); font-size: 14px; }
 .empty { color: var(--nv-text-faint); font-size: 14px; }
 .err { color: var(--bad); font-size: 13px; margin-top: 18px; }
