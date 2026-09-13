@@ -122,9 +122,7 @@ class PublicIssueDetailSerializer(PublicIssueListSerializer):
         ).data
 
     def get_replica_url(self, obj):
-        """The PDF is withheld entirely from non-subscribers — unlike article
-        text, there is no partial version of a magazine file."""
-        if not self._is_subscriber():
-            return None
-        design = obj.approved_design
-        return design.file.url if design and design.file else None
+        """Deliberately absent. The file is not publicly addressable, so a URL
+        embedded in a listing would either be useless or a leak. Subscribers
+        request one from the download endpoint, which signs it on the spot."""
+        return None

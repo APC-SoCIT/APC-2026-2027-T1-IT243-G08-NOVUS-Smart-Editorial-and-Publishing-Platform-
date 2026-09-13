@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from apps.common.models import TimeStampedModel
+from apps.common.storage import private_storage
 
 
 class MagazineDesign(TimeStampedModel):
@@ -26,7 +27,11 @@ class MagazineDesign(TimeStampedModel):
         "issues.Issue", on_delete=models.CASCADE, related_name="designs",
     )
     version = models.CharField(max_length=20, default="v1.0")
-    file = models.FileField(upload_to="designs/%Y/%m/")
+    # The layout is the product subscribers pay for, so it lives in a
+    # private bucket and is reachable only through a signed URL issued
+    # after an entitlement check (UC-8.1).
+    file = models.FileField(upload_to="designs/%Y/%m/",
+                            storage=private_storage)
 
     designer = models.ForeignKey(
         settings.AUTH_USER_MODEL,

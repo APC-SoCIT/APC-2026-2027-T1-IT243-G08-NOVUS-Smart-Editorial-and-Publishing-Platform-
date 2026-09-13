@@ -75,3 +75,16 @@ def tmp_media(tmp_path, settings):
     """UC-1.12 uploads go to a temp directory so tests never write into
     the project's media folder."""
     settings.MEDIA_ROOT = tmp_path / "media"
+
+
+@pytest.fixture(autouse=True)
+def local_storage_in_tests(settings, tmp_path):
+    """Tests write to a temporary directory, never to object storage.
+
+    A suite that uploads over the network is slow, needs credentials, and
+    cannot run offline. Storage is deployment configuration; the behaviour
+    under test is identical either way.
+    """
+    settings.MEDIA_ROOT = tmp_path / "media"
+    settings.USE_R2 = False
+    settings.R2_PRIVATE_BUCKET = ""

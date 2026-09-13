@@ -125,3 +125,50 @@ class BookmarkStatusView(APIView):
             .values_list("article_id", flat=True)
         )
         return Response({"saved": sorted(saved)})
+
+
+class IssueDownloadView(APIView):
+    """UC-8.1 Download Digital Issues.
+
+    Returns a short-lived signed URL rather than the file itself, and only to
+    a subscriber. The object is not publicly addressable, so this endpoint is
+    the only route to it — which is what makes the entitlement real rather
+    than a decision about whether to show a button.
+
+    The URL expires in fifteen minutes. Sharing one grants a brief window
+    rather than permanent access.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        from apps.issues.models import Issue
+
+        try:
+            issue = Issue.objects.get(
+                pk=pk, status__in=[Issue.Status.PUBLISHED, Issue.Status.ARCHIVED])
+        except Issue.DoesNotExist:
+            return Response({"detail": "Issue not found."}, status=404)
+
+        user = request.user
+        entitled = user.role != user.Role.READER
+        if not entitled:
+            profile = getattr(user, "reader_profile", None)
+            entitled = bool(profile and profile.tier == profile.Tier.SUBSCRIBER)
+
+        if not entitled:
+            return Response(
+                {"detail": "The digital edition is available to subscribers."},
+                status=403)
+
+        design = issue.approved_design
+        if not design or not design.file:
+            return Response(
+                {"detail": "No digital edition is available for this issue."},
+                status=404)
+
+        return Response({
+            "url": design.file.url,
+            "expires_in": 900,
+            "filename": f"BOSS-Issue-{issue.number}.pdf",
+        })

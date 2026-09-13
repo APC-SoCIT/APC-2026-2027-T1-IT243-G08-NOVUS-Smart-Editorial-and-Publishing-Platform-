@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    IssueDownloadView,
     BookmarkListView,
     BookmarkStatusView,
     BookmarkToggleView,
@@ -19,4 +20,6 @@ urlpatterns = [
          name="bookmark-toggle"),
     path("issues/", PublicIssueListView.as_view(), name="public-issue-list"),
     path("issues/<int:pk>/", PublicIssueDetailView.as_view(), name="public-issue-detail"),
+    path("issues/<int:pk>/download/", IssueDownloadView.as_view(),
+         name="issue-download"),
 ]
