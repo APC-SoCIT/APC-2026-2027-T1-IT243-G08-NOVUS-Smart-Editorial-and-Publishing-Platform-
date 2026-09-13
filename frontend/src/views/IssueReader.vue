@@ -11,6 +11,41 @@ const issue = ref(null)
 const loading = ref(true)
 const missing = ref(false)
 const reading = ref(false)
+const replicaUrl = ref(null)
+const fetching = ref(false)
+const downloadError = ref('')
+
+/* The layout is no longer publicly addressable, so the URL is requested when
+   the reader asks for it and signed on the spot. It expires in fifteen
+   minutes, which is why it is fetched on demand rather than with the page. */
+async function requestDownload() {
+  downloadError.value = ''
+  fetching.value = true
+  try {
+    const { data } = await api.get(`/content/issues/${route.params.id}/download/`)
+    replicaUrl.value = data.url
+    return data.url
+  } catch (e) {
+    downloadError.value = e.response?.status === 403
+      ? 'The digital edition is available to subscribers.'
+      : 'That edition could not be opened just now.'
+    return null
+  } finally { fetching.value = false }
+}
+
+async function openReader() {
+  const url = replicaUrl.value || await requestDownload()
+  if (url) reading.value = true
+}
+
+async function download() {
+  const url = replicaUrl.value || await requestDownload()
+  if (!url) return
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `BOSS-Issue-${issue.value.number}.pdf`
+  a.click()
+}
 
 onMounted(async () => {
   try {
@@ -27,8 +62,7 @@ useReveal('[data-reveal]')
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
   { year: 'numeric', month: 'long', day: 'numeric' }) : ''
 
-const isPdf = computed(() =>
-  (issue.value?.replica_url || '').toLowerCase().endsWith('.pdf'))
+// Layouts are PDF-only by validation, so no runtime check is needed.
 </script>
 
 <template>
@@ -60,13 +94,16 @@ const isPdf = computed(() =>
 
           <template v-if="issue.replica_available">
             <div v-if="issue.can_access" class="actions" data-intro>
-              <button v-if="isPdf" class="read" @click="reading = true">
-                Read this issue
+              <button class="read" :disabled="fetching" @click="openReader">
+                {{ fetching ? 'Opening…' : 'Read this issue' }}
               </button>
-              <a class="dl" :href="issue.replica_url" download>
+              <button class="dl" :disabled="fetching" @click="download">
                 Download the edition
-              </a>
+              </button>
             </div>
+            <p v-if="downloadError" class="dlerr" role="alert">
+              {{ downloadError }}
+            </p>
 
             <div v-else class="locked" data-intro>
               <span class="badge">Subscribers only</span>
@@ -115,7 +152,7 @@ const isPdf = computed(() =>
     </template>
   </BossShell>
 
-  <FlipbookReader v-if="reading" :src="issue.replica_url"
+  <FlipbookReader v-if="reading && replicaUrl" :src="replicaUrl"
                   :title="`Issue ${issue.number} — ${issue.title}`"
                   @close="reading = false" />
 </template>
@@ -159,7 +196,10 @@ h1 { font-family: var(--font-serif); font-size: var(--t-3xl); font-weight: 500;
         letter-spacing: var(--track-caps); text-transform: uppercase;
         cursor: pointer; transition: background var(--dur-base) var(--ease-out); }
 .read:hover { background: var(--boss-gold-bright); }
+.dlerr { margin: var(--s-3) 0 0; font-family: var(--font-ui);
+         font-size: var(--t-sm); color: #e09a9a; }
 .dl { border: 1px solid var(--boss-line); color: var(--boss-text-muted);
+      background: transparent; cursor: pointer; font-family: var(--font-ui);
       padding: var(--s-4) var(--s-6); font-family: var(--font-ui);
       font-size: var(--t-xs); letter-spacing: var(--track-caps);
       text-transform: uppercase;

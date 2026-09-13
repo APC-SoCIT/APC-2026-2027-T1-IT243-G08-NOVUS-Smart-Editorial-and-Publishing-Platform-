@@ -5,11 +5,33 @@ import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const auth = useAuthStore()
+const router = useRouter()
+
+const initials = computed(() => {
+  const u = auth.user
+  if (!u) return '?'
+  return ((u.first_name?.[0] || '') + (u.last_name?.[0] || '')).toUpperCase()
+})
+
+/* Shown as a badge so a subscriber can see their entitlement without opening
+   an account page — the paywall is otherwise invisible until they hit it. */
+const tier = computed(() => auth.user?.reader_profile?.tier || null)
+
+function signOut() {
+  auth.logout()
+  router.push('/read')
+}
 const scrolled = ref(false)
 const menuOpen = ref(false)
 
 const onScroll = () => { scrolled.value = window.scrollY > 20 }
-onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  // access rehydrates from storage but user does not, so a refreshed page
+  // knows it is signed in without knowing who as. Fetch the profile before
+  // the header renders a nameless account chip.
+  if (auth.isAuthenticated && !auth.user) auth.fetchUser()
+})
 onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
 const NAV = [
@@ -41,7 +63,18 @@ const isOn = (to) => route.path === to.split('?')[0]
         </router-link>
       </nav>
 
-      <router-link to="/issues" class="cta">View Issues</router-link>
+      <div class="account">
+        <template v-if="auth.isAuthenticated">
+          <router-link to="/saved" class="me">
+            <span class="avatar" aria-hidden="true">{{ initials }}</span>
+            <span class="name">{{ auth.user?.first_name }}</span>
+            <span v-if="tier === 'SUBSCRIBER'" class="tier">Subscriber</span>
+          </router-link>
+          <button class="out" @click="signOut">Sign out</button>
+        </template>
+
+        <router-link v-else to="/login" class="cta">Sign in</router-link>
+      </div>
 
       <button class="burger" :aria-expanded="menuOpen"
               aria-controls="mobile-nav" @click="menuOpen = !menuOpen">
@@ -123,6 +156,24 @@ header nav a.on { color: var(--boss-gold); }
 header nav a.on::after { content: ''; position: absolute; left: 0; right: 0;
                          bottom: 0; height: 1px; background: var(--boss-gold); }
 
+.account { display: flex; align-items: center; gap: var(--s-3); }
+.me { display: flex; align-items: center; gap: var(--s-2); }
+.avatar { width: 30px; height: 30px; border-radius: var(--r-full);
+          background: var(--boss-surface-2); border: 1px solid var(--boss-gold-deep);
+          color: var(--boss-gold); display: flex; align-items: center;
+          justify-content: center; font-size: 11px; font-weight: 700;
+          font-family: var(--font-ui); }
+.name { font-family: var(--font-ui); font-size: var(--t-sm);
+        color: var(--boss-text); }
+.tier { font-family: var(--font-ui); font-size: 10px;
+        letter-spacing: var(--track-caps); text-transform: uppercase;
+        color: var(--boss-gold); border: 1px solid var(--boss-gold-deep);
+        padding: 2px 7px; border-radius: var(--r-full); }
+.out { background: transparent; border: 0; color: var(--boss-text-faint);
+       font-family: var(--font-ui); font-size: var(--t-xs);
+       letter-spacing: var(--track-caps); text-transform: uppercase;
+       cursor: pointer; padding: var(--s-2); }
+.out:hover { color: var(--boss-text); }
 .cta { border: 1px solid var(--boss-gold); color: var(--boss-gold);
        padding: var(--s-3) var(--s-5); font-size: var(--t-xs);
        letter-spacing: var(--track-caps); text-transform: uppercase;
