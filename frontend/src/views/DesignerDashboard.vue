@@ -53,6 +53,8 @@ async function load() {
   articles.value = (a.data.results ?? a.data)
     .filter(x => ['APPROVED', 'PUBLISHED'].includes(x.status))
   issues.value = (i.data.results ?? i.data)
+    // Kept deliberately broad: closed issues are exactly what a designer
+    // lays out, since their contents can no longer change.
     .filter(x => !['PUBLISHED', 'ARCHIVED'].includes(x.status))
   if (!issueId.value && issues.value.length) issueId.value = issues.value[0].id
 }

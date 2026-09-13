@@ -13,6 +13,9 @@ const error = ref('')
 const reasons = ref([])
 const confirmPublish = ref(false)
 const confirmArchive = ref(false)
+const confirmClose = ref(false)
+const reopenOpen = ref(false)
+const reopenReason = ref('')
 
 async function load() {
   const { data } = await api.get(`/publication/issues/${route.params.id}/`)
@@ -24,6 +27,36 @@ onMounted(load)
 async function doPublish() {
   confirmPublish.value = false
   await publish()
+}
+
+async function close() {
+  confirmClose.value = false
+  error.value = ''
+  busy.value = true
+  try {
+    await api.post(`/publication/issues/${route.params.id}/close/`)
+    await load()
+  } catch (e) {
+    error.value = e.response?.data?.detail || 'Could not close this issue.'
+  } finally { busy.value = false }
+}
+
+async function reopen() {
+  error.value = ''
+  if (reopenReason.value.trim().length < 5) {
+    error.value = 'Give a reason for reopening this issue.'
+    return
+  }
+  busy.value = true
+  try {
+    await api.post(`/publication/issues/${route.params.id}/reopen/`,
+                   { reason: reopenReason.value })
+    reopenOpen.value = false
+    reopenReason.value = ''
+    await load()
+  } catch (e) {
+    error.value = e.response?.data?.detail || 'Could not reopen this issue.'
+  } finally { busy.value = false }
 }
 
 async function archive() {
@@ -104,6 +137,20 @@ const label = (s) => s.replace(/_/g, ' ')
     <p v-else class="empty">No approved layout yet.</p>
 
     <ConfirmDialog
+      :open="confirmClose"
+      :title="`Close Issue #${issue.number}?`"
+      message="The table of contents is fixed. Editors can no longer assign or remove articles."
+      confirm-label="Close the issue"
+      :busy="busy"
+      :points="[
+        `${issue.total_articles} articles are in this issue.`,
+        'The designer can lay it out knowing the contents will not change.',
+        'You can reopen it, with a reason, if a late story warrants it.',
+      ]"
+      @confirm="close"
+      @cancel="confirmClose = false" />
+
+    <ConfirmDialog
       :open="confirmArchive"
       :title="`Archive Issue #${issue.number}?`"
       message="It moves out of the active publishing list. Readers keep access to it in the public archive."
@@ -137,6 +184,45 @@ const label = (s) => s.replace(/_/g, ' ')
     <ul v-if="reasons.length" class="err-list">
       <li v-for="(r, i) in reasons" :key="i">{{ r }}</li>
     </ul>
+
+    <div v-if="issue.status === 'PLANNING'" class="closebar">
+      <div>
+        <b>This issue is open.</b>
+        <p>
+          Articles can still be added or removed. Close it to fix the table of
+          contents so the layout can be finalised.
+        </p>
+      </div>
+      <button class="close-btn" :disabled="busy || !issue.total_articles"
+              @click="confirmClose = true">
+        Close this issue
+      </button>
+    </div>
+
+    <div v-else-if="issue.status === 'COMPILED'" class="closebar closed">
+      <div>
+        <b>This issue is closed.</b>
+        <p>
+          Its contents are fixed. Reopening is recorded, so do it when a late
+          story genuinely warrants it rather than as a matter of course.
+        </p>
+        <p v-if="issue.reopen_reason" class="prev">
+          Previously reopened: {{ issue.reopen_reason }}
+        </p>
+      </div>
+      <button v-if="!reopenOpen" class="close-btn"
+              @click="reopenOpen = true">Reopen</button>
+    </div>
+
+    <div v-if="reopenOpen" class="composer">
+      <label for="reopen-why">WHY IS THIS BEING REOPENED?</label>
+      <textarea id="reopen-why" v-model="reopenReason" rows="2"
+                placeholder="A late feature was confirmed for this issue…"></textarea>
+      <div class="racts">
+        <button class="ghost" @click="reopenOpen = false">Cancel</button>
+        <button class="warn" :disabled="busy" @click="reopen">Reopen issue</button>
+      </div>
+    </div>
 
     <button v-if="issue.status !== 'PUBLISHED' && issue.status !== 'ARCHIVED'"
             class="publish" :disabled="busy || !issue.is_ready"
@@ -188,6 +274,37 @@ em { font-size: 12px; color: var(--nv-text-faint); font-style: normal; }
 .publish { width: 100%; margin-top: 26px; padding: 15px; border: 0; background: var(--nv-navy-2);
            color: #fff; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; }
 .publish:disabled { opacity: .4; cursor: not-allowed; }
+.closebar { display: flex; align-items: flex-start; gap: var(--s-5);
+            background: var(--nv-surface); border: 1px solid var(--nv-line);
+            border-radius: var(--r-md); padding: var(--s-5);
+            margin-top: var(--s-5); }
+.closebar.closed { background: var(--info-bg); border-color: #cfe0f5; }
+.closebar b { font-size: 15px; color: var(--nv-text); }
+.closebar p { margin: 5px 0 0; font-size: 14px; line-height: 1.6;
+              color: var(--nv-text-muted); max-width: 58ch; }
+.closebar .prev { font-size: 13px; color: var(--nv-text-faint);
+                  font-style: italic; }
+.close-btn { flex-shrink: 0; border: 1px solid var(--nv-navy-2);
+             background: var(--nv-surface); color: var(--nv-navy-2);
+             padding: 10px 18px; border-radius: var(--r-sm); font-size: 14px;
+             font-weight: 600; cursor: pointer; font-family: inherit; }
+.close-btn:hover:not(:disabled) { background: var(--nv-navy-2); color: #fff; }
+.close-btn:disabled { opacity: .45; cursor: not-allowed; }
+.composer { margin-top: var(--s-3); background: var(--nv-surface);
+            border: 1px solid var(--nv-line); border-radius: var(--r-md);
+            padding: var(--s-5); }
+.composer label { display: block; font-size: 12px; letter-spacing: .04em;
+                  color: var(--nv-text-muted); margin-bottom: 6px; }
+.composer textarea { width: 100%; padding: 10px; font-size: 14px;
+                     font-family: inherit; border: 1px solid var(--nv-line-strong);
+                     border-radius: var(--r-sm); resize: vertical;
+                     background: var(--nv-surface); color: var(--nv-text); }
+.racts { display: flex; gap: 8px; margin-top: var(--s-3); }
+.racts button { flex: 1; padding: 10px; border-radius: var(--r-sm);
+                cursor: pointer; font-size: 14px; font-family: inherit; }
+.racts .ghost { border: 1px solid var(--nv-line-strong);
+                background: var(--nv-surface); color: var(--nv-text); }
+.racts .warn { border: 0; background: var(--warn); color: #fff; font-weight: 600; }
 .live { margin-top: 26px; text-align: center; }
 .live p { color: var(--ok); font-size: 14px; margin: 0 0 14px; }
 .archive { border: 1px solid var(--nv-line-strong);

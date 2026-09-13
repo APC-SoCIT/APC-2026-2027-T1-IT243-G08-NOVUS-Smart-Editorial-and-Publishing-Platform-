@@ -18,7 +18,9 @@ onMounted(async () => {
   const { data } = await api.get('/publication/issues/')
   // Only issues that still accept articles (UC-1.11 E1).
   issues.value = (data.results ?? data)
-    .filter(i => !['PUBLISHED', 'ARCHIVED'].includes(i.status))
+    // A closed issue has a fixed table of contents, so offering it here
+    // would produce a refusal rather than an assignment.
+    .filter(i => !i.is_closed)
 })
 
 async function save() {
