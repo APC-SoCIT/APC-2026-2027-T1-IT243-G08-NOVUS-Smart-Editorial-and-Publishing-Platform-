@@ -21,6 +21,7 @@ import ReaderHome from '../views/ReaderHome.vue'
 import ReaderArticle from '../views/ReaderArticle.vue'
 import IssueArchive from '../views/IssueArchive.vue'
 import SavedArticles from '../views/SavedArticles.vue'
+import AccountSettings from '../views/AccountSettings.vue'
 import AboutView from '../views/AboutView.vue'
 import LegalView from '../views/LegalView.vue'
 import IssueReader from '../views/IssueReader.vue'
@@ -51,6 +52,7 @@ const routes = [
   { path: '/read', component: ReaderHome },
   { path: '/read/:id', component: ReaderArticle },
   { path: '/saved', component: SavedArticles, meta: { requiresAuth: true } },
+  { path: '/account', component: AccountSettings, meta: { requiresAuth: true } },
   { path: '/issues', component: IssueArchive },
   { path: '/about', component: AboutView },
   { path: '/legal/:doc', component: LegalView },

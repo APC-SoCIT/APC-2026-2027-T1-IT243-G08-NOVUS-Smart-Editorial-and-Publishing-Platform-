@@ -65,7 +65,7 @@ const isOn = (to) => route.path === to.split('?')[0]
 
       <div class="account">
         <template v-if="auth.isAuthenticated">
-          <router-link to="/saved" class="me">
+          <router-link to="/account" class="me">
             <span class="avatar" aria-hidden="true">{{ initials }}</span>
             <span class="name">{{ auth.user?.first_name }}</span>
             <span v-if="tier === 'SUBSCRIBER'" class="tier">Subscriber</span>

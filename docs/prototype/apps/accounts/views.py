@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import User
-from .serializers import RegisterSerializer, UserSerializer
+from .serializers import UpdateProfileSerializer, RegisterSerializer, UserSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -18,11 +18,24 @@ class MeView(generics.RetrieveUpdateAPIView):
     """UC-6.4 Update Profile Information. Login itself is handled by
     SimpleJWT's TokenObtainPairView (see accounts/urls.py) — UC-6.2."""
 
-    serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        # Reads return the full profile including role and subscription tier;
+        # writes accept only what the owner may change. Using one serializer
+        # for both would have let a PATCH set its own role.
+        if self.request.method in ("PATCH", "PUT"):
+            return UpdateProfileSerializer
+        return UserSerializer
 
     def get_object(self):
         return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        # Return the full profile so the client refreshes its own state
+        # rather than holding the trimmed write shape.
+        return Response(UserSerializer(self.get_object()).data)
 
 
 class WriterListView(APIView):

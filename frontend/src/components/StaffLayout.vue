@@ -98,13 +98,13 @@ function signOut() {
         <span class="sr-only">(opens in a new tab)</span>
       </a>
 
-      <div class="who">
+      <router-link to="/account" class="who">
         <div class="avatar">{{ initials }}</div>
         <div class="idblock">
           <b>{{ auth.user?.first_name }} {{ auth.user?.last_name }}</b>
           <span>{{ roleLabel }}</span>
         </div>
-      </div>
+      </router-link>
     </aside>
 
     <div class="main">
@@ -166,8 +166,11 @@ nav a.on::before { content: ''; position: absolute; left: 0; top: 8px;
             transition: color var(--dur-fast) var(--ease-out),
                         border-color var(--dur-fast) var(--ease-out); }
 .viewsite:hover { color: #fff; border-color: rgba(255,255,255,.2); }
-.who { display: flex; align-items: center; gap: 11px; padding: 18px 22px 0;
+.who { display: flex; align-items: center; gap: 11px; cursor: pointer;
+       border-radius: var(--r-sm);
+       transition: background var(--dur-fast) var(--ease-out); padding: 18px 22px 0;
        margin: 0 12px; border-top: 1px solid rgba(255,255,255,.09); }
+.who:hover { background: rgba(255,255,255,.06); }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: #2c3e63;
           display: flex; align-items: center; justify-content: center;
           font-size: 12px; font-weight: 600; flex-shrink: 0; }
