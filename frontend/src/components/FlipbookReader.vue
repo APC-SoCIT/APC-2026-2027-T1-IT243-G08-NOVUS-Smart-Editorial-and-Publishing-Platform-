@@ -71,12 +71,19 @@ onMounted(async () => {
   document.addEventListener('keydown', onKey)
   window.addEventListener('resize', render)
   try {
-    doc.value = await pdfjsLib.getDocument(props.src).promise
+    // Newer pdf.js builds expect an options object rather than a bare string;
+    // passing the URL positionally silently produces 'expected either data,
+    // range, or url parameter'.
+    doc.value = await pdfjsLib.getDocument({ url: props.src }).promise
     pages.value = doc.value.numPages
     loading.value = false
     await nextTick()
     await render()
-  } catch {
+  } catch (e) {
+    // Log the real exception: a URL problem, a parse failure and a worker
+    // loading error all reached the same generic message, which made every
+    // one of them look identical from the outside.
+    console.error('Flipbook failed to open:', e)
     error.value = 'This edition could not be opened in the reader.'
     loading.value = false
   }

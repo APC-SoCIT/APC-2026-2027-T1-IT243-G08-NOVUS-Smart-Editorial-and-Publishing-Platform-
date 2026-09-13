@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../services/api'
 import BossShell from '../components/BossShell.vue'
@@ -35,7 +35,11 @@ async function requestDownload() {
 
 async function openReader() {
   const url = replicaUrl.value || await requestDownload()
-  if (url) reading.value = true
+  if (!url) return
+  replicaUrl.value = url
+  console.log('opening reader with:', url)
+  await nextTick()
+  reading.value = true
 }
 
 async function download() {
