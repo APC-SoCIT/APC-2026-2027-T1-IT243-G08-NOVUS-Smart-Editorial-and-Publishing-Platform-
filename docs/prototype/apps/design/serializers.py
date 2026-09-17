@@ -23,6 +23,9 @@ COVER_EXT = {".png", ".jpg", ".jpeg", ".webp"}
 # in total and an upload that size is handled in the same process that
 # serves every other request. A print-resolution issue PDF exceeding this
 # should be delivered as a compressed export.
+# Applies to the cover image and to legacy multipart submissions. The
+# edition itself never passes through this process — see uploads.py, which
+# enforces its ceiling against the object in storage.
 MAX_BYTES = 25 * 1024 * 1024
 
 
@@ -80,6 +83,8 @@ class MagazineDesignSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         """A first version needs a cover: it is what readers see in the archive,
         and an issue published without one shows an empty rectangle."""
+        # The edition arrives by reference under the direct-upload path,
+        # so only the cover is validated here.
         if not self.instance and not attrs.get("cover_image"):
             existing = MagazineDesign.objects.filter(
                 issue=attrs.get("issue")

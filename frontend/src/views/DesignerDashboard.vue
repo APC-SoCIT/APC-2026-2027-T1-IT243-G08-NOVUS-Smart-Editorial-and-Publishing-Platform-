@@ -27,6 +27,7 @@ const file = ref(null)
 const coverFile = ref(null)
 const coverPreview = ref(null)
 const uploading = ref(false)
+const progress = ref(0)
 const error = ref('')
 const ok = ref('')
 
@@ -79,25 +80,68 @@ async function upload() {
   error.value = ''; ok.value = ''
   if (!issueId.value) { error.value = 'Choose the issue this layout is for.'; return }
   if (!file.value) { error.value = 'Choose a layout PDF.'; return }
+  if (file.value.type !== 'application/pdf') {
+    error.value = 'The edition must be a PDF. Export from InDesign first.'
+    return
+  }
 
   uploading.value = true
-  const fd = new FormData()
-  fd.append('issue', issueId.value)
-  fd.append('version', version.value)
-  fd.append('notes_to_editor', notes.value)
-  fd.append('file', file.value)
-  if (coverFile.value) fd.append('cover_image', coverFile.value)
+  progress.value = 0
+
   try {
-    await api.post('/design/designs/', fd,
+    /* The edition goes straight from here to storage. A print-resolution PDF
+       runs to hundreds of megabytes, and streaming one through the API means
+       holding it in the process that serves every other request. */
+    const { data: slot } = await api.post('/design/uploads/presign/', {
+      issue: issueId.value,
+      version: version.value,
+      filename: file.value.name,
+      content_type: file.value.type,
+    })
+
+    // A bare fetch, not the api instance: this request goes to storage, and
+    // attaching our own auth header would break the signature.
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('PUT', slot.upload_url)
+      xhr.setRequestHeader('Content-Type', file.value.type)
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          progress.value = Math.round((e.loaded / e.total) * 100)
+        }
+      }
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300)
+        ? resolve()
+        : reject(new Error(`Storage refused the upload (${xhr.status}).`))
+      xhr.onerror = () => reject(new Error('The upload could not reach storage.'))
+      xhr.send(file.value)
+    })
+
+    // The record is created only once storage confirms the object arrived,
+    // so an abandoned upload leaves no row pointing at a file that is not there.
+    const fd = new FormData()
+    fd.append('issue', issueId.value)
+    fd.append('version', version.value)
+    fd.append('notes_to_editor', notes.value)
+    fd.append('key', slot.key)
+    if (coverFile.value) fd.append('cover_image', coverFile.value)
+
+    await api.post('/design/uploads/complete/', fd,
       { headers: { 'Content-Type': 'multipart/form-data' } })
-    file.value = null; notes.value = ''
+
+    file.value = null; coverFile.value = null; coverPreview.value = null
+    notes.value = ''
     uploadOpen.value = false
     tab.value = 'mine'
     await load()
   } catch (e) {
-    const d = e.response?.data
-    error.value = d?.file?.[0] || d?.non_field_errors?.[0] || 'Upload failed.'
-  } finally { uploading.value = false }
+    error.value = e.response?.data?.detail
+      || e.message
+      || 'Upload failed.'
+  } finally {
+    uploading.value = false
+    progress.value = 0
+  }
 }
 
 const photos = (a) => a.image_count || 0
@@ -274,6 +318,12 @@ const grouped = computed(() => {
     </label>
 
     <p v-if="error" class="ferr" role="alert">{{ error }}</p>
+    <div v-if="uploading" class="prog" role="status"
+         :aria-label="`Uploading, ${progress} per cent complete`">
+      <div class="bar"><i :style="{ width: progress + '%' }"></i></div>
+      <span>{{ progress }}%</span>
+    </div>
+
     <UiButton variant="primary" full :loading="uploading" @click="upload">
       Submit for editor review
     </UiButton>
@@ -349,6 +399,16 @@ label input, label select, label textarea {
   border: 1px solid var(--nv-line-strong); border-radius: var(--r-sm);
   font-family: inherit; }
 textarea { resize: vertical; }
+/* A print-resolution edition takes a while. Without a figure moving,
+   the designer cannot tell an upload in progress from a frozen one. */
+.prog { display: flex; align-items: center; gap: var(--s-3);
+        margin-bottom: var(--s-4); }
+.bar { flex: 1; height: 6px; background: var(--nv-line);
+       border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--nv-accent);
+         transition: width .2s linear; }
+.prog span { font-size: 13px; color: var(--nv-text-muted);
+             font-variant-numeric: tabular-nums; min-width: 38px; }
 .cprev { margin: -8px 0 16px; }
 .cprev img { width: 120px; aspect-ratio: 3/4; object-fit: cover;
              border-radius: var(--r-sm); border: 1px solid var(--nv-line); }

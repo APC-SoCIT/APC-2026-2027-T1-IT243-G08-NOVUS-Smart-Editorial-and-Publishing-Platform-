@@ -39,9 +39,13 @@ const NAV = {
     { to: '/issues-overview', label: 'Issues' },
     { to: '/archive', label: 'Archive' },
   ],
+  // An administrator holds every role's authority, so their navigation
+  // carries every destination rather than a subset.
   ADMIN: [
     { to: '/editor', label: 'Editorial' },
     { to: '/publisher', label: 'Publishing' },
+    { to: '/calendar', label: 'Calendar' },
+    { to: '/issues-overview', label: 'Issues' },
     { to: '/archive', label: 'Archive' },
     { to: '/reports', label: 'Reports' },
     { to: '/settings', label: 'Settings' },
