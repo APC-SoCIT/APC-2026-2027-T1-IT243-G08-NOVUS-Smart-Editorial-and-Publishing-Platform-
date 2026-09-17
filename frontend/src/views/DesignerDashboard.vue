@@ -253,7 +253,7 @@ const grouped = computed(() => {
       <input type="file" accept=".pdf" @change="pick" />
     </label>
     <p class="hint">
-      Export from InDesign as PDF, up to 25 MB. This file becomes the edition
+      Export from InDesign as PDF, up to 200 MB. This file becomes the edition
       subscribers read in the browser and download, so it has to be a PDF.
     </p>
 

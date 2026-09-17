@@ -14,17 +14,6 @@ api.interceptors.request.use((config) => {
 })
 
 /**
- * Uploaded files are served by Django. In development the Vite proxy handles
- * /media; in production it must be prefixed with the backend origin.
- */
-export function mediaUrl(path) {
-  if (!path) return ''
-  if (path.startsWith('http')) return path
-  const base = import.meta.env.VITE_MEDIA_BASE || ''
-  return base ? `${base}${path}` : path
-}
-
-/**
  * Rewrite relative /media paths to absolute ones.
  *
  * Django returns "/media/…" so the URL works behind the dev proxy. In
