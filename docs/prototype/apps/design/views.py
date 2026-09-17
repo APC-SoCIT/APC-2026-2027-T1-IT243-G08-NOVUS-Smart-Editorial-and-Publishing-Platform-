@@ -42,6 +42,26 @@ class UploadPresignView(APIView):
 
         if not version:
             return Response({"detail": "A version label is required."}, status=400)
+
+        if issue.status in (Issue.Status.PUBLISHED, Issue.Status.ARCHIVED):
+            return Response(
+                {"detail": f"Issue #{issue.number} has already been published. "
+                           f"Its edition is settled."},
+                status=status.HTTP_409_CONFLICT)
+
+        # One version under review at a time. Without this a designer can
+        # stack versions the editor has not yet seen, which leaves several
+        # editions for one issue in the review queue and no way to tell which
+        # one the designer means.
+        pending = MagazineDesign.objects.filter(
+            issue=issue, status=MagazineDesign.Status.PENDING_REVIEW
+        ).first()
+        if pending:
+            return Response(
+                {"detail": f"Version {pending.version} is already with the "
+                           f"editor for this issue. Wait for their response "
+                           f"before submitting another."},
+                status=status.HTTP_409_CONFLICT)
         if MagazineDesign.objects.filter(issue=issue, version=version).exists():
             return Response(
                 {"detail": f"Version {version} already exists for this issue."},
@@ -160,6 +180,17 @@ class MagazineDesignViewSet(viewsets.ModelViewSet):
                 {"detail": f"Cannot approve a design in status {design.status}."},
                 status=status.HTTP_409_CONFLICT,
             )
+        # An issue has one edition. Approving this version settles the
+        # question, so every other version for the issue becomes history —
+        # not only previously approved ones, but anything still pending or
+        # returned, which would otherwise sit in the editor's queue asking to
+        # be reviewed after the decision was made.
+        MagazineDesign.objects.filter(issue=design.issue).exclude(
+            pk=design.pk
+        ).exclude(
+            status=MagazineDesign.Status.SUPERSEDED
+        ).update(status=MagazineDesign.Status.SUPERSEDED)
+
         design.status = MagazineDesign.Status.APPROVED
         design.reviewed_by = request.user
         design.reviewed_at = timezone.now()

@@ -94,6 +94,7 @@ def evaluate_article(article) -> dict:
             "content": f"Title: {article.title}\n\n{strip_tags(article.body)}",
         }],
     )
+    usage = getattr(message, "usage", None)
     text = message.content[0].text.strip()
     text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
 
@@ -108,6 +109,10 @@ def evaluate_article(article) -> dict:
             "suggestions": _clean_suggestions(parsed.get("suggestions")),
             "raw_response": parsed,
             "ai_model": settings.ANTHROPIC_EVAL_MODEL,
+            # Recorded per assessment so the monthly cost is answerable from
+            # the data rather than estimated from the call count.
+            "input_tokens": getattr(usage, "input_tokens", 0) if usage else 0,
+            "output_tokens": getattr(usage, "output_tokens", 0) if usage else 0,
         }
     except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
         raise EvaluationError(f"Could not parse Claude's evaluation: {text!r}") from exc

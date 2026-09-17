@@ -213,3 +213,9 @@ if USE_R2:
 # entirely in RAM on an instance that has 512 MB for everything.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024        # 1 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 26 * 1024 * 1024   # just above the file cap
+
+
+# The shortest draft worth assessing. Low by default: a magazine publishes at
+# many lengths, and refusing a legitimate short item is a worse failure than
+# assessing one that was submitted by accident.
+AI_MIN_WORDS = int(os.environ.get("AI_MIN_WORDS", 120))

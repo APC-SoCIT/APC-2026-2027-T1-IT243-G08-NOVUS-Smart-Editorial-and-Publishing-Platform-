@@ -155,6 +155,19 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        # Establish that the draft is finished enough to be worth assessing.
+        # Most wasted assessments are not borderline judgements but submissions
+        # nobody meant to make — a placeholder left in, two paragraphs, or the
+        # same copy sent twice. These checks are mechanical and cost nothing.
+        from apps.ai_eval import readiness
+        try:
+            readiness.check(article, request.user)
+        except readiness.NotReady as e:
+            return Response(
+                {"detail": "This draft is not ready for assessment.",
+                 "reasons": e.reasons},
+                status=status.HTTP_400_BAD_REQUEST)
+
         # UC-1.4: snapshot the submitted copy before evaluation so the
         # revision loop keeps a record of what was actually sent.
         last = article.versions.first()
@@ -173,7 +186,10 @@ class ArticleViewSet(viewsets.ModelViewSet):
         # UC-1.4 E1: an evaluation failure must not strand the article.
         try:
             result = evaluate_article(article)
-            evaluation = ArticleEvaluation.objects.create(article=article, **result)
+            evaluation = ArticleEvaluation.objects.create(
+                article=article,
+                content_hash=readiness.content_hash(article),
+                **result)
         except Exception:
             logger.exception("Evaluation failed for article %s", article.pk)
             # No score means no gate: send it on for manual review rather than

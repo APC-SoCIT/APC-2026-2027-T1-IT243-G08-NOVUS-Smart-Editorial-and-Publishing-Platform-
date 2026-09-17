@@ -34,6 +34,16 @@ class ArticleEvaluation(TimeStampedModel):
     raw_response = models.JSONField(default=dict, blank=True)
     ai_model = models.CharField(max_length=50, default="claude-haiku-4-5-20251001")
 
+    content_hash = models.CharField(
+        max_length=64, blank=True, db_index=True,
+        help_text="Identifies the copy assessed, so an unchanged resubmission "
+                  "reuses this result rather than buying the same answer twice.",
+    )
+    input_tokens = models.PositiveIntegerField(
+        default=0, help_text="Recorded so the monthly cost is answerable "
+                             "without estimating it.")
+    output_tokens = models.PositiveIntegerField(default=0)
+
     # UC-1.5 Verify Override AI
     is_overridden = models.BooleanField(default=False)
     override_reason = models.CharField(max_length=500, blank=True)

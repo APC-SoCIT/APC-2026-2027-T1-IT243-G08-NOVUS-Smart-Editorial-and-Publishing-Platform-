@@ -24,6 +24,35 @@ from apps.accounts.models import User
 from apps.editorial.models import Article
 
 
+def draft_copy(paragraphs=4):
+    """Copy a writer would plausibly submit.
+
+    The readiness checks refuse work that is obviously unfinished, so a
+    fixture of repeated filler no longer stands in for an article. This is
+    deliberate: a test that passes only because the bar is low establishes
+    nothing about whether the bar works.
+    """
+    para = (
+        "Refrigeration investment is finally following the produce rather "
+        "than the retail. Post-harvest losses remain among the highest in the "
+        "region, and most of them occur within a day of picking. Cold chain "
+        "capital has historically favoured urban retail environments over the "
+        "point of harvest, which is the imbalance now correcting."
+    )
+    return "".join(f"<p>{para}</p>" for _ in range(paragraphs))
+
+
+def draft_payload(title, category="Tech", **extra):
+    return {
+        "title": title,
+        "excerpt": "A logistics problem is quietly reshaping the sector.",
+        "body": draft_copy(),
+        "category": category,
+        **extra,
+    }
+
+
+
 @pytest.mark.django_db
 class TestAuthenticateUser:
     def test_tc_6_2_bf_login_returns_access_and_refresh_tokens(self, api_client, writer):
@@ -51,7 +80,7 @@ class TestEditorialPipelineEndToEnd:
 
         draft = client.post(
             "/api/editorial/articles/",
-            {"title": "AI in Everyday Workspaces", "body": "Body text " * 50, "category": "Business"},
+            draft_payload("AI in Everyday Workspaces", "Business"),
         )
         assert draft.status_code == status.HTTP_201_CREATED
         article_id = draft.data["id"]
@@ -69,7 +98,7 @@ class TestEditorialPipelineEndToEnd:
         writer_client = auth_client(writer)
         draft = writer_client.post(
             "/api/editorial/articles/",
-            {"title": "Sustainable Tech in 2026", "body": "Body text " * 50, "category": "Tech"},
+            draft_payload("Sustainable Tech in 2026"),
         )
         article_id = draft.data["id"]
         writer_client.post(f"/api/editorial/articles/{article_id}/submit/")
@@ -93,7 +122,7 @@ class TestEditorialPipelineEndToEnd:
         writer_client = auth_client(writer)
         draft = writer_client.post(
             "/api/editorial/articles/",
-            {"title": "Not Ready Yet", "body": "Body text " * 50, "category": "Tech"},
+            draft_payload("Not Ready Yet"),
         )
         article_id = draft.data["id"]
 
@@ -109,7 +138,7 @@ class TestAIPreScreeningGate:
 
     def _draft(self, client):
         r = client.post("/api/editorial/articles/", {
-            "title": "Gate Test", "body": "Body text " * 50, "category": "Tech"})
+            **draft_payload("Gate Test")})
         return r.data["id"]
 
     def test_passing_score_reaches_the_editor(self, auth_client, writer, monkeypatch):
