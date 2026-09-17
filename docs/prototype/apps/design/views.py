@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from apps.accounts.models import User
 from apps.common.permissions import role_permission
 from apps.notifications.models import Notification
 from apps.notifications.services import notify_many, notify
