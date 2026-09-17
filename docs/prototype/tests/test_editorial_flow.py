@@ -557,18 +557,19 @@ class TestIssueClosingAndPublishing:
         assert r.status_code == status.HTTP_409_CONFLICT
         assert any("not yet approved" in x for x in r.data["reasons"])
 
-    def test_publishing_without_a_layout_is_allowed(
+    def test_publishing_without_a_layout_is_refused(
         self, auth_client, writer, publisher
     ):
-        """The layout gates the downloadable edition, not the web articles —
-        those publish as responsive pages regardless."""
+        """The layout is the edition. An issue without one has nothing to
+        publish."""
         from apps.issues.models import Issue
         issue = self._issue(publisher, 88)
         self._approved(writer, issue)
         auth_client(publisher).post(f"/api/publication/issues/{issue.id}/close/")
 
         r = auth_client(publisher).post(f"/api/publication/issues/{issue.id}/publish/")
-        assert r.status_code == status.HTTP_200_OK
+        assert r.status_code == status.HTTP_409_CONFLICT
+        assert any("no approved layout" in x.lower() for x in r.data["reasons"])
+
         issue.refresh_from_db()
-        assert issue.status == Issue.Status.PUBLISHED
-        assert issue.replica_available is False
+        assert issue.status != Issue.Status.PUBLISHED

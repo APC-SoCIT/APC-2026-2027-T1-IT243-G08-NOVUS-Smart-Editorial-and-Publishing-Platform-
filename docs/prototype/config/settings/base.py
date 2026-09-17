@@ -206,3 +206,10 @@ if USE_R2:
             "signature_version": "s3v4",
         },
     }
+
+
+# Anything above this is streamed to a temporary file rather than held in
+# memory. The default is 2.5 MB, which means a 20 MB layout is buffered
+# entirely in RAM on an instance that has 512 MB for everything.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024        # 1 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 26 * 1024 * 1024   # just above the file cap

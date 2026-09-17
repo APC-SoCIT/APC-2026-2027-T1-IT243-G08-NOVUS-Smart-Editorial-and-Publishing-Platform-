@@ -43,6 +43,15 @@ def publish_issue(issue, publisher):
             "contents, then publish."
         ])
 
+    # The layout is the edition. An issue without one has nothing to
+    # publish, so it gates release rather than only the download.
+    if not issue.approved_design:
+        raise NotReady([
+            "This issue has no approved layout. The designer must submit the "
+            "edition and an editor must approve it before the issue can be "
+            "published."
+        ])
+
     if not issue.is_ready:
         raise NotReady(issue.blocking_reasons())
 

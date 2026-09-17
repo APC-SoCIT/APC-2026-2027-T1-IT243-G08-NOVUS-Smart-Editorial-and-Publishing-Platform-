@@ -19,7 +19,11 @@ from .models import MagazineDesign
 # mean approving a layout that can never ship.
 ALLOWED_EXT = {".pdf"}
 COVER_EXT = {".png", ".jpg", ".jpeg", ".webp"}
-MAX_BYTES = 100 * 1024 * 1024  # 100 MB, matching the wireframe
+# 25 MB. The wireframe said 100, but the hosting tier has 512 MB of memory
+# in total and an upload that size is handled in the same process that
+# serves every other request. A print-resolution issue PDF exceeding this
+# should be delivered as a compressed export.
+MAX_BYTES = 25 * 1024 * 1024
 
 
 class MagazineDesignSerializer(serializers.ModelSerializer):
@@ -60,7 +64,10 @@ class MagazineDesignSerializer(serializers.ModelSerializer):
                 "the file becomes the edition subscribers read and download."
             )
         if value.size > MAX_BYTES:
-            raise serializers.ValidationError("File exceeds the 100 MB limit.")
+            raise serializers.ValidationError(
+                "File exceeds the 25 MB limit. Export the PDF at "
+                "screen resolution rather than print resolution."
+            )
         return value
 
     def validate_cover_image(self, value):
