@@ -1,4 +1,5 @@
 from django.utils import timezone
+from rest_framework.views import APIView
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -10,6 +11,102 @@ from apps.notifications.services import notify_many, notify
 
 from .models import MagazineDesign
 from .serializers import DesignRevisionSerializer, MagazineDesignSerializer
+
+
+class UploadPresignView(APIView):
+    """Issue a signed instruction permitting one direct upload.
+
+    The key is chosen here rather than by the client, so a designer cannot
+    target an existing object or choose where their file lands.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.design.uploads import UploadError, build_key, presign_put
+        from apps.issues.models import Issue
+
+        if request.user.role not in (request.user.Role.GRAPHIC_DESIGNER,
+                                     request.user.Role.ADMIN):
+            return Response({"detail": "Not permitted."}, status=403)
+
+        try:
+            issue = Issue.objects.get(pk=request.data.get("issue"))
+        except (Issue.DoesNotExist, TypeError, ValueError):
+            return Response({"detail": "Issue not found."}, status=404)
+
+        version = (request.data.get("version") or "").strip()
+        filename = (request.data.get("filename") or "edition.pdf").strip()
+        content_type = request.data.get("content_type") or ""
+
+        if not version:
+            return Response({"detail": "A version label is required."}, status=400)
+        if MagazineDesign.objects.filter(issue=issue, version=version).exists():
+            return Response(
+                {"detail": f"Version {version} already exists for this issue."},
+                status=409)
+
+        key = build_key(issue.number, version, filename)
+        try:
+            url = presign_put(key, content_type)
+        except UploadError as e:
+            return Response({"detail": str(e)}, status=400)
+
+        return Response({"upload_url": url, "key": key, "expires_in": 900})
+
+
+class UploadCompleteView(APIView):
+    """Create the record, once the object is confirmed present.
+
+    A client reporting success is not evidence that the upload happened. The
+    storage service is asked directly, so an abandoned upload never produces a
+    row claiming a file that does not exist.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.design.uploads import UploadError, confirm
+        from apps.issues.models import Issue
+
+        if request.user.role not in (request.user.Role.GRAPHIC_DESIGNER,
+                                     request.user.Role.ADMIN):
+            return Response({"detail": "Not permitted."}, status=403)
+
+        key = (request.data.get("key") or "").strip()
+        if not key.startswith("designs/"):
+            return Response({"detail": "Invalid upload reference."}, status=400)
+
+        try:
+            issue = Issue.objects.get(pk=request.data.get("issue"))
+        except (Issue.DoesNotExist, TypeError, ValueError):
+            return Response({"detail": "Issue not found."}, status=404)
+
+        try:
+            size = confirm(key, expected_type="application/pdf")
+        except UploadError as e:
+            return Response({"detail": str(e)}, status=400)
+
+        version = (request.data.get("version") or "").strip()
+        design = MagazineDesign(
+            issue=issue, version=version, designer=request.user,
+            notes_to_editor=request.data.get("notes_to_editor", ""),
+            status=MagazineDesign.Status.PENDING_REVIEW,
+            file_size=size,
+        )
+        design.file.name = key          # already in storage; do not re-upload
+        cover = request.FILES.get("cover_image")
+        if cover:
+            design.cover_image = cover
+        design.save()
+
+        notify_many(
+            User.objects.filter(role=User.Role.EDITOR, is_active=True),
+            Notification.Kind.DESIGN_UPLOADED,
+            f"A layout for Issue #{issue.number} awaits review.",
+            "/editor")
+
+        return Response(MagazineDesignSerializer(design).data, status=201)
 
 
 class MagazineDesignViewSet(viewsets.ModelViewSet):

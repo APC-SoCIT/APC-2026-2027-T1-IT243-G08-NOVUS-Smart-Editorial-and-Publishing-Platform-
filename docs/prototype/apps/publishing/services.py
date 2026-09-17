@@ -1,3 +1,5 @@
+import logging
+
 """
 UC-2.5 Execute Live Publishing.
 
@@ -70,6 +72,12 @@ def publish_issue(issue, publisher):
     notify_many([a.writer for a in issue.articles.all()],
                 Notification.Kind.PUBLISHED,
                 f"{issue} is now live.", "/read")
+    from apps.design.retention import purge_superseded_editions
+    try:
+        purge_superseded_editions(issue)
+    except Exception:
+        logger.exception("Retention sweep failed for issue %s", issue.number)
+
     return issue
 
 

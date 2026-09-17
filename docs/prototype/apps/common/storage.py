@@ -13,6 +13,7 @@ is not a paywall.
 """
 from django.conf import settings
 from django.core.files.storage import Storage
+from django.utils.deconstruct import deconstructible
 from storages.backends.s3 import S3Storage
 
 
@@ -41,6 +42,7 @@ class PrivateMediaStorage(S3Storage):
         super().__init__(*args, **kwargs)
 
 
+@deconstructible
 class DeferredPrivateStorage(Storage):
     """Resolves the real backend on each call rather than at import.
 
@@ -79,6 +81,12 @@ class DeferredPrivateStorage(Storage):
 
     def get_available_name(self, name, max_length=None):
         return self._wrapped().get_available_name(name, max_length)
+
+    def __eq__(self, other):
+        return isinstance(other, DeferredPrivateStorage)
+
+    def __hash__(self):
+        return hash(DeferredPrivateStorage)
 
 
 # The model field holds this instance; it decides where to write at call time.

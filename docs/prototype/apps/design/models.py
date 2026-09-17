@@ -58,6 +58,19 @@ class MagazineDesign(TimeStampedModel):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     revision_notes = models.TextField(blank=True)
 
+    file_size = models.PositiveBigIntegerField(
+        default=0,
+        help_text="Bytes, recorded at upload so storage can be reported "
+                  "without listing the bucket.",
+    )
+    file_purged = models.BooleanField(
+        default=False,
+        help_text="The object has been removed from storage. The record is "
+                  "retained because the review history is metadata, not the "
+                  "file itself.",
+    )
+    purged_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
         constraints = [
