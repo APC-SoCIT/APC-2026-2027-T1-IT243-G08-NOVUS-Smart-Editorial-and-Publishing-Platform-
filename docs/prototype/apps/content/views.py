@@ -1,3 +1,4 @@
+from apps.content.entitlement import is_entitled
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -153,8 +154,7 @@ class IssueDownloadView(APIView):
         user = request.user
         entitled = user.role != user.Role.READER
         if not entitled:
-            profile = getattr(user, "reader_profile", None)
-            entitled = bool(profile and profile.tier == profile.Tier.SUBSCRIBER)
+            entitled = is_entitled(user)
 
         if not entitled:
             return Response(

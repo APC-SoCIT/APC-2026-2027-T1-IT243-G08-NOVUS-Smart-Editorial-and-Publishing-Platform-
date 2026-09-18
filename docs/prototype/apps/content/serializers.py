@@ -1,3 +1,4 @@
+from apps.content.entitlement import is_entitled
 from rest_framework import serializers
 
 
@@ -37,16 +38,15 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
 
     def _has_access(self):
-        """UC-8.2 Access Premium Articles. Staff always read their own
-        publication; readers need an active subscription."""
+        """UC-8.2 Access Premium Articles.
+
+        Decided in one place. This method previously repeated the role and
+        authentication checks before delegating, which meant a suspended
+        staff account short-circuited to access and never reached the
+        suspension check at all.
+        """
         request = self.context.get("request")
-        user = getattr(request, "user", None)
-        if not user or not user.is_authenticated:
-            return False
-        if user.role != user.Role.READER:
-            return True
-        profile = getattr(user, "reader_profile", None)
-        return bool(profile and profile.tier == profile.Tier.SUBSCRIBER)
+        return is_entitled(getattr(request, "user", None))
 
     def get_is_locked(self, obj):
         return obj.is_premium and not self._has_access()
@@ -78,7 +78,12 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
 class PublicIssueListSerializer(serializers.ModelSerializer):
     """The newsstand view — UC-8.1 Download Digital Issues."""
 
-    cover_image = RelativeImageField(required=False, allow_null=True)
+    # The issue's own cover is optional; where it is absent the accepted
+    # edition's cover stands in, which is the usual case since the designer
+    # supplies it with the first layout. Serialising the raw field returned
+    # nothing whenever the publisher had not uploaded one separately.
+    cover_image = RelativeImageField(source="effective_cover",
+                                     required=False, allow_null=True)
     article_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -109,8 +114,7 @@ class PublicIssueDetailSerializer(PublicIssueListSerializer):
             return False
         if user.role != user.Role.READER:
             return True
-        profile = getattr(user, "reader_profile", None)
-        return bool(profile and profile.tier == profile.Tier.SUBSCRIBER)
+        return is_entitled(user)
 
     def get_can_access(self, obj):
         return self._is_subscriber()

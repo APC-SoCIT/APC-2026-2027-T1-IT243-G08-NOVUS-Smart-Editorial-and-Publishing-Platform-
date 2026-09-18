@@ -269,11 +269,21 @@ class Command(BaseCommand):
                             help="Clear editorial data before seeding.")
         parser.add_argument("--images", action="store_true",
                             help="Generate placeholder hero images. Slower.")
+        parser.add_argument("--users", action="store_true",
+                            help="Reset every demonstration account. Implies "
+                                 "--fresh, since the editorial data belongs "
+                                 "to accounts that are about to be replaced.")
 
     # ----------------------------------------------------------------------
 
     def handle(self, *args, **opts):
         self.stdout.write("Seeding…")
+
+        if opts["users"]:
+            # The editorial data references accounts that are about to be
+            # deleted, so clearing it first is not optional.
+            self._clear()
+            self._reset_users()
 
         editor = User.objects.filter(role=User.Role.EDITOR).first()
         publisher = User.objects.filter(role=User.Role.PUBLISHER).first()
@@ -282,10 +292,10 @@ class Command(BaseCommand):
         if not (editor and publisher and designer):
             self.stderr.write(self.style.ERROR(
                 "Need an editor, a publisher and a designer. "
-                "Create the staff accounts first."))
+                "Run with --users to create every demonstration account."))
             return
 
-        if opts["fresh"]:
+        if opts["fresh"] and not opts["users"]:
             self._clear()
 
         writers = self._writers()
@@ -301,6 +311,48 @@ class Command(BaseCommand):
             "produced by the model. They are marked ai_model='seed-demo'."))
 
     # ----------------------------------------------------------------------
+
+    def _reset_users(self):
+        """Replace every demonstration account.
+
+        Superusers are kept: wiping the account you administer the system
+        with, in the middle of preparing a demonstration, is a mistake that
+        costs more than it saves. Everything else goes, including the
+        notification history and saved articles hanging off each account,
+        which would otherwise survive as orphans of people who no longer
+        exist.
+        """
+        from apps.content.models import Bookmark
+        from apps.notifications.models import Notification, NotificationPreference
+
+        doomed = User.objects.filter(is_superuser=False)
+        n = doomed.count()
+
+        Bookmark.objects.filter(reader__in=doomed).delete()
+        Notification.objects.filter(recipient__in=doomed).delete()
+        NotificationPreference.objects.filter(user__in=doomed).delete()
+        ReaderProfile.objects.filter(user__in=doomed).delete()
+        doomed.delete()
+
+        self.stdout.write(f"  Removed {n} account(s); superusers kept.")
+
+        staff = [
+            ("editor@boss.ph", "Sofia", "Delgado", User.Role.EDITOR, "editor1234"),
+            ("publisher@boss.ph", "Ramon", "Cruz", User.Role.PUBLISHER, "publish1234"),
+            ("designer@boss.ph", "Alex", "Tan", User.Role.GRAPHIC_DESIGNER, "design1234"),
+            ("admin@boss.ph", "Nina", "Bautista", User.Role.ADMIN, "admin1234"),
+        ]
+        for email, first, last, role, password in staff:
+            u = User.objects.create_user(
+                email=email, password=password, first_name=first,
+                last_name=last, role=role)
+            if role == User.Role.ADMIN:
+                # The administration interface is where user management
+                # lives, so the administrator needs to reach it.
+                u.is_staff = True
+                u.save(update_fields=["is_staff"])
+
+        self.stdout.write(f"  Created {len(staff)} staff account(s).")
 
     def _clear(self):
         # Children before parents: the foreign keys are PROTECT in places.

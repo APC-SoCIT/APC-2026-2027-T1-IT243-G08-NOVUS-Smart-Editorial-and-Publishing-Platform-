@@ -5,6 +5,7 @@ UC-7.1 — into pytest. Copy this file's shape for new use cases: one test
 per BF (basic flow) test case first, exception flows (E-AUTH etc.) after,
 rather than inventing a new test style per app.
 """
+from django.utils import timezone
 import pytest
 from rest_framework import status
 
@@ -602,3 +603,75 @@ class TestIssueClosingAndPublishing:
 
         issue.refresh_from_db()
         assert issue.status != Issue.Status.PUBLISHED
+
+
+@pytest.mark.django_db
+class TestEntitlement:
+    """Who may read paid content.
+
+    The check governs the paywall in three places, so it is asserted here
+    rather than left to whichever endpoint happens to be exercised.
+    """
+
+    def _premium(self, writer, issue=None):
+        return Article.objects.create(
+            writer=writer, title="Behind the cold chain",
+            body="<p>" + ("Reporting. " * 80) + "</p>",
+            excerpt="A logistics problem reshaping the sector.",
+            category="Business", status=Article.Status.PUBLISHED,
+            is_premium=True, issue=issue, published_at=timezone.now())
+
+    def test_free_reader_gets_the_extract(self, api_client, writer, make_user):
+        from apps.accounts.models import User
+        article = self._premium(writer)
+        reader = make_user("free@boss.ph", User.Role.READER)
+
+        api_client.force_authenticate(reader)
+        r = api_client.get(f"/api/content/articles/{article.id}/")
+        assert r.status_code == status.HTTP_200_OK
+        assert r.data["is_locked"] is True
+
+    def test_subscriber_gets_the_full_article(self, api_client, writer, make_user):
+        from apps.accounts.models import ReaderProfile, User
+        article = self._premium(writer)
+        reader = make_user("sub@boss.ph", User.Role.READER)
+        ReaderProfile.objects.update_or_create(
+            user=reader, defaults={"tier": ReaderProfile.Tier.SUBSCRIBER})
+        # The fixture already created a FREE profile, and the user object
+        # still holds it cached; without this the request is authenticated
+        # as the tier that was replaced.
+        reader.refresh_from_db()
+
+        api_client.force_authenticate(reader)
+        r = api_client.get(f"/api/content/articles/{article.id}/")
+        assert r.data["is_locked"] is False
+
+    def test_staff_read_the_magazine_they_produce(
+        self, api_client, writer, editor, publisher, make_user
+    ):
+        """The paywall monetises readers; it does not obstruct the people
+        making the magazine. An editor following the public-site link should
+        see the article, not a subscription notice."""
+        from apps.accounts.models import User
+        article = self._premium(writer)
+
+        designer = make_user("d-ent@boss.ph", User.Role.GRAPHIC_DESIGNER)
+        for staff in (editor, publisher, designer, writer):
+            api_client.force_authenticate(staff)
+            r = api_client.get(f"/api/content/articles/{article.id}/")
+            assert r.data["is_locked"] is False, f"{staff.role} was paywalled"
+
+    def test_a_suspended_account_is_refused(self, api_client, writer, editor):
+        """Suspension precedes every role, so it precedes this too."""
+        article = self._premium(writer)
+        editor.is_suspended = True
+        editor.save(update_fields=["is_suspended"])
+
+        api_client.force_authenticate(editor)
+        r = api_client.get(f"/api/content/articles/{article.id}/")
+        assert r.data["is_locked"] is True
+
+    def test_anonymous_is_refused(self, api_client, writer):
+        article = self._premium(writer)
+        r = api_client.get(f"/api/content/articles/{article.id}/")
+        assert r.data["is_locked"] is True
