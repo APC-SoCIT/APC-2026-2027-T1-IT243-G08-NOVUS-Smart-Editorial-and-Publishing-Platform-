@@ -124,7 +124,7 @@ const pullBack = () => act(async () => {
 
     <div class="topline">
       <router-link to="/editor" class="back">← Back to dashboard</router-link>
-      <UiBadge :status="article.status" dot />
+      <span class="state-pill"><UiBadge :status="article.status" dot /></span>
     </div>
 
     <p v-if="reviewState === 'override'" class="gatenote">
@@ -451,4 +451,8 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   .review-grid { grid-template-columns: 1fr; }
   .context { position: static; max-height: none; }
 }
+
+/* The row gives its last child the remaining width; the status is a label,
+   not a banner, so it sizes to its own text. */
+.state-pill { display: flex; align-items: center; min-width: 0; }
 </style>

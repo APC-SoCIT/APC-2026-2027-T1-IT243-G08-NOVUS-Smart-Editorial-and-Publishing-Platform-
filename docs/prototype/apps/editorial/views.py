@@ -7,6 +7,9 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from django.db import IntegrityError, transaction
+from apps.ai_eval.fixes import apply_fix, band_for
+from apps.ai_eval.models import FixDecision
 from apps.ai_eval.models import ArticleEvaluation
 from apps.ai_eval.serializers import ArticleEvaluationSerializer
 from apps.ai_eval.services import evaluate_article
@@ -194,8 +197,20 @@ class ArticleViewSet(viewsets.ModelViewSet):
             logger.exception("Evaluation failed for article %s", article.pk)
             # No score means no gate: send it on for manual review rather than
             # auto-rejecting work the system failed to assess.
-            article.status = Article.Status.UNDER_REVIEW
-            article.save(update_fields=["status", "updated_at"])
+            # Nobody signs off their own copy, assessed or not.
+            article.status = (
+                Article.Status.PENDING_SIGNOFF
+                if article.writer.role in (
+                    article.writer.Role.EDITOR, article.writer.Role.ADMIN)
+                else Article.Status.UNDER_REVIEW
+            )
+            article.returned_by_ai = False
+            article.save(update_fields=["status", "returned_by_ai", "updated_at"])
+            reviewer = article.editor or article.assigned_by
+            if reviewer:
+                notify(reviewer, Notification.Kind.SUBMITTED,
+                       f'"{article.title}" awaits review without an automated assessment.',
+                       f"/editor/review/{article.id}")
             return Response(
                 {"detail": "Evaluation unavailable; sent for manual review.",
                  "gate": "BYPASSED", "overall_score": None},
@@ -205,14 +220,25 @@ class ArticleViewSet(viewsets.ModelViewSet):
         # AI pre-screening gate. Below the threshold the article goes back to the
         # Writer with the AI's suggestions recorded as revision notes; at or above
         # it, the article reaches the Editor with its evaluation attached.
+        # Three verdicts, decided here from the score rather than taken from
+        # the model's label, so the bands mean the same whichever model
+        # produced the number.
         threshold = settings.AI_PASSING_SCORE
-        passed = evaluation.overall_score >= threshold
+        verdict = band_for(evaluation.overall_score)
+        passed = verdict == ArticleEvaluation.Verdict.PASS
+        rewrite = verdict == ArticleEvaluation.Verdict.REWRITE
+
+        # Quick fixes are line edits. A pass needs none, and a draft that
+        # needs rework gets guidance rather than sentences to patch.
+        if verdict != ArticleEvaluation.Verdict.REVISE:
+            evaluation.fixes = []
+        evaluation.verdict = verdict
+        evaluation.save(update_fields=["verdict", "fixes", "updated_at"])
 
         article.returned_by_ai = not passed
         if passed:
-            # self_approval: nobody signs off their own copy. An
-            # Editor's article goes to the Publisher, who is already
-            # the final checkpoint before an issue ships.
+            # Nobody signs off their own copy. An Editor's article goes to
+            # the Publisher, already the final checkpoint before an issue ships.
             article.status = (
                 Article.Status.PENDING_SIGNOFF
                 if article.writer.role in (
@@ -232,20 +258,83 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 )
         article.save(update_fields=["status", "returned_by_ai", "updated_at"])
 
+        score = evaluation.overall_score
         if passed:
             notify(article.editor or article.assigned_by,
                    Notification.Kind.SUBMITTED,
                    f'"{article.title}" passed pre-screening and awaits review.',
                    f"/editor/review/{article.id}")
-        else:
+        elif rewrite:
             notify(article.writer, Notification.Kind.RETURNED_BY_AI,
-                   f'"{article.title}" scored {evaluation.overall_score} and was returned for revision.',
+                   f'"{article.title}" scored {score} and needs rework rather '
+                   f'than line edits. The notes explain what to rethink.',
+                   f"/writer/compose/{article.id}")
+        else:
+            n = len(evaluation.fixes)
+            extra = f" {n} quick fix{'es' if n != 1 else ''} suggested." if n else ""
+            notify(article.writer, Notification.Kind.RETURNED_BY_AI,
+                   f'"{article.title}" scored {score} and was returned for revision.{extra}',
                    f"/writer/compose/{article.id}")
 
         payload = ArticleEvaluationSerializer(evaluation).data
+        # The overlay reads PASSED or RETURNED; the verdict travels separately
+        # so a rewrite can be told apart without breaking that contract.
         payload["gate"] = "PASSED" if passed else "RETURNED"
+        payload["verdict"] = verdict
         payload["threshold"] = threshold
         return Response(payload, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"],
+            url_path=r"fixes/(?P<fix_id>f\d{1,2})/(?P<decision>apply|dismiss)")
+    def decide_fix(self, request, pk=None, fix_id=None, decision=None):
+        """Apply or dismiss one quick fix from the latest assessment.
+
+        Applied here against the saved copy, in the same transaction as its
+        record, so what an editor sees as accepted is exactly what changed.
+        The composer saves pending edits first and reloads the returned
+        copy, so autosave cannot undo a fix.
+        """
+        article = self.get_object()
+        if article.writer_id != request.user.id:
+            return Response({"detail": "Only the writer can act on quick fixes."},
+                            status=status.HTTP_403_FORBIDDEN)
+        if article.status not in (Article.Status.REVISION_REQUESTED,
+                                  Article.Status.DRAFTING):
+            return Response({"detail": "Quick fixes apply only while the article "
+                                       "is with its writer."},
+                            status=status.HTTP_409_CONFLICT)
+
+        evaluation = article.evaluations.order_by("-created_at").first()
+        fix = next((f for f in (evaluation.fixes if evaluation else [])
+                    if f.get("id") == fix_id), None)
+        if fix is None:
+            return Response({"detail": "That fix is not part of the latest assessment."},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            with transaction.atomic():
+                FixDecision.objects.create(
+                    evaluation=evaluation, fix_id=fix_id, decided_by=request.user,
+                    action=(FixDecision.Action.ACCEPTED if decision == "apply"
+                            else FixDecision.Action.DISMISSED))
+                if decision == "apply":
+                    new_body = apply_fix(article.body, fix)
+                    if new_body is None:
+                        raise LookupError
+                    article.body = new_body
+                    article.save(update_fields=["body", "updated_at"])
+        except IntegrityError:
+            return Response({"detail": "That fix has already been decided."},
+                            status=status.HTTP_409_CONFLICT)
+        except LookupError:
+            return Response({"detail": "That passage has changed since the assessment, "
+                                       "so this fix no longer applies.",
+                             "state": "stale"},
+                            status=status.HTTP_409_CONFLICT)
+
+        evaluation = article.evaluations.order_by("-created_at").first()
+        return Response({"body": article.body,
+                         "evaluation": ArticleEvaluationSerializer(evaluation).data})
 
     @action(detail=True, methods=["post"], url_path="request-revision")
     def request_revision(self, request, pk=None):

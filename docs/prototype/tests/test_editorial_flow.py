@@ -704,3 +704,151 @@ def test_an_issue_without_a_layout_is_not_ready(writer, publisher):
                            category="Tech", status=Article.Status.APPROVED, issue=issue)
     assert issue.is_ready is False
     assert any("No approved layout" in r for r in issue.blocking_reasons())
+
+
+FLAWED = "The findings suggests the market are changing."
+FIXES = [
+    {"id": "f1", "original": "The findings suggests", "replacement": "The findings suggest",
+     "reason": "Plural subject.", "note_type": "GRAMMAR"},
+    {"id": "f2", "original": "market are changing", "replacement": "market is changing",
+     "reason": "Singular subject.", "note_type": "GRAMMAR"},
+]
+
+
+@pytest.mark.django_db
+class TestQuickFixes:
+    """Three verdicts, and quick fixes for the middle one.
+
+    The score never moves because a fix was accepted; it is re-measured on
+    resubmission. What these tests guard is that fixes change exactly the
+    words they claim to, once, and only while the article is with its writer.
+    """
+
+    def _submit(self, client, monkeypatch, score, fixes=FIXES, body=None):
+        monkeypatch.setattr("apps.editorial.views.evaluate_article", lambda a: {
+            "grammar_score": score, "readability_score": score, "overall_score": score,
+            "recommendation": "APPROVE" if score >= 70 else "REJECT",
+            "summary": "Assessment.", "suggestions": [], "fixes": [dict(f) for f in fixes],
+            "raw_response": {}, "ai_model": "test"})
+        r = client.post("/api/editorial/articles/",
+                        draft_payload("Quick fixes", body=body or draft_copy() + f"<p>{FLAWED}</p>"),
+                        format="json")
+        assert r.status_code == 201, r.data
+        aid = r.data["id"]
+        sub = client.post(f"/api/editorial/articles/{aid}/submit/")
+        return aid, sub
+
+    def test_the_middle_band_returns_with_fixes(self, auth_client, writer, monkeypatch):
+        from apps.ai_eval.models import ArticleEvaluation
+        aid, sub = self._submit(auth_client(writer), monkeypatch, 55)
+        assert sub.data["verdict"] == "REVISE"
+        a = Article.objects.get(pk=aid)
+        assert a.status == Article.Status.REVISION_REQUESTED
+        assert len(a.evaluations.first().fixes) == 2
+
+    def test_a_rewrite_gets_no_fixes(self, auth_client, writer, monkeypatch):
+        aid, sub = self._submit(auth_client(writer), monkeypatch, 30)
+        assert sub.data["verdict"] == "REWRITE"
+        a = Article.objects.get(pk=aid)
+        assert a.status == Article.Status.REVISION_REQUESTED
+        assert a.evaluations.first().fixes == []
+
+    def test_a_pass_gets_no_fixes(self, auth_client, writer, monkeypatch):
+        aid, sub = self._submit(auth_client(writer), monkeypatch, 85)
+        assert sub.data["verdict"] == "PASS"
+        a = Article.objects.get(pk=aid)
+        assert a.status == Article.Status.UNDER_REVIEW
+        assert a.evaluations.first().fixes == []
+
+    def test_applying_a_fix_changes_exactly_that_passage(self, auth_client, writer, monkeypatch):
+        from apps.ai_eval.models import FixDecision
+        c = auth_client(writer)
+        aid, _ = self._submit(c, monkeypatch, 55)
+        r = c.post(f"/api/editorial/articles/{aid}/fixes/f1/apply/")
+        assert r.status_code == 200, r.data
+        assert "The findings suggest the market are changing." in r.data["body"]
+        assert FixDecision.objects.filter(fix_id="f1", action="ACCEPTED").count() == 1
+        states = {f["id"]: f["state"] for f in r.data["evaluation"]["fixes"]}
+        assert states == {"f1": "accepted", "f2": "pending"}
+        assert r.data["evaluation"]["overall_score"] == 55
+
+    def test_an_edited_passage_makes_its_fix_stale(self, auth_client, writer, monkeypatch):
+        from apps.ai_eval.models import FixDecision
+        c = auth_client(writer)
+        aid, _ = self._submit(c, monkeypatch, 55)
+        c.patch(f"/api/editorial/articles/{aid}/", {"body": draft_copy()}, format="json")
+        r = c.post(f"/api/editorial/articles/{aid}/fixes/f2/apply/")
+        assert r.status_code == 409 and r.data["state"] == "stale"
+        assert not FixDecision.objects.filter(fix_id="f2").exists()
+
+    def test_a_fix_is_decided_once(self, auth_client, writer, monkeypatch):
+        c = auth_client(writer)
+        aid, _ = self._submit(c, monkeypatch, 55)
+        assert c.post(f"/api/editorial/articles/{aid}/fixes/f1/dismiss/").status_code == 200
+        assert c.post(f"/api/editorial/articles/{aid}/fixes/f1/apply/").status_code == 409
+        assert FLAWED in Article.objects.get(pk=aid).body
+
+    def test_only_the_writer_acts_on_fixes(self, auth_client, writer, make_user, monkeypatch):
+        from apps.accounts.models import User
+        aid, _ = self._submit(auth_client(writer), monkeypatch, 55)
+        other = make_user("other-writer@boss.ph", User.Role.WRITER)
+        r = auth_client(other).post(f"/api/editorial/articles/{aid}/fixes/f1/apply/")
+        assert r.status_code in (403, 404)
+
+    def test_fixes_close_once_the_article_leaves_the_writer(self, auth_client, writer, monkeypatch):
+        c = auth_client(writer)
+        aid, _ = self._submit(c, monkeypatch, 55)
+        Article.objects.filter(pk=aid).update(status=Article.Status.UNDER_REVIEW)
+        assert c.post(f"/api/editorial/articles/{aid}/fixes/f1/apply/").status_code == 409
+
+    def test_resolving_every_fix_lifts_the_cooldown(self, auth_client, writer, monkeypatch):
+        c = auth_client(writer)
+        aid, _ = self._submit(c, monkeypatch, 55)
+        c.post(f"/api/editorial/articles/{aid}/fixes/f1/apply/")
+        c.post(f"/api/editorial/articles/{aid}/fixes/f2/apply/")
+        r = c.post(f"/api/editorial/articles/{aid}/submit/")
+        assert r.status_code == 201, r.data
+
+    def test_the_cooldown_holds_while_fixes_are_pending(self, auth_client, writer, monkeypatch):
+        c = auth_client(writer)
+        aid, _ = self._submit(c, monkeypatch, 55)
+        c.patch(f"/api/editorial/articles/{aid}/",
+                {"body": draft_copy() + f"<p>{FLAWED} Extra.</p>"}, format="json")
+        r = c.post(f"/api/editorial/articles/{aid}/submit/")
+        assert r.status_code == 400
+        assert any("rate-limited" in x for x in r.data["reasons"])
+
+    def test_no_credential_means_review_without_assessment(self, auth_client, writer, monkeypatch):
+        from apps.ai_eval.services import EvaluationUnavailable
+        def unavailable(a): raise EvaluationUnavailable("none")
+        monkeypatch.setattr("apps.editorial.views.evaluate_article", unavailable)
+        c = auth_client(writer)
+        r = c.post("/api/editorial/articles/", draft_payload("No key"), format="json")
+        sub = c.post(f"/api/editorial/articles/{r.data['id']}/submit/")
+        assert sub.data["gate"] == "BYPASSED"
+        a = Article.objects.get(pk=r.data["id"])
+        assert a.status == Article.Status.UNDER_REVIEW and a.returned_by_ai is False
+
+
+def test_the_real_service_raises_without_a_credential(settings):
+    from apps.ai_eval.services import EvaluationUnavailable, evaluate_article
+    settings.ANTHROPIC_API_KEY = ""
+    with pytest.raises(EvaluationUnavailable):
+        evaluate_article(None)
+
+
+def test_fixes_that_cannot_be_located_are_dropped(settings):
+    from apps.ai_eval.fixes import apply_fix, clean_fixes
+    settings.AI_MAX_FIXES = 8
+    body = "<p>One two. One two.</p><p>Salt &amp; pepper, <b>bold</b> text.</p>"
+    kept = clean_fixes([
+        {"original": "One two", "replacement": "Three"},        # appears twice
+        {"original": "missing", "replacement": "x"},            # not there
+        {"original": "same", "replacement": "same"},            # no change
+        {"original": "pepper, bold", "replacement": "x"},       # spans a tag
+        {"original": "Salt & pepper", "replacement": "Salt & ground pepper"},
+    ], body)
+    assert [f["original"] for f in kept] == ["Salt & pepper"]
+    assert kept[0]["id"] == "f1"
+    out = apply_fix(body, kept[0])
+    assert "Salt &amp; ground pepper" in out and "<b>bold</b>" in out

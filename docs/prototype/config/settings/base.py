@@ -142,6 +142,14 @@ else:
 # an Editor can still override the verdict under UC-1.8.
 AI_PASSING_SCORE = 70
 
+# Below this a draft needs rework rather than line edits, so it is returned
+# with guidance and no quick fixes. Between the two it is returned with both.
+AI_REWRITE_BELOW = int(os.environ.get("AI_REWRITE_BELOW", 40))
+
+# Quick fixes offered per assessment. Each costs output tokens, and a writer
+# facing thirty line edits has a draft that needs rewriting, not fixing.
+AI_MAX_FIXES = int(os.environ.get("AI_MAX_FIXES", 8))
+
 # UC-1.12: magazine design assets. Local storage in Phase 1; the container
 # diagram specifies Cloudflare R2 for production.
 MEDIA_URL = "media/"

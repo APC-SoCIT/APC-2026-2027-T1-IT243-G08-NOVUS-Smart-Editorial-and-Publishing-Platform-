@@ -261,6 +261,22 @@ def placeholder_pdf(title, pages=4):
     return ContentFile(out.encode("latin-1"))
 
 
+# Returned demonstration articles carry this sentence, so their quick fixes
+# point at text that genuinely exists and can be applied in a demonstration.
+FLAWED_SENTENCE = ("The findings, which was gathered over three year, suggests "
+                   "that the industry are changing faster then expected.")
+SEED_FIXES = [
+    {"id": "f1", "original": "which was gathered", "replacement": "which were gathered",
+     "reason": "Findings is plural.", "note_type": "GRAMMAR"},
+    {"id": "f2", "original": "over three year,", "replacement": "over three years,",
+     "reason": "Plural after a number above one.", "note_type": "GRAMMAR"},
+    {"id": "f3", "original": "suggests that the industry are changing",
+     "replacement": "suggest that the industry is changing",
+     "reason": "Findings suggest; the industry is.", "note_type": "GRAMMAR"},
+    {"id": "f4", "original": "faster then expected", "replacement": "faster than expected",
+     "reason": "Than, for a comparison.", "note_type": "GRAMMAR"},
+]
+
 class Command(BaseCommand):
     help = "Create a realistic editorial operation for demonstration."
 
@@ -499,11 +515,15 @@ class Command(BaseCommand):
         if not submitted:
             return
 
+        failing = status == Article.Status.REVISION_REQUESTED
+        if failing and FLAWED_SENTENCE not in article.body:
+            cut = article.body.find("</p>") + len("</p>")
+            article.body = article.body[:cut] + f"<p>{FLAWED_SENTENCE}</p>" + article.body[cut:]
+            article.save(update_fields=["body"])
+
         ArticleVersion.objects.create(
             article=article, number=1, title=article.title,
             body=article.body, excerpt=article.excerpt, submitted_by=writer)
-
-        failing = status == Article.Status.REVISION_REQUESTED
         overall = random.randint(48, 66) if failing else random.randint(74, 94)
 
         suggestions = [
@@ -521,6 +541,8 @@ class Command(BaseCommand):
             suggestions=suggestions,
             ai_model="seed-demo",
             raw_response={"seeded": True},
+            verdict="REVISE" if failing else "PASS",
+            fixes=[dict(f) for f in SEED_FIXES] if failing else [],
         )
 
         if failing:

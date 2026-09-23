@@ -10,6 +10,8 @@ import anthropic
 from django.conf import settings
 from django.utils.html import strip_tags
 
+from .fixes import clean_fixes
+
 NOTE_TYPES = {"GRAMMAR", "TONE", "STRUCTURE", "FACTUAL"}
 PRIORITIES = {"LOW", "MEDIUM", "HIGH"}
 
@@ -17,8 +19,8 @@ EVAL_SYSTEM_PROMPT = """You are an editorial quality evaluator for BOSS \
 Magazine PH, a Filipino lifestyle publication covering fashion, culture, \
 modern trends, business, and society.
 
-Assess the submitted article draft and return BOTH a numeric assessment and \
-actionable editorial feedback.
+Assess the submitted article draft and return a numeric assessment, \
+actionable editorial feedback, and quick fixes.
 
 Scoring: grammar and readability 0-100 each, plus an overall score 0-100. \
 Recommend REJECT only for serious grammar or readability problems, not for \
@@ -30,8 +32,18 @@ section it applies to, its type, a specific instruction the writer can act \
 on, and a priority. Do not invent problems; return an empty list if the \
 draft is clean.
 
+Quick fixes: for purely mechanical problems only - spelling, grammar, \
+agreement, punctuation, or a single unclear sentence - propose up to 8 exact \
+edits. "original" must be copied character for character from the article, \
+be at most one sentence, and appear only once in it. "replacement" changes \
+only what is needed. Never propose fixes that change the argument, the \
+structure, facts, figures, names, quotations or the writer's voice; those \
+belong in suggestions. Return an empty list if the draft is clean or needs \
+rewriting rather than line edits.
+
 note_type must be one of: GRAMMAR, TONE, STRUCTURE, FACTUAL
 priority must be one of: LOW, MEDIUM, HIGH
+fix note_type must be one of: GRAMMAR, TONE
 
 Respond with ONLY a JSON object, no other text, no markdown fences:
 {"grammar_score": <int>, "readability_score": <int>, "overall_score": <int>,
@@ -40,11 +52,20 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
  "suggestions": [
    {"section": "<section name>", "note_type": "<type>",
     "instruction": "<specific, actionable>", "priority": "<priority>"}
+ ],
+ "fixes": [
+   {"original": "<exact text>", "replacement": "<corrected text>",
+    "reason": "<one short sentence>", "note_type": "GRAMMAR" | "TONE"}
  ]}"""
 
 
 class EvaluationError(Exception):
     """Raised when Claude's response can't be parsed into a valid verdict."""
+
+
+class EvaluationUnavailable(EvaluationError):
+    """No assessment can be obtained. The gate treats this as an absence, not
+    a score of zero: the article goes to review with the absence stated."""
 
 
 def _clean_suggestions(raw):
@@ -73,21 +94,16 @@ def evaluate_article(article) -> dict:
     """Returns a dict matching ArticleEvaluation's evaluated fields, ready to
     unpack into ArticleEvaluation.objects.create(article=article, **result)."""
 
-    # STUB MODE - no real key configured. Scores are 0 so fake numbers are obvious.
+    # With no credential there is no assessment to give. Returning a zero
+    # would fail every draft at the gate; raising lets submission route it
+    # to review with the absence stated instead.
     if not settings.ANTHROPIC_API_KEY or "placeholder" in settings.ANTHROPIC_API_KEY:
-        return {
-            "grammar_score": 0, "readability_score": 0, "overall_score": 0,
-            "recommendation": "APPROVE",
-            "summary": "",
-            "suggestions": [],
-            "raw_response": {"stub": True, "reason": "no API key configured"},
-            "ai_model": "stub",
-        }
+        raise EvaluationUnavailable("No evaluation credential is configured.")
 
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     message = client.messages.create(
         model=settings.ANTHROPIC_EVAL_MODEL,
-        max_tokens=1500,
+        max_tokens=2200,  # room for quick fixes
         system=EVAL_SYSTEM_PROMPT,
         messages=[{
             "role": "user",
@@ -107,6 +123,7 @@ def evaluate_article(article) -> dict:
             "recommendation": parsed["recommendation"],
             "summary": str(parsed.get("summary", "")).strip(),
             "suggestions": _clean_suggestions(parsed.get("suggestions")),
+            "fixes": clean_fixes(parsed.get("fixes"), article.body),
             "raw_response": parsed,
             "ai_model": settings.ANTHROPIC_EVAL_MODEL,
             # Recorded per assessment so the monthly cost is answerable from

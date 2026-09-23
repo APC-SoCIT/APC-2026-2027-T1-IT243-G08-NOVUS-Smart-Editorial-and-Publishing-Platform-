@@ -117,7 +117,11 @@ def check(article, user):
         )
 
     # ---- cooldown ---------------------------------------------------------
-    if last and timezone.now() - last.created_at < COOLDOWN:
+    # Waived once every quick fix from that assessment has been dealt with:
+    # accepting fixes and resubmitting straight away is the intended path,
+    # and the daily ceiling still bounds it.
+    from apps.ai_eval.fixes import all_resolved
+    if last and timezone.now() - last.created_at < COOLDOWN and not all_resolved(last):
         wait = COOLDOWN - (timezone.now() - last.created_at)
         reasons.append(
             f"This article was assessed {int(wait.total_seconds() // 60) + 1} "

@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import api from '../services/api'
 import EvaluationPanel from '../components/EvaluationPanel.vue'
+import QuickFixes from '../components/QuickFixes.vue'
 import ScanningOverlay from '../components/ScanningOverlay.vue'
 import MessageThread from '../components/MessageThread.vue'
 import VersionHistory from '../components/VersionHistory.vue'
@@ -26,6 +27,8 @@ const deadline = ref(null)
 const status = ref('DRAFTING')
 const versions = ref([])
 const evaluation = ref(null)
+const fixBusy = ref(null)
+const fixError = ref('')
 const returnedByAi = ref(false)
 
 const heroFile = ref(null)
@@ -80,7 +83,7 @@ onMounted(async () => {
   // A writer should never lose work to a closed tab. Autosave every 20s
   // while there is something unsaved.
   autosave = setInterval(() => {
-    if (dirty.value && articleId.value && canEdit.value) save(true)
+    if (dirty.value && articleId.value && canEdit.value && !fixBusy.value) save(true)
   }, 20000)
 })
 onUnmounted(() => clearInterval(autosave))
@@ -144,6 +147,34 @@ async function save(quiet = false) {
     error.value = 'Could not save. Your work is still here — try again.'
     return false
   } finally { saving.value = false }
+}
+
+// A fix is applied on the server to the saved copy. Saving first, locking
+// the editor for the request, and loading the corrected copy afterwards is
+// what stops autosave from quietly writing the old sentence back.
+async function decideFix(fix, decision) {
+  fixError.value = ''
+  if (dirty.value && !(await save(true))) {
+    fixError.value = 'Save your changes before applying a fix.'
+    return
+  }
+  fixBusy.value = fix.id
+  editor.value?.setEditable(false)
+  try {
+    const { data } = await api.post(
+      `/editorial/articles/${articleId.value}/fixes/${fix.id}/${decision}/`)
+    evaluation.value = data.evaluation
+    if (decision === 'apply') {
+      editor.value?.commands.setContent(data.body, false)
+      dirty.value = false
+    }
+  } catch (e) {
+    fixError.value = e.response?.data?.detail || 'Could not update that fix.'
+    if (e.response?.data?.state === 'stale') fix.state = 'stale'
+  } finally {
+    editor.value?.setEditable(canEdit.value)
+    fixBusy.value = null
+  }
 }
 
 async function submit() {
@@ -312,6 +343,9 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
 
       <EvaluationPanel v-if="evaluation" :evaluation="evaluation"
                        :returned-by-ai="returnedByAi" :threshold="70" />
+
+      <QuickFixes v-if="evaluation" :evaluation="evaluation" :busy="fixBusy"
+                  :can-edit="canEdit" :error="fixError" @decide="decideFix" />
 
       <MessageThread v-if="articleId" :article-id="articleId" />
 
