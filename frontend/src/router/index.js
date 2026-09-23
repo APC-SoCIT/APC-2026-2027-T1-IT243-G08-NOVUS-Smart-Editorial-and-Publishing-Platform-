@@ -31,24 +31,24 @@ const routes = [
   { path: '/login', component: ReaderLoginView },
   { path: '/register', component: ReaderRegisterView },
   { path: '/staff/login', component: StaffLoginView },
-  { path: '/writer', component: WriterDashboard, meta: { requiresAuth: true } },
-  { path: '/writer/compose', component: ArticleComposeView, meta: { requiresAuth: true } },
-  { path: '/writer/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true } },
+  { path: '/writer', component: WriterDashboard, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/writer/compose', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/writer/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
   // Editors write too. Same composer, a path that does not imply otherwise.
-  { path: '/compose', component: ArticleComposeView, meta: { requiresAuth: true } },
-  { path: '/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true } },
-  { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true } },
-  { path: '/calendar', component: CalendarView, meta: { requiresAuth: true } },
+  { path: '/compose', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true, roles: ['EDITOR'] } },
+  { path: '/calendar', component: CalendarView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR', 'PUBLISHER'] } },
   { path: '/notifications', component: NotificationSettings, meta: { requiresAuth: true } },
-  { path: '/issues-overview', component: IssuesOverview, meta: { requiresAuth: true } },
-  { path: '/archive', component: ArchiveView, meta: { requiresAuth: true } },
-  { path: '/reports', component: ReportsView, meta: { requiresAuth: true } },
-  { path: '/settings', component: PlatformSettings, meta: { requiresAuth: true } },
-  { path: '/editor/review/:id', component: ArticleReviewView, meta: { requiresAuth: true } },
-  { path: '/publisher', component: PublisherDashboard, meta: { requiresAuth: true } },
-  { path: '/publisher/issue/:id', component: IssueDetailView, meta: { requiresAuth: true } },
-  { path: '/designer', component: DesignerDashboard, meta: { requiresAuth: true } },
-  { path: '/designer/article/:id', component: DesignerArticleView, meta: { requiresAuth: true } },
+  { path: '/issues-overview', component: IssuesOverview, meta: { requiresAuth: true, roles: ['EDITOR', 'GRAPHIC_DESIGNER', 'PUBLISHER'] } },
+  { path: '/archive', component: ArchiveView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR', 'PUBLISHER', 'GRAPHIC_DESIGNER'] } },
+  { path: '/reports', component: ReportsView, meta: { requiresAuth: true, roles: ['EDITOR', 'PUBLISHER'] } },
+  { path: '/settings', component: PlatformSettings, meta: { requiresAuth: true, roles: [] } },
+  { path: '/editor/review/:id', component: ArticleReviewView, meta: { requiresAuth: true, roles: ['EDITOR', 'PUBLISHER'] } },
+  { path: '/publisher', component: PublisherDashboard, meta: { requiresAuth: true, roles: ['PUBLISHER'] } },
+  { path: '/publisher/issue/:id', component: IssueDetailView, meta: { requiresAuth: true, roles: ['PUBLISHER'] } },
+  { path: '/designer', component: DesignerDashboard, meta: { requiresAuth: true, roles: ['GRAPHIC_DESIGNER'] } },
+  { path: '/designer/article/:id', component: DesignerArticleView, meta: { requiresAuth: true, roles: ['GRAPHIC_DESIGNER'] } },
   { path: '/read', component: ReaderHome },
   { path: '/read/:id', component: ReaderArticle },
   { path: '/saved', component: SavedArticles, meta: { requiresAuth: true } },
@@ -66,6 +66,22 @@ router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isAuthenticated) return '/staff/login'
   return true
+})
+
+// Role guard. Runs after the sign-in guard: a signed-in account that opens
+// a workspace it has no part in is returned to its own. The administrator
+// passes every role check.
+const HOME = { WRITER: '/writer', EDITOR: '/editor', PUBLISHER: '/publisher',
+               GRAPHIC_DESIGNER: '/designer', ADMIN: '/editor', READER: '/read' }
+router.beforeEach(async (to) => {
+  const roles = to.meta.roles
+  if (!roles) return true
+  const auth = useAuthStore()
+  if (!auth.isAuthenticated) return true
+  if (!auth.user) { try { await auth.fetchUser() } catch { return true } }
+  const role = auth.user?.role ?? auth.role
+  if (role === 'ADMIN' || roles.includes(role)) return true
+  return HOME[role] || '/read'
 })
 
 export default router

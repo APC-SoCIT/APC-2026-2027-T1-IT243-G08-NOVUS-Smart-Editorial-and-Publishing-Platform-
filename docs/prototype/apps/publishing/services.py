@@ -84,6 +84,15 @@ def publish_issue(issue, publisher):
 @transaction.atomic
 def publish_article(article, publisher):
     """Publishes a standalone approved article not bound to an issue."""
+    # An article in an issue is released with the issue, never on its own.
+    # Publishing each one individually would put the issue live without its
+    # approved layout, which is the check publish_issue exists to enforce.
+    if article.issue_id:
+        raise NotReady([
+            f"This article belongs to Issue #{article.issue.number} and is "
+            f"released with it. Publish the issue instead."
+        ])
+
     if article.status != Article.Status.APPROVED:
         raise NotReady([
             f"Article must be approved before publishing "

@@ -111,7 +111,8 @@ const isOn = (to) => route.path === to.split('?')[0]
 
         <nav aria-label="Account">
           <h3>Account</h3>
-          <router-link to="/login">Sign in</router-link>
+          <router-link v-if="!auth.isAuthenticated" to="/login">Sign in</router-link>
+          <router-link v-else-if="auth.role && auth.role !== 'READER'" :to="{ WRITER: '/writer', EDITOR: '/editor', PUBLISHER: '/publisher', GRAPHIC_DESIGNER: '/designer', ADMIN: '/editor' }[auth.role]">Back to workspace</router-link>
           <router-link to="/register">Create account</router-link>
         </nav>
 

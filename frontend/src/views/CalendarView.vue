@@ -1,4 +1,5 @@
 <script setup>
+import { useAuthStore } from '../stores/auth'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
@@ -6,6 +7,7 @@ import StaffLayout from '../components/StaffLayout.vue'
 import UiSkeleton from '../components/ui/UiSkeleton.vue'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const today = new Date()
 const year = ref(today.getFullYear())
@@ -81,8 +83,22 @@ const grid = computed(() => {
 const hasEvents = computed(() => data.value.events.length > 0)
 
 function openEvent(e) {
-  if (e.kind === 'deadline') router.push(`/editor/review/${e.id}`)
-  else router.push(`/publisher/issue/${e.id}`)
+  // Each role opens the event in its own workspace. Where a role has no part
+  // in the event, the entry stays on the calendar as information only.
+  function destination(ev) {
+    const role = auth.user?.role ?? auth.role
+    if (ev.kind === 'deadline') {
+      return { WRITER: `/writer/compose/${ev.id}`,
+               EDITOR: `/editor/review/${ev.id}`,
+               ADMIN: `/editor/review/${ev.id}` }[role] || null
+    }
+    return { PUBLISHER: `/publisher/issue/${ev.id}`,
+             ADMIN: `/publisher/issue/${ev.id}`,
+             EDITOR: '/issues-overview',
+             GRAPHIC_DESIGNER: '/issues-overview' }[role] || null
+  }
+  const to = destination(e)
+  if (to) router.push(to)
 }
 </script>
 

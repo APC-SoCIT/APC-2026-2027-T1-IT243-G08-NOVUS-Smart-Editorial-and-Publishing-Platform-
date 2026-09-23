@@ -675,3 +675,32 @@ class TestEntitlement:
         article = self._premium(writer)
         r = api_client.get(f"/api/content/articles/{article.id}/")
         assert r.data["is_locked"] is True
+
+
+@pytest.mark.django_db
+def test_an_issue_article_cannot_be_published_on_its_own(auth_client, writer, publisher):
+    """Publishing issue articles one at a time would put the issue live
+    without its approved layout. They are released with the issue only."""
+    from apps.issues.models import Issue
+    issue = Issue.objects.create(number=95, title="Held", created_by=publisher)
+    article = Article.objects.create(
+        writer=writer, title="In an issue", body="<p>Final.</p>",
+        category="Tech", status=Article.Status.APPROVED, issue=issue)
+
+    r = auth_client(publisher).post(f"/api/editorial/articles/{article.id}/publish/")
+    assert r.status_code == status.HTTP_409_CONFLICT
+    article.refresh_from_db()
+    assert article.status == Article.Status.APPROVED
+
+
+@pytest.mark.django_db
+def test_an_issue_without_a_layout_is_not_ready(writer, publisher):
+    """Readiness and publication must agree. An issue whose copy is complete
+    but which has no approved layout is not ready, and says why."""
+    from apps.issues.models import Issue
+    issue = Issue.objects.create(number=96, title="No layout", minimum_articles=1,
+                                 created_by=publisher)
+    Article.objects.create(writer=writer, title="Done", body="<p>Final.</p>",
+                           category="Tech", status=Article.Status.APPROVED, issue=issue)
+    assert issue.is_ready is False
+    assert any("No approved layout" in r for r in issue.blocking_reasons())
