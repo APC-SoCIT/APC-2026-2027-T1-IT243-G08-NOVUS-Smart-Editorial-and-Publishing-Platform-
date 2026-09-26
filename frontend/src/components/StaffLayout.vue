@@ -1,4 +1,5 @@
 <script setup>
+import NovusLogo from './NovusLogo.vue'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -84,8 +85,7 @@ function signOut() {
   <div class="shell">
     <aside>
       <router-link :to="home" class="brand" aria-label="NOVUS workspace home">
-        <span class="mark">N</span>
-        <span class="word">NOVUS</span>
+        <NovusLogo class="brand-logo" decorative />
       </router-link>
 
       <nav>
@@ -223,4 +223,8 @@ header p { margin: 4px 0 0; font-size: 13px; color: #8a97a8; }
   .idblock { display: none; }
   .content { padding: 20px; }
 }
+
+/* The link is already labelled "NOVUS workspace home", so the logo is
+   decorative here and screen readers hear the name once. */
+.brand-logo { width: 132px; color: #fff; }
 </style>
