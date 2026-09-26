@@ -3,6 +3,7 @@ from rest_framework import permissions, viewsets
 
 from apps.notifications.models import Notification
 from apps.notifications.services import notify
+from apps.notifications.services import article_link
 
 from .models import Message
 from .serializers import MessageSerializer
@@ -41,4 +42,4 @@ class MessageViewSet(viewsets.ModelViewSet):
             notify(person, Notification.Kind.MESSAGE,
                    f'{message.sender.get_full_name()} commented on '
                    f'"{message.article.title}".',
-                   f"/editor/review/{message.article_id}")
+                   article_link(person, message.article))

@@ -852,3 +852,21 @@ def test_fixes_that_cannot_be_located_are_dropped(settings):
     assert kept[0]["id"] == "f1"
     out = apply_fix(body, kept[0])
     assert "Salt &amp; ground pepper" in out and "<b>bold</b>" in out
+
+
+@pytest.mark.django_db
+def test_article_links_follow_the_recipient(writer, editor, publisher, make_user):
+    """A link written for one role sends another into a workspace the route
+    guard refuses. Each recipient gets the view their role can open."""
+    from apps.accounts.models import User
+    from apps.notifications.services import article_link
+    designer = make_user("d-link@boss.ph", User.Role.GRAPHIC_DESIGNER)
+    a = Article.objects.create(writer=writer, title="Links", body="<p>x</p>",
+                               category="Tech", status=Article.Status.UNDER_REVIEW)
+    own = Article.objects.create(writer=editor, title="Leader", body="<p>x</p>",
+                                 category="Tech", status=Article.Status.PENDING_SIGNOFF)
+    assert article_link(writer, a) == f"/writer/compose/{a.id}"
+    assert article_link(editor, a) == f"/editor/review/{a.id}"
+    assert article_link(publisher, a) == f"/editor/review/{a.id}"
+    assert article_link(designer, a) == f"/designer/article/{a.id}"
+    assert article_link(editor, own) == f"/writer/compose/{own.id}"

@@ -1,12 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import api from '../services/api'
 import StaffLayout from '../components/StaffLayout.vue'
 import UiEmpty from '../components/ui/UiEmpty.vue'
 import UiSkeleton from '../components/ui/UiSkeleton.vue'
+import ArchivePreview from '../components/ArchivePreview.vue'
 
-const router = useRouter()
+
+// The archive row being previewed. Every staff role opens the same
+// read-only panel; published work is not edited from here.
+const selected = ref(null)
 
 const articles = ref([])
 const facets = ref({ years: [], categories: [], issues: [], total: 0 })
@@ -128,8 +131,9 @@ const day = (d) => d
 
       <ul class="rows">
         <li v-for="a in g.items" :key="a.id" class="row" tabindex="0" role="button"
-            @click="router.push(`/editor/review/${a.id}`)"
-            @keyup.enter="router.push(`/editor/review/${a.id}`)">
+            @click="selected = a"
+            @keyup.enter="selected = a"
+            @keydown.space.prevent="selected = a">
           <span class="date">{{ day(a.published_at) }}</span>
 
           <div class="meta">
@@ -148,6 +152,9 @@ const day = (d) => d
         </li>
       </ul>
     </section>
+    <ArchivePreview :article="selected"
+                    :issue-label="selected ? issueLabel(selected) : ''"
+                    @close="selected = null" />
   </StaffLayout>
 </template>
 

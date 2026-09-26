@@ -26,3 +26,22 @@ def notify_many(recipients, kind, message, link=""):
         if r and r.pk not in seen:
             seen.add(r.pk)
             notify(r, kind, message, link)
+
+
+def article_link(user, article):
+    """Where this person opens this article.
+
+    A link written for one role sends another role into a workspace the
+    route guard will refuse, so the link follows the recipient: writers go
+    to the composer, designers to their article view, and editors, the
+    publisher and the administrator to the review screen. An editor who
+    wrote the article is its author here, so they go to the composer.
+    """
+    role, R = getattr(user, "role", None), user.Role
+    if role == R.WRITER or (role == R.EDITOR and article.writer_id == user.id):
+        return f"/writer/compose/{article.id}"
+    if role == R.GRAPHIC_DESIGNER:
+        return f"/designer/article/{article.id}"
+    if role == R.READER:
+        return f"/read/{article.id}"
+    return f"/editor/review/{article.id}"

@@ -134,7 +134,7 @@ async function submit() {
           <li class="warn"><span class="tile"><KeyRound aria-hidden="true" /></span>Never share your credentials with anyone.</li>
         </ul>
 
-        <p class="alt">Reader? <router-link to="/login">Sign in to the public site &rarr;</router-link></p>
+        <p class="alt"><router-link to="/read">Visit BOSS Magazine &rarr;</router-link></p>
       </form>
     </main>
   </div>

@@ -9,6 +9,16 @@ import UiSkeleton from '../components/ui/UiSkeleton.vue'
 import UiBadge from '../components/ui/UiBadge.vue'
 
 const router = useRouter()
+
+// Each role opens an article in its own view. Designers read scheduled copy
+// in the designer view; the review screen belongs to editors and the
+// publisher, and the role check would send a designer straight back.
+function openArticle(a) {
+  const role = auth.user?.role ?? auth.role
+  router.push(role === 'GRAPHIC_DESIGNER'
+    ? `/designer/article/${a.id}`
+    : `/editor/review/${a.id}`)
+}
 const auth = useAuthStore()
 
 const issues = ref([])
@@ -122,8 +132,8 @@ const daysAway = (d) => {
               <ol v-else class="arts">
                 <li v-for="a in detail[i.id].articles" :key="a.id"
                     tabindex="0" role="button"
-                    @click="router.push(`/editor/review/${a.id}`)"
-                    @keyup.enter="router.push(`/editor/review/${a.id}`)">
+                    @click="openArticle(a)"
+                    @keyup.enter="openArticle(a)">
                   <span class="at">{{ a.title }}</span>
                   <span class="aw">{{ a.writer_name }}</span>
                   <UiBadge :status="a.status" dot />
