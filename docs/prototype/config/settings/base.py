@@ -92,6 +92,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    # Applied only to the endpoints that take a password or create an
+    # account; see apps/accounts/throttles.py. There is deliberately no
+    # site-wide limit: behind the proxy, visitors can share an address, and
+    # a global cap could refuse every reader at once.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "5/min",
+        "register": "10/hour",
+        "refresh": "30/min",
+    },
 }
 
 SIMPLE_JWT = {

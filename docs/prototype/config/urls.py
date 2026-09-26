@@ -3,8 +3,11 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from apps.common.health import health
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/health/", health),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/editorial/", include("apps.editorial.urls")),
     path("api/ai-eval/", include("apps.ai_eval.urls")),

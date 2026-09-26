@@ -870,3 +870,40 @@ def test_article_links_follow_the_recipient(writer, editor, publisher, make_user
     assert article_link(publisher, a) == f"/editor/review/{a.id}"
     assert article_link(designer, a) == f"/designer/article/{a.id}"
     assert article_link(editor, own) == f"/writer/compose/{own.id}"
+
+
+@pytest.mark.django_db
+def test_health_reports_the_database_and_nothing_else(client):
+    """Public, so it must say whether the service works and nothing more."""
+    r = client.get("/api/health/")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+    assert r["Cache-Control"] == "no-store"
+
+
+@pytest.mark.django_db
+def test_sign_in_is_limited_per_account(api_client, make_user):
+    """Five attempts a minute per address. The sixth is refused even with the
+    right password, and another account is unaffected."""
+    from apps.accounts.models import User
+    make_user("target@boss.ph", User.Role.WRITER)
+    make_user("bystander@boss.ph", User.Role.WRITER)
+    for _ in range(5):
+        r = api_client.post("/api/auth/token/", {"email": "target@boss.ph", "password": "wrong"})
+        assert r.status_code == 401
+    r = api_client.post("/api/auth/token/", {"email": "target@boss.ph", "password": "pass1234"})
+    assert r.status_code == 429
+    r = api_client.post("/api/auth/token/", {"email": "bystander@boss.ph", "password": "pass1234"})
+    assert r.status_code == 200
+
+
+@pytest.mark.django_db
+def test_changing_case_does_not_reset_the_limit(api_client, make_user):
+    """The limit keys on the address as the account knows it, so varying its
+    case or padding it cannot buy fresh attempts."""
+    from apps.accounts.models import User
+    make_user("case@boss.ph", User.Role.WRITER)
+    for addr in ("case@boss.ph", "CASE@boss.ph", " case@boss.ph", "Case@Boss.ph", "case@BOSS.ph"):
+        api_client.post("/api/auth/token/", {"email": addr, "password": "wrong"})
+    r = api_client.post("/api/auth/token/", {"email": "case@boss.ph", "password": "pass1234"})
+    assert r.status_code == 429

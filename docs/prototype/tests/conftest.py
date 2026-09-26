@@ -88,3 +88,13 @@ def local_storage_in_tests(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / "media"
     settings.USE_R2 = False
     settings.R2_PRIVATE_BUCKET = ""
+
+
+@pytest.fixture(autouse=True)
+def fresh_rate_limits():
+    """Rate-limit counts live in the cache, which outlives a single test.
+    Clearing it keeps one test's sign-ins from throttling the next."""
+    from django.core.cache import cache
+    cache.clear()
+    yield
+    cache.clear()
