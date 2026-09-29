@@ -33,6 +33,18 @@ from .serializers import (
 )
 
 
+
+def notify_reviewers(article, message):
+    """Whoever decides this article next. An editor's own copy goes to the
+    publishers, since nobody signs off their own work."""
+    User = type(article.writer)
+    if article.status == Article.Status.PENDING_SIGNOFF:
+        for p in User.objects.filter(role=User.Role.PUBLISHER, is_active=True):
+            notify(p, Notification.Kind.SUBMITTED, message, "/publisher")
+    elif article.editor or article.assigned_by:
+        notify(article.editor or article.assigned_by, Notification.Kind.SUBMITTED,
+               message, f"/editor/review/{article.id}")
+
 class ArticleViewSet(viewsets.ModelViewSet):
     """
     Module 1: Manage Editorial Pipeline.
@@ -206,11 +218,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             )
             article.returned_by_ai = False
             article.save(update_fields=["status", "returned_by_ai", "updated_at"])
-            reviewer = article.editor or article.assigned_by
-            if reviewer:
-                notify(reviewer, Notification.Kind.SUBMITTED,
-                       f'"{article.title}" awaits review without an automated assessment.',
-                       f"/editor/review/{article.id}")
+            notify_reviewers(article, f'"{article.title}" awaits review without an automated assessment.')
             return Response(
                 {"detail": "Evaluation unavailable; sent for manual review.",
                  "gate": "BYPASSED", "overall_score": None},
@@ -260,10 +268,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
         score = evaluation.overall_score
         if passed:
-            notify(article.editor or article.assigned_by,
-                   Notification.Kind.SUBMITTED,
-                   f'"{article.title}" passed pre-screening and awaits review.',
-                   f"/editor/review/{article.id}")
+            notify_reviewers(article, f'"{article.title}" passed pre-screening and awaits review.')
         elif rewrite:
             notify(article.writer, Notification.Kind.RETURNED_BY_AI,
                    f'"{article.title}" scored {score} and needs rework rather '
