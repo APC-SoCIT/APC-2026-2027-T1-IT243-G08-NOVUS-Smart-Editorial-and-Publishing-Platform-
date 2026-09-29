@@ -14,8 +14,11 @@ const typeLabel = {
 
 const rewrite = computed(() => props.evaluation?.verdict === 'REWRITE')
 // An editor deserves to know which words came from the machine.
-const accepted = computed(() =>
-  (props.evaluation?.fixes || []).filter(f => f.state === 'accepted'))
+// Across every assessment of the article: after a resubmission the latest
+// assessment carries no fixes of its own, but the editor still needs to see
+// which words came from the machine.
+const accepted = computed(() => props.evaluation?.accepted_history
+  ?? (props.evaluation?.fixes || []).filter(f => f.state === 'accepted'))
 </script>
 
 <template>

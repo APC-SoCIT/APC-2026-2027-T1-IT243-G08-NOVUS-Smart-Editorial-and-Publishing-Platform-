@@ -907,3 +907,32 @@ def test_changing_case_does_not_reset_the_limit(api_client, make_user):
         api_client.post("/api/auth/token/", {"email": addr, "password": "wrong"})
     r = api_client.post("/api/auth/token/", {"email": "case@boss.ph", "password": "pass1234"})
     assert r.status_code == 429
+
+
+@pytest.mark.django_db
+def test_the_editor_still_sees_fixes_accepted_before_resubmission(auth_client, writer, monkeypatch):
+    """The resubmission's own assessment has no fixes, but the editor must
+    still see which words the machine changed."""
+    fixes = [{"id": "f1", "original": "The findings suggests", "replacement": "The findings suggest",
+              "reason": "Plural subject.", "note_type": "GRAMMAR"},
+             {"id": "f2", "original": "market are changing", "replacement": "market is changing",
+              "reason": "Singular subject.", "note_type": "GRAMMAR"}]
+    monkeypatch.setattr("apps.editorial.views.evaluate_article", lambda a: {
+        "grammar_score": 55, "readability_score": 55, "overall_score": 55,
+        "recommendation": "REJECT", "summary": "s", "suggestions": [],
+        "fixes": [dict(f) for f in fixes], "raw_response": {}, "ai_model": "test"})
+    c = auth_client(writer)
+    r = c.post("/api/editorial/articles/", draft_payload(
+        "History", body=draft_copy() + "<p>The findings suggests the market are changing.</p>"), format="json")
+    aid = r.data["id"]
+    c.post(f"/api/editorial/articles/{aid}/submit/")
+    c.post(f"/api/editorial/articles/{aid}/fixes/f1/apply/")
+    c.post(f"/api/editorial/articles/{aid}/fixes/f2/dismiss/")
+    monkeypatch.setattr("apps.editorial.views.evaluate_article", lambda a: {
+        "grammar_score": 85, "readability_score": 85, "overall_score": 85,
+        "recommendation": "APPROVE", "summary": "s", "suggestions": [],
+        "raw_response": {}, "ai_model": "test"})
+    assert c.post(f"/api/editorial/articles/{aid}/submit/").status_code == 201
+    latest = c.get(f"/api/editorial/articles/{aid}/").data["latest_evaluation"]
+    assert latest["fixes"] == []
+    assert [h["replacement"] for h in latest["accepted_history"]] == ["The findings suggest"]
