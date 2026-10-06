@@ -47,7 +47,7 @@ class UserAdmin(BaseUserAdmin):
 
     actions = ["suspend_accounts", "restore_accounts", "require_password_reset"]
 
-    @admin.action(description="Suspend selected accounts (UC-5.2.2)")
+    @admin.action(description="Suspend selected accounts")
     def suspend_accounts(self, request, queryset):
         n = queryset.exclude(pk=request.user.pk).update(
             is_suspended=True, is_active=False)
@@ -58,7 +58,7 @@ class UserAdmin(BaseUserAdmin):
         n = queryset.update(is_suspended=False, is_active=True)
         self.message_user(request, f"{n} account(s) restored.")
 
-    @admin.action(description="Require a password reset (UC-5.2.3)")
+    @admin.action(description="Require a password reset")
     def require_password_reset(self, request, queryset):
         n = queryset.update(must_reset_password=True)
         self.message_user(request, f"{n} user(s) must reset their password.")

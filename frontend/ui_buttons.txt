@@ -1,0 +1,438 @@
+
+=== AssignArticle.vue
+  <button class="primary" :disabled="busy" @click="review"> {{ busy ? 'Assigning…' : 'Assign to Writer' }} </button>
+  <ConfirmDialog :open="confirming" title="Assign this article?" :message="`“${form.title}” will be assigned to ${writerName()}.`" confirm-label="Assign" :points="[ 'They are notified immediately and it appears on their dashboard.', form.deadline ? `Deadline ${form.deadline}.` : 'No deadline set — it 
+
+=== BookmarkButton.vue
+  <button :class="['bm', variant, { on }]" :aria-pressed="on" :aria-label="on ? 'Remove from saved articles' : 'Save this article'" :disabled="busy" @click.stop.prevent="toggle"> <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" :fill="on ? 'currentColor' : 'none'" stroke="currentColo
+  <router-link to="/login">Sign in</router-link>
+
+=== BossShell.vue
+  <router-link to="/read" class="logo" aria-label="BOSS Magazine PH — home"> <img src="/boss-logo.png" alt="BOSS Magazine PH" /> </router-link>
+  <router-link v-if="auth.isAuthenticated" to="/saved" :class="{ on: route.path === '/saved' }">Saved</router-link>
+  <router-link v-for="n in NAV" :key="n.label" :to="n.to" :class="{ on: isOn(n.to) }" :aria-current="isOn(n.to) ? 'page' : undefined"> {{ n.label }} </router-link>
+  <router-link to="/account" class="me"> <span class="avatar" aria-hidden="true">{{ initials }}</span> <span class="name">{{ auth.user?.first_name }}</span> <span v-if="tier === 'SUBSCRIBER'" class="tier">Subscriber</span> </router-link>
+  <button class="out" @click="signOut">Sign out</button>
+  <router-link v-else to="/login" class="cta">Sign in</router-link>
+  <button class="burger" :aria-expanded="menuOpen" aria-controls="mobile-nav" @click="menuOpen = !menuOpen"> <span class="sr-only">{{ menuOpen ? 'Close menu' : 'Open menu' }}</span> <span class="bars" aria-hidden="true"></span> </button>
+  <router-link v-for="n in NAV" :key="n.label" :to="n.to" @click="menuOpen = false">{{ n.label }}</router-link>
+  <router-link to="/read">Articles</router-link>
+  <router-link to="/issues">Issues</router-link>
+  <router-link to="/about">About</router-link>
+  <router-link v-if="!auth.isAuthenticated" to="/login">Sign in</router-link>
+  <router-link v-else-if="auth.role && auth.role !== 'READER'" :to="{ WRITER: '/writer', EDITOR: '/editor', PUBLISHER: '/publisher', GRAPHIC_DESIGNER: '/designer', ADMIN: '/editor' }[auth.role]">Back to workspace</router-link>
+  <router-link to="/register">Create account</router-link>
+  <router-link to="/legal/privacy">Privacy Policy</router-link>
+  <router-link to="/legal/terms">Terms of Service</router-link>
+  <router-link to="/legal/cookies">Cookie Policy</router-link>
+  <router-link to="/legal/refunds">Refund Policy</router-link>
+  SCRIPT label: 'Home'
+  SCRIPT label: 'Magazines'
+  SCRIPT label: 'Articles'
+  SCRIPT label: 'About'
+
+=== ConfirmDialog.vue
+  <button class="cancel" :disabled="busy" @click="emit('cancel')">Cancel</button>
+  <button class="go" :disabled="!canConfirm" @click="emit('confirm')"> {{ busy ? 'Working…' : confirmLabel }} </button>
+
+=== CookieNotice.vue
+  <button class="more" :aria-expanded="expanded" aria-controls="cookie-detail" @click="expanded = !expanded"> {{ expanded ? 'Hide detail' : 'What is stored?' }} </button>
+  <router-link to="/legal/cookies" class="policy"> Read the full Cookie Policy → </router-link>
+  <button class="ghost" @click="record('necessary')"> Necessary only </button>
+  <button class="primary" @click="record('all')"> Accept all </button>
+
+=== DesignReview.vue
+  <button class="ghost" @click="revisingId = null">Cancel</button>
+  <button class="warn" :disabled="busy === d.id" @click="sendRevision(d)"> Send to Designer </button>
+  <button class="ghost" @click="startRevision(d)">Request Revision</button>
+  <button class="primary" :disabled="busy === d.id" @click="approve(d)"> {{ busy === d.id ? 'Approving…' : 'Approve Design' }} </button>
+
+=== FlipbookReader.vue
+  <button @click="zoom = Math.max(.6, zoom - .2)" aria-label="Zoom out">−</button>
+  <button @click="zoom = Math.min(2.5, zoom + .2)" aria-label="Zoom in">+</button>
+  <button class="cog" :aria-expanded="settingsOpen" aria-label="Reading settings" @click="settingsOpen = !settingsOpen">Aa</button>
+  <button v-for="o in FLIP_OPTIONS" :key="o.key" role="menuitemradio" :aria-checked="flipStyle === o.key" :class="{ on: flipStyle === o.key }" @click="setFlip(o.key)"> <b>{{ o.label }}</b> <span>{{ o.hint }}</span> </button>
+  <button class="close" @click="emit('close')" aria-label="Close reader">×</button>
+  <button class="nav prev" :disabled="page <= 1" aria-label="Previous page" @click="turn(-1)">‹</button>
+  <button class="nav next" :disabled="page >= pages" aria-label="Next page" @click="turn(1)">›</button>
+  SCRIPT label: 'None'
+  SCRIPT label: 'Subtle'
+  SCRIPT label: 'Page turn'
+
+=== ImageManager.vue
+  <button class="mini danger" :disabled="busy" @click="removeHero"> Remove </button>
+  <UiButton size="sm" :loading="busy" @click="saveCaption">Save</UiButton>
+  <button class="x" :disabled="busy" @click="pendingRemove = img" :aria-label="`Remove image ${img.caption || ''}`">×</button>
+  <button @click="removeInline(img)">Remove</button>
+  <button @click="pendingRemove = null">Keep</button>
+
+=== MessageThread.vue
+  <button :disabled="sending || !draft.trim()" @click="send"> {{ sending ? 'Sending…' : 'Send' }} </button>
+
+=== NotificationBell.vue
+  <button class="bell" :class="{ active: open }" :aria-expanded="open" aria-haspopup="true" aria-controls="notif-panel" :aria-label="unread ? `Notifications, ${unread} unread` : 'Notifications, none unread'" @click="toggle"> <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none
+  <button v-if="unread" class="mark" @click="markAll">Mark all read</button>
+  <button v-for="f in FILTERS" :key="f.key" role="tab" :aria-selected="filter === f.key" :class="{ on: filter === f.key }" @click="filter = f.key">{{ f.label }}</button>
+  SCRIPT label: 'All'
+  SCRIPT label: 'Needs action'
+  SCRIPT label: 'Unread'
+  SCRIPT label: 'Today'
+  SCRIPT label: 'This week'
+  SCRIPT label: 'Earlier'
+
+=== Paywall.vue
+  <button class="cta" disabled>Subscribe — coming soon</button>
+  <router-link to="/login">Sign in</router-link>
+
+=== PublishingPanel.vue
+  <UiButton size="sm" :loading="busy" @click="saveIssue">Save</UiButton>
+  <button role="radio" :aria-checked="!premium" :class="{ on: !premium }" :disabled="busy" @click="saveAccess(false)"> <b>Free</b> <span>Anyone can read it. Draws readers to the magazine.</span> </button>
+  <button role="radio" :aria-checked="premium" :class="{ on: premium }" :disabled="busy" @click="saveAccess(true)"> <b>Subscribers</b> <span>An extract shows, then the paywall.</span> </button>
+
+=== QuickFixes.vue
+  <button class="apply" :disabled="!canEdit || !!busy" @click="emit('decide', f, 'apply')"> {{ busy === f.id ? 'Applying…' : 'Apply' }} </button>
+  <button class="dismiss" :disabled="!canEdit || !!busy" @click="emit('decide', f, 'dismiss')">Dismiss</button>
+
+=== ScanningOverlay.vue
+  <button class="continue" @click="emit('done')"> {{ passed() ? 'Back to dashboard' : 'View the notes' }} </button>
+  SCRIPT label: 'Reading your draft'
+  SCRIPT label: 'Checking grammar and mechanics'
+  SCRIPT label: 'Assessing readability and structure'
+  SCRIPT label: 'Scoring against editorial standards'
+
+=== SlideOver.vue
+  <button class="x" aria-label="Close panel" @click="emit('close')"> <span aria-hidden="true">×</span> </button>
+
+=== StaffLayout.vue
+  <router-link :to="home" class="brand" aria-label="NOVUS workspace home"> <NovusLogo class="brand-logo" decorative /> </router-link>
+  <router-link v-for="n in nav" :key="n.to" :to="n.to" active-class="on" exact-active-class="on" :aria-current="isActive(n.to) ? 'page' : undefined"> {{ n.label }} </router-link>
+  <router-link to="/account" class="who"> <div class="avatar">{{ initials }}</div> <div class="idblock"> <b>{{ auth.user?.first_name }} {{ auth.user?.last_name }}</b> <span>{{ roleLabel }}</span> </div> </router-link>
+  <button class="out" @click="signOut">Sign out</button>
+  SCRIPT label: 'Dashboard'
+  SCRIPT label: 'Calendar'
+  SCRIPT label: 'Archive'
+  SCRIPT label: 'Issues'
+  SCRIPT label: 'Reports'
+  SCRIPT label: 'Pipeline'
+  SCRIPT label: 'Workspace'
+  SCRIPT label: 'Editorial'
+  SCRIPT label: 'Publishing'
+  SCRIPT label: 'Settings'
+
+=== ThemeToggle.vue
+  <button class="btn" :aria-expanded="open" aria-haspopup="true" :aria-label="`Appearance: ${theme.preference}. Change it.`" @click="open = !open"> <span aria-hidden="true">{{ theme.resolved === 'dark' ? '☾' : '☀' }}</span> </button>
+  <button v-for="o in OPTIONS" :key="o.key" role="menuitemradio" :aria-checked="theme.preference === o.key" :class="{ on: theme.preference === o.key }" @click="pick(o.key)"> <span class="ic" aria-hidden="true">{{ o.icon }}</span> {{ o.label }} <span v-if="theme.preference === o.key" class="tick" aria-
+  SCRIPT label: 'Light'
+  SCRIPT label: 'Dark'
+  SCRIPT label: 'System'
+
+=== VersionHistory.vue
+  <button class="toggle" @click="open = !open"> Version history <span class="count">{{ versions.length }}</span> <span class="chev">{{ open ? '▲' : '▼' }}</span> </button>
+  <button :class="{ on: !compare }" @click="compare = false">Content</button>
+  <button :class="{ on: compare }" @click="compare = true"> Changes since </button>
+
+=== AboutView.vue
+  <router-link to="/issues" class="primary">Browse issues</router-link>
+  <router-link to="/read" class="ghost">Read articles →</router-link>
+
+=== AccountSettings.vue
+  <router-link to="/change-password">Change your password</router-link>
+  <UiButton v-if="dirty" @click="revert">Discard changes</UiButton>
+  <UiButton variant="primary" :loading="saving" :disabled="!dirty" @click="save"> Save changes </UiButton>
+
+=== ArchiveView.vue
+  <button v-if="filtered" class="clear" @click="clear">Clear</button>
+
+=== ArticleComposeView.vue
+  <button class="back" @click="back" aria-label="Back to dashboard">←</button>
+  <UiButton size="sm" @click="detailsOpen = true">Details</UiButton>
+  <UiButton size="sm" :loading="saving" :disabled="!canEdit" @click="save()"> Save </UiButton>
+  <UiButton variant="primary" size="sm" :loading="submitting" :disabled="!canEdit" @click="submit"> Submit for review </UiButton>
+  <button v-if="canEdit" class="hx" @click="clearHero" aria-label="Remove hero image">×</button>
+  <button :class="{ on: on('bold') }" @click="cmd('toggleBold')" aria-label="Bold"><b>B</b></button>
+  <button :class="{ on: on('italic') }" @click="cmd('toggleItalic')" aria-label="Italic"><i>I</i></button>
+  <button :class="{ on: on('heading', { level: 2 }) }" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" aria-label="Heading">H2</button>
+  <button :class="{ on: on('heading', { level: 3 }) }" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" aria-label="Subheading">H3</button>
+  <button :class="{ on: on('bulletList') }" @click="cmd('toggleBulletList')" aria-label="Bulleted list">•</button>
+  <button :class="{ on: on('orderedList') }" @click="cmd('toggleOrderedList')" aria-label="Numbered list">1.</button>
+  <button :class="{ on: on('blockquote') }" @click="cmd('toggleBlockquote')" aria-label="Quotation">"</button>
+  <button class="wd" @click="withdrawOpen = true"> Withdraw this article </button>
+  <UiButton variant="primary" full :loading="saving" :disabled="!canEdit" @click="() => { save(); detailsOpen = false }"> Save details </UiButton>
+  <UiButton variant="danger" full :loading="withdrawing" @click="withdraw"> Confirm withdrawal </UiButton>
+
+=== ArticleReviewView.vue
+  <router-link to="/editor" class="back">← Back to dashboard</router-link>
+  <button class="x" aria-label="Remove note" @click="removeNote(i)">×</button>
+  <button class="ghost sm" @click="addNote">+ Add another note</button>
+  <button class="ghost" @click="pullBackOpen = false">Cancel</button>
+  <button class="warn" :disabled="busy" @click="pullBack">Pull back</button>
+  <button v-if="article.status === 'APPROVED' && !pullBackOpen" class="pullback" @click="pullBackOpen = true"> Pull back into review </button>
+  <button class="ghost" @click="showComposer = false">Cancel</button>
+  <button class="warn" :disabled="busy" @click="sendRevision">Send to Writer</button>
+  <button class="ghost" @click="withdrawOpen = false">Cancel</button>
+  <button class="warn" :disabled="busy" @click="withdraw">Confirm Withdrawal</button>
+  <button class="ghost" @click="withdrawOpen = true">Withdraw</button>
+  <button class="primary" @click="overrideOpen = true"> Override AI and Approve </button>
+  <button class="ghost" @click="startRevision">Request Revisions</button>
+  <button class="primary" :disabled="busy" @click="confirmApprove = true">Approve</button>
+  <ConfirmDialog :open="confirmApprove" title="Approve this article?" :message="`“${article.title}” will be marked approved and released to the next stage.`" confirm-label="Approve" :busy="busy" :points="[ 'The writer is notified and can no longer edit it directly.', 'It becomes available for assignme
+  <button class="ghost" @click="overrideOpen = false">Cancel</button>
+  <button class="owarn" :disabled="busy" @click="submitOverride"> {{ busy ? 'Approving…' : 'Override and approve' }} </button>
+
+=== CalendarView.vue
+  <button aria-label="Previous month" @click="step(-1)">‹</button>
+  <button aria-label="Next month" @click="step(1)">›</button>
+  <button class="today" @click="goToday">Today</button>
+  <button v-for="e in cell.events" :key="`${e.kind}-${e.id}`" class="event" :class="[e.kind, { overdue: e.is_overdue, done: e.kind === 'deadline' ? !e.is_open : e.shipped, atrisk: e.kind === 'release' && !e.is_ready && !e.shipped, }]" :title="e.kind === 'release' ? `${e.title} — ${e.approved_articles}
+
+=== ChangePasswordView.vue
+  <button class="primary" type="submit" :disabled="saving || done"> {{ saving ? 'Changing…' : 'Change password' }} </button>
+  <button v-if="forced" type="button" class="link" @click="signOut">Sign out instead</button>
+  <router-link v-else to="/account" class="link">Back to your account</router-link>
+
+=== DesignerArticleView.vue
+  <router-link to="/designer" class="back">Back to workspace</router-link>
+  <button @click="copy('title')"> {{ copied === 'title' ? 'Copied' : 'Copy headline' }} </button>
+  <button @click="copy('all')"> {{ copied === 'all' ? 'Copied' : 'Copy full text' }} </button>
+
+=== DesignerDashboard.vue
+  <UiButton variant="primary" @click="uploadOpen = true"> + Upload layout </UiButton>
+  <UiButton variant="warn" size="sm" @click="uploadOpen = true"> Upload a new version </UiButton>
+  <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key"> {{ t.label }}<span class="count">{{ t.count }}</span> </button>
+  <UiButton variant="primary" @click="uploadOpen = true">Upload a layout</UiButton>
+  <UiButton variant="primary" full :loading="uploading" @click="upload"> Submit for editor review </UiButton>
+  SCRIPT label: 'Ready for layout'
+  SCRIPT label: 'My layouts'
+  SCRIPT label: 'Earlier versions'
+
+=== EditorDashboard.vue
+  <UiButton @click="router.push('/compose')">+ Write article</UiButton>
+  <UiButton variant="primary" @click="assignOpen = true"> + Assign article </UiButton>
+  <button class="alink" @click="showOverdue">Show me</button>
+  <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key"> {{ t.label }} <span v-if="t.count !== null" class="count">{{ t.count }}</span> </button>
+  <button @click="highlightOverdue = false">Show everything</button>
+  SCRIPT label: 'Returned by pre-screening'
+  SCRIPT label: 'Being drafted'
+  SCRIPT label: 'Not started'
+  SCRIPT label: 'Needs you'
+  SCRIPT label: 'With writers'
+  SCRIPT label: 'Approved'
+  SCRIPT label: 'My drafts'
+  SCRIPT label: 'Layouts'
+  SCRIPT title: 'Nothing needs you'
+  SCRIPT title: 'Nothing being written'
+  SCRIPT title: 'You have no drafts'
+  SCRIPT title: 'Nothing approved yet'
+
+=== IssueArchive.vue
+  <router-link v-for="i in issues" :key="i.id" :to="`/issues/${i.id}`" class="issue" data-reveal> <div class="cover"> <img v-if="i.cover_image" :src="i.cover_image" :alt="`Cover of Issue ${i.number}, ${i.title}`" loading="lazy" /> <div v-else class="placeholder" aria-hidden="true"> <span class="n">№ {
+
+=== IssueDetailView.vue
+  <router-link to="/publisher" class="back">Back to pipeline</router-link>
+  <ConfirmDialog :open="confirmClose" :title="`Close Issue #${issue.number}?`" message="The table of contents is fixed. Editors can no longer assign or remove articles." confirm-label="Close the issue" :busy="busy" :points="[ `${issue.total_articles} articles are in this issue.`, 'The designer can lay
+  <ConfirmDialog :open="confirmArchive" :title="`Archive Issue #${issue.number}?`" message="It moves out of the active publishing list. Readers keep access to it in the public archive." confirm-label="Archive" :busy="busy" :points="[ 'It stops appearing among issues in preparation.', 'Its articles rem
+  <ConfirmDialog :open="confirmPublish" :title="`Publish Issue #${issue.number}?`" message="Every article in this issue goes live at once and becomes publicly readable." :confirm-label="`Publish Issue #${issue.number}`" tone="danger" :busy="busy" :require-text="`Issue ${issue.number}`" :points="[ `${i
+  <button class="close-btn" :disabled="busy || !issue.total_articles" @click="confirmClose = true"> Close this issue </button>
+  <button v-if="!reopenOpen" class="close-btn" @click="reopenOpen = true">Reopen</button>
+  <button class="ghost" @click="reopenOpen = false">Cancel</button>
+  <button class="warn" :disabled="busy" @click="reopen">Reopen issue</button>
+  <button v-if="issue.status !== 'PUBLISHED' && issue.status !== 'ARCHIVED'" class="publish" :disabled="busy || !issue.is_ready" @click="confirmPublish = true"> {{ busy ? 'Publishing…' : `Confirm and Publish Issue #${issue.number}` }} </button>
+  <button class="archive" :disabled="busy" @click="confirmArchive = true"> Archive this issue </button>
+
+=== IssueReader.vue
+  <button class="read" :disabled="fetching" @click="openReader"> {{ fetching ? 'Opening…' : 'Read this issue' }} </button>
+  <button class="dl" :disabled="fetching" @click="download"> Download the edition </button>
+  <router-link to="/login" class="sign">Sign in →</router-link>
+  <router-link :to="`/read/${a.id}`"> <span class="idx" aria-hidden="true"> {{ String(i + 1).padStart(2, '0') }} </span> <span class="body"> <span class="cat"> {{ a.category || 'General' }} <span v-if="a.is_premium" class="lock">· Subscriber</span> </span> <span class="head">{{ a.title }}</span> <span
+
+=== IssuesOverview.vue
+  <button class="head" :aria-expanded="expanded === i.id" @click="toggle(i)"> <div class="ident"> <span class="num">Issue {{ i.number }}</span> <span class="title">{{ i.title }}</span> </div> <div class="state"> <span v-if="i.target_release_date" class="target"> {{ daysAway(i.target_release_date) }} <
+
+=== LegalView.vue
+  <router-link v-for="n in NAV" :key="n.key" :to="`/legal/${n.key}`" :class="{ on: route.params.doc === n.key }" :aria-current="route.params.doc === n.key ? 'page' : undefined"> {{ n.label }} </router-link>
+  SCRIPT label: 'Privacy Policy'
+  SCRIPT label: 'Terms of Service'
+  SCRIPT label: 'Cookie Policy'
+  SCRIPT label: 'Refund Policy'
+
+=== NotificationSettings.vue
+  <UiButton variant="primary" :loading="saving" @click="save"> Save preferences </UiButton>
+  SCRIPT label: 'Your work'
+  SCRIPT label: 'An article is assigned to you'
+  SCRIPT label: 'Revisions are requested on your article'
+  SCRIPT label: 'Pre-screening returns your article'
+  SCRIPT label: 'Your article is approved'
+  SCRIPT label: 'Your article is published'
+  SCRIPT label: 'Deadlines'
+  SCRIPT label: 'A deadline is approaching'
+  SCRIPT label: 'A deadline has passed'
+  SCRIPT label: 'The desk'
+  SCRIPT label: 'An article is submitted for review'
+  SCRIPT label: 'A layout is submitted'
+  SCRIPT label: 'A layout is approved'
+  SCRIPT label: 'A layout needs revision'
+  SCRIPT label: 'Conversation'
+  SCRIPT label: 'Someone comments on an article'
+
+=== PlatformSettings.vue
+  <button class="toggle" :class="{ active: form.maintenance_mode }" :disabled="saving" @click="toggleMaintenance"> {{ form.maintenance_mode ? 'Bring site back online' : 'Enable maintenance' }} </button>
+  <ConfirmDialog :open="confirmMaintenance" title="Enable maintenance mode?" message="Readers will not be able to reach the public site until you turn this off." confirm-label="Enable maintenance" tone="warn" :busy="saving" :points="[ 'The public portal and article pages return a maintenance notice.',
+
+=== PublisherDashboard.vue
+  <UiButton variant="primary" @click="newOpen = true">+ New issue</UiButton>
+  <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key"> {{ t.label }}<span class="count">{{ t.count }}</span> </button>
+  <UiButton size="sm" @click="previewId = a.id">Read it</UiButton>
+  <UiButton variant="primary" size="sm" :loading="busy === a.id" @click="pendingSign = a">Sign off</UiButton>
+  <UiButton variant="primary" @click="newOpen = true">Create an issue</UiButton>
+  <UiButton variant="primary" size="sm" :loading="busy === a.id" @click="pendingArticle = a">Publish</UiButton>
+  <UiButton variant="primary" full @click="reviewIssue">Create issue</UiButton>
+  <ConfirmDialog :open="confirmCreate" title="Create this issue?" :message="`Issue ${form.number} — ${form.title} will be created and editors can start assigning articles to it.`" confirm-label="Create issue" :points="[ `Planned for ${form.minimum_articles} articles.`, form.target_release_date ? `Targ
+  <ConfirmDialog :open="!!pendingSign" title="Sign off this article?" :message="pendingSign ? `“${pendingSign.title}” by ${pendingSign.writer_name} will be approved and become eligible for publication.` : ''" confirm-label="Sign off" :points="[ 'You are acting as the second reader on editor-authored c
+  <ConfirmDialog :open="!!pendingArticle" title="Publish this article?" :message="pendingArticle ? `“${pendingArticle.title}” goes live on the reader portal immediately.` : ''" confirm-label="Publish" :points="[ 'It is not part of an issue, so it publishes on its own.', 'The writer is notified.', ]" @
+  SCRIPT label: 'Needs sign-off'
+  SCRIPT label: 'In preparation'
+  SCRIPT label: 'Single articles'
+  SCRIPT label: 'Published'
+
+=== ReaderArticle.vue
+  <router-link :to="`/read?cat=${article.category}`" class="cat" data-intro> {{ article.category || 'General' }} </router-link>
+  <button class="share" @click="share"> {{ shared ? 'Link copied' : 'Share' }} </button>
+  <router-link to="/read" class="back">← All articles</router-link>
+
+=== ReaderHome.vue
+  <router-link v-else-if="lead" :to="`/read/${lead.id}`" class="lead" :class="{ 'no-img': !lead.hero_image }"> <div v-if="lead.hero_image" class="lead-img"> <img :src="lead.hero_image" :alt="lead.hero_caption || `Cover image for ${lead.title}`" /> <div class="scrim" aria-hidden="true"></div> </div> <d
+  <button v-for="c in categories" :key="c" :class="{ on: active === c }" :aria-pressed="active === c" @click="active = c">{{ c }}</button>
+  <router-link v-for="a in rest" :key="a.id" :to="`/read/${a.id}`" class="card" :class="{ 'no-img': !a.hero_image }" data-reveal> <div v-if="a.hero_image" class="thumb"> <img :src="a.hero_image" :alt="`Cover image for ${a.title}`" loading="lazy" /> </div> <span class="cat"> {{ a.category || 'General' 
+
+=== ReaderLoginView.vue
+  <router-link to="/read" class="back">← Back to BOSS</router-link>
+  <button type="button" class="peek" :aria-pressed="showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword"> <span aria-hidden="true">{{ showPassword ? 'Hide' : 'Show' }}</span> </button>
+  <button class="go" :disabled="loading" @click="submit"> {{ loading ? 'Signing in…' : 'Sign in' }} </button>
+  <router-link to="/register">Create an account</router-link>
+
+=== ReaderRegisterView.vue
+  <router-link to="/read" class="back">← Back to BOSS</router-link>
+  <button type="button" class="peek" @click="showPassword = !showPassword"> {{ showPassword ? 'Hide' : 'Show' }} </button>
+  <router-link to="/legal/terms" target="_blank">Terms of Service</router-link>
+  <router-link to="/legal/privacy" target="_blank">Privacy Policy</router-link>
+  <button class="go" :disabled="loading" @click="submit"> {{ loading ? 'Creating account…' : 'Create account' }} </button>
+  <router-link to="/login">Sign in</router-link>
+
+=== ReportsView.vue
+  <button v-for="t in TABS" :key="t.key" :class="{ on: tab === t.key }" @click="pick(t.key)"> {{ t.label }} </button>
+  <button class="csv" @click="exportCsv">Export CSV</button>
+  SCRIPT label: 'AI evaluation'
+  SCRIPT label: 'Editorial pipeline'
+  SCRIPT label: 'Production'
+  SCRIPT label: 'Subscriptions'
+
+=== SavedArticles.vue
+  <router-link to="/read" class="cta">Browse articles</router-link>
+  <router-link :to="`/read/${a.id}`" class="card"> <div v-if="a.hero_image" class="thumb"> <img :src="a.hero_image" :alt="`Cover image for ${a.title}`" loading="lazy" /> </div> <div class="body"> <span class="cat"> {{ a.category || 'General' }} <span v-if="a.is_premium" class="lock">· Subscriber</span
+
+=== StaffLoginView.vue
+  <button type="button" class="show" :aria-pressed="showPassword" @click="showPassword = !showPassword"> <EyeOff v-if="showPassword" aria-hidden="true" /> <Eye v-else aria-hidden="true" /> {{ showPassword ? 'Hide' : 'Show' }} </button>
+  <button class="submit" type="submit" :disabled="loading || throttled"> <template v-if="loading">Signing in&hellip;</template> <template v-else>Sign in <ArrowRight aria-hidden="true" /></template> </button>
+  <router-link to="/read">Visit BOSS Magazine &rarr;</router-link>
+
+=== WriterDashboard.vue
+  <UiButton variant="primary" @click="router.push('/writer/compose')"> + Draft article </UiButton>
+  <button class="fx" aria-label="Dismiss" @click="justScored = null">×</button>
+  <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key"> {{ t.label }}<span class="count">{{ t.count }}</span> </button>
+  <UiButton variant="primary" @click="router.push('/writer/compose')"> Draft an article </UiButton>
+  SCRIPT label: 'To write'
+  SCRIPT label: 'With the editor'
+  SCRIPT label: 'Finished'
+  SCRIPT title: 'Nothing to write'
+  SCRIPT title: 'Nothing with the editor'
+  SCRIPT title: 'Nothing finished yet'
+
+=== DJANGO ADMIN (accounts)
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+
+from .models import ReaderProfile, User
+
+
+class ReaderProfileInline(admin.StackedInline):
+    """Subscription entitlement. Payment automation is Phase 2 (Module 9);
+    until then an Admin grants a tier here and UC-8.2 enforces it."""
+    model = ReaderProfile
+    can_delete = False
+    extra = 0
+
+
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    """Module 5: Manage User Privileges, delivered through the Django
+    administration interface."""
+
+    list_display = ["email", "get_full_name", "role", "is_active",
+                    "is_suspended", "must_reset_password", "last_login"]
+    list_filter = ["role", "is_active", "is_suspended", "must_reset_password"]
+    search_fields = ["email", "first_name", "last_name"]
+    ordering = ["last_name", "first_name"]
+    inlines = [ReaderProfileInline]
+
+    fieldsets = (
+        (None, {"fields": ("email", "password")}),
+        ("Identity", {"fields": ("first_name", "last_name")}),
+        ("Role and access", {
+            "fields": ("role", "is_active", "is_suspended", "must_reset_password"),
+            "description": "Suspending an account revokes access immediately "
+                           "(UC-5.2.2). Their work is retained.",
+        }),
+        ("Permissions", {"fields": ("is_staff", "is_superuser",
+                                    "groups", "user_permissions"),
+                         "classes": ("collapse",)}),
+        ("Dates", {"fields": ("last_login", "date_joined"), "classes": ("collapse",)}),
+    )
+    add_fieldsets = (
+        (None, {
+            "classes": ("wide",),
+            "fields": ("email", "first_name", "last_name", "role",
+                       "password1", "password2"),
+        }),
+    )
+
+    actions = ["suspend_accounts", "restore_accounts", "require_password_reset"]
+
+    @admin.action(description="Suspend selected accounts (UC-5.2.2)")
+    def suspend_accounts(self, request, queryset):
+        n = queryset.exclude(pk=request.user.pk).update(
+            is_suspended=True, is_active=False)
+        self.message_user(request, f"{n} account(s) suspended.")
+
+    @admin.action(description="Restore selected accounts")
+    def restore_accounts(self, request, queryset):
+        n = queryset.update(is_suspended=False, is_active=True)
+        self.message_user(request, f"{n} account(s) restored.")
+
+    @admin.action(description="Require a password reset (UC-5.2.3)")
+    def require_password_reset(self, request, queryset):
+        n = queryset.update(must_reset_password=True)
+        self.message_user(request, f"{n} user(s) must reset their password.")
+
+
+@admin.register(ReaderProfile)
+class ReaderProfileAdmin(admin.ModelAdmin):
+    list_display = ["user", "tier", "subscription_started_at"]
+    list_filter = ["tier"]
+    search_fields = ["user__email"]
+
+
+from .models import PasswordHistory  # noqa: E402
+
+
+@admin.register(PasswordHistory)
+class PasswordHistoryAdmin(admin.ModelAdmin):
+    """Read-only: the history is evidence, not something to edit."""
+    list_display = ["user", "created_at"]
+    readonly_fields = ["user", "password_hash", "created_at"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
