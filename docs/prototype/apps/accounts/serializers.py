@@ -1,4 +1,9 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .models import ReaderProfile
@@ -35,14 +40,24 @@ class UserSerializer(serializers.ModelSerializer):
     """UC-6.4 Update Profile Information + `me` endpoint."""
 
     reader_profile = ReaderProfileSerializer(read_only=True)
+    must_change_password = serializers.SerializerMethodField()
+    password_expires_at = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "role",
-            "is_suspended", "reader_profile",
+            "is_suspended", "reader_profile", "must_change_password", "password_expires_at",
         ]
         read_only_fields = ["role", "is_suspended"]
+
+    def get_must_change_password(self, obj):
+        return obj.must_change_password
+
+    def get_password_expires_at(self, obj):
+        if not obj.password_changed_at:
+            return None
+        return obj.password_changed_at + timedelta(days=getattr(settings, "PASSWORD_EXPIRY_DAYS", 90))
 
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
@@ -84,4 +99,22 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
                 })
 
         attrs.pop("current_password", None)
+        return attrs
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Change one's own password. The current password proves it is the owner;
+    the new one runs every configured validator, including the history rule."""
+
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        if not user.check_password(attrs["current_password"]):
+            raise serializers.ValidationError({"current_password": "That password is not correct."})
+        try:
+            validate_password(attrs["new_password"], user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"new_password": list(exc.messages)})
         return attrs

@@ -3,7 +3,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import User
-from .serializers import UpdateProfileSerializer, RegisterSerializer, UserSerializer
+from .serializers import (
+    ChangePasswordSerializer, RegisterSerializer, UpdateProfileSerializer, UserSerializer,
+)
+from .throttles import PasswordChangeRateThrottle
 
 
 class RegisterView(generics.CreateAPIView):
@@ -52,3 +55,20 @@ class WriterListView(APIView):
             {"id": w.id, "first_name": w.first_name, "last_name": w.last_name}
             for w in writers
         ])
+
+
+class ChangePasswordView(APIView):
+    """Change one's own password, by choice or because it has expired.
+    Clears must_reset_password, which unlocks an expired account."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [PasswordChangeRateThrottle]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.set_password(serializer.validated_data["new_password"])
+        user.must_reset_password = False
+        user.save()
+        return Response(UserSerializer(user).data)

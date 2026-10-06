@@ -1,0 +1,521 @@
+=== ROUTES
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+import ReaderLoginView from '../views/ReaderLoginView.vue'
+import ReaderRegisterView from '../views/ReaderRegisterView.vue'
+import StaffLoginView from '../views/StaffLoginView.vue'
+import WriterDashboard from '../views/WriterDashboard.vue'
+import ArticleComposeView from '../views/ArticleComposeView.vue'
+import EditorDashboard from '../views/EditorDashboard.vue'
+import ReportsView from '../views/ReportsView.vue'
+import ArchiveView from '../views/ArchiveView.vue'
+import IssuesOverview from '../views/IssuesOverview.vue'
+import CalendarView from '../views/CalendarView.vue'
+import NotificationSettings from '../views/NotificationSettings.vue'
+import PlatformSettings from '../views/PlatformSettings.vue'
+import ArticleReviewView from '../views/ArticleReviewView.vue'
+import PublisherDashboard from '../views/PublisherDashboard.vue'
+import IssueDetailView from '../views/IssueDetailView.vue'
+import DesignerDashboard from '../views/DesignerDashboard.vue'
+import DesignerArticleView from '../views/DesignerArticleView.vue'
+import ReaderHome from '../views/ReaderHome.vue'
+import ReaderArticle from '../views/ReaderArticle.vue'
+import IssueArchive from '../views/IssueArchive.vue'
+import SavedArticles from '../views/SavedArticles.vue'
+import AccountSettings from '../views/AccountSettings.vue'
+import AboutView from '../views/AboutView.vue'
+import LegalView from '../views/LegalView.vue'
+import IssueReader from '../views/IssueReader.vue'
+
+const routes = [
+  { path: '/', redirect: '/read' },
+  { path: '/login', component: ReaderLoginView },
+  { path: '/register', component: ReaderRegisterView },
+  { path: '/staff/login', component: StaffLoginView },
+  { path: '/writer', component: WriterDashboard, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/writer/compose', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/writer/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  // Editors write too. Same composer, a path that does not imply otherwise.
+  { path: '/compose', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true, roles: ['EDITOR'] } },
+  { path: '/calendar', component: CalendarView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR', 'PUBLISHER'] } },
+  { path: '/notifications', component: NotificationSettings, meta: { requiresAuth: true } },
+  { path: '/issues-overview', component: IssuesOverview, meta: { requiresAuth: true, roles: ['EDITOR', 'GRAPHIC_DESIGNER', 'PUBLISHER'] } },
+  { path: '/archive', component: ArchiveView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR', 'PUBLISHER', 'GRAPHIC_DESIGNER'] } },
+  { path: '/reports', component: ReportsView, meta: { requiresAuth: true, roles: ['EDITOR', 'PUBLISHER'] } },
+  { path: '/settings', component: PlatformSettings, meta: { requiresAuth: true, roles: [] } },
+  { path: '/editor/review/:id', component: ArticleReviewView, meta: { requiresAuth: true, roles: ['EDITOR', 'PUBLISHER'] } },
+  { path: '/publisher', component: PublisherDashboard, meta: { requiresAuth: true, roles: ['PUBLISHER'] } },
+  { path: '/publisher/issue/:id', component: IssueDetailView, meta: { requiresAuth: true, roles: ['PUBLISHER'] } },
+  { path: '/designer', component: DesignerDashboard, meta: { requiresAuth: true, roles: ['GRAPHIC_DESIGNER'] } },
+  { path: '/designer/article/:id', component: DesignerArticleView, meta: { requiresAuth: true, roles: ['GRAPHIC_DESIGNER'] } },
+  { path: '/read', component: ReaderHome },
+  { path: '/read/:id', component: ReaderArticle },
+  { path: '/saved', component: SavedArticles, meta: { requiresAuth: true } },
+  { path: '/account', component: AccountSettings, meta: { requiresAuth: true } },
+  { path: '/issues', component: IssueArchive },
+  { path: '/about', component: AboutView },
+  { path: '/legal/:doc', component: LegalView },
+  { path: '/legal', redirect: '/legal/privacy' },
+  { path: '/issues/:id', component: IssueReader },
+]
+
+const router = createRouter({ history: createWebHistory(), routes })
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+  if (to.meta.requiresAuth && !auth.isAuthenticated) return '/staff/login'
+  return true
+})
+
+// Role guard. Runs after the sign-in guard: a signed-in account that opens
+// a workspace it has no part in is returned to its own. The administrator
+// passes every role check.
+const HOME = { WRITER: '/writer', EDITOR: '/editor', PUBLISHER: '/publisher',
+               GRAPHIC_DESIGNER: '/designer', ADMIN: '/editor', READER: '/read' }
+router.beforeEach(async (to) => {
+  const roles = to.meta.roles
+  if (!roles) return true
+  const auth = useAuthStore()
+  if (!auth.isAuthenticated) return true
+  if (!auth.user) { try { await auth.fetchUser() } catch { return true } }
+  const role = auth.user?.role ?? auth.role
+  if (role === 'ADMIN' || roles.includes(role)) return true
+  return HOME[role] || '/read'
+})
+
+export default router
+
+
+=== AssignArticle.vue
+  LABEL       TOPIC / HEADLINE
+  LABEL       ANGLE / BRIEF
+  LABEL       WRITER Select a writer…
+  LABEL       CATEGORY — Business Tech Life Innovation Leadership
+  LABEL       DEADLINE
+  PLACEHOLDER What should the writer cover?
+  PLACEHOLDER The angle, sources to approach, what to avoid…
+  TAB/OPTION  Select a writer…
+  TAB/OPTION  —
+  TAB/OPTION  Business
+  TAB/OPTION  Tech
+  TAB/OPTION  Life
+  TAB/OPTION  Innovation
+  TAB/OPTION  Leadership
+
+=== BookmarkButton.vue
+  LINK        Sign in
+  ARIA        on ? 'Remove from saved articles' : 'Save this article'
+
+=== BossShell.vue
+  HEADING     Read
+  HEADING     Account
+  HEADING     Legal
+  BUTTON      Sign out
+  LINK        Saved
+  LINK        Subscriber
+  LINK        Sign in
+  LINK        Articles
+  LINK        Issues
+  LINK        About
+  LINK        Back to workspace
+  LINK        Create account
+  LINK        Privacy Policy
+  LINK        Terms of Service
+  LINK        Cookie Policy
+  LINK        Refund Policy
+  ARIA        BOSS Magazine PH — home
+  ARIA        Primary
+  ARIA        Footer
+  ARIA        Account
+  ARIA        Legal
+
+=== ConfirmDialog.vue
+  BUTTON      Cancel
+  LABEL       Type to confirm
+  PLACEHOLDER requireText
+
+=== CookieNotice.vue
+  HEADING     Browser storage
+  BUTTON      Necessary only
+  BUTTON      Accept all
+  LINK        Read the full Cookie Policy →
+  ARIA        Cookie and storage notice
+
+=== DesignReview.vue
+  HEADING     Magazine layouts awaiting review
+  HEADING     Reviewed layouts
+  BUTTON      Cancel
+  BUTTON      Send to Designer
+  BUTTON      Request Revision
+  PLACEHOLDER Layout, typography, imagery or branding corrections…
+
+=== EvaluationPanel.vue
+  HEADING     Overridden by an editor
+  HEADING     Needs rework
+  HEADING     Returned for revision
+  HEADING     Passed pre-screening
+
+=== FlipbookReader.vue
+  BUTTON      −
+  BUTTON      +
+  BUTTON      Aa
+  BUTTON      ×
+  BUTTON      ‹
+  BUTTON      = pages" aria-label="Next page" @click="turn(1)">›
+  ARIA        `Reading ${title}`
+  ARIA        Zoom out
+  ARIA        Zoom in
+  ARIA        Reading settings
+  ARIA        Close reader
+  ARIA        Previous page
+  ARIA        `Page ${page} of ${pages}`
+  ARIA        Next page
+  ARIA        Jump to page
+
+=== ImageManager.vue
+  BUTTON      Remove
+  BUTTON      Save
+  BUTTON      ×
+  BUTTON      Keep
+  LABEL       Replace
+  LABEL       + Add a hero image This article has none. It will run as text-only.
+  LABEL       CAPTION OR CREDIT Save
+  LABEL       + Add image
+  PLACEHOLDER Photographer, location, or context
+  ARIA        `Remove image ${img.caption || ''}`
+
+=== MessageThread.vue
+  PLACEHOLDER Write a message…
+
+=== NotificationBell.vue
+  BUTTON      Mark all read
+  ARIA        unread ? `Notifications, ${unread} unread` : 'Notifications, none unread'
+  ARIA        Notifications
+  ARIA        Filter notifications
+  ARIA        `${n.message}${n.is_read ? '' : ', unread'}`
+
+=== Paywall.vue
+  HEADING     Keep reading with a BOSS subscription
+  BUTTON      Subscribe — coming soon
+  LINK        Sign in
+
+=== PublishingPanel.vue
+  BUTTON      Save
+  BUTTON      Free Anyone can read it. Draws readers to the magazine.
+  BUTTON      Subscribers An extract shows, then the paywall.
+  LABEL       ISSUE
+  LABEL       READER ACCESS
+  TAB/OPTION  Not in an issue — publishes on its own
+  TAB/OPTION  Issue —
+
+=== QuickFixes.vue
+  HEADING     Quick fixes
+  BUTTON      Dismiss
+
+=== ScanningOverlay.vue
+  HEADING     Pre-screening your submission
+  HEADING     Sent for manual review
+
+=== SlideOver.vue
+  BUTTON      ×
+  ARIA        Close panel
+
+=== StaffLayout.vue
+  BUTTON      Sign out
+  ARIA        NOVUS workspace home
+  ARIA        At a glance
+
+=== ThemeToggle.vue
+  BUTTON      ✓
+  ARIA        `Appearance: ${theme.preference}. Change it.`
+
+=== VersionHistory.vue
+  BUTTON      Version history
+  BUTTON      Content
+  BUTTON      Changes since
+
+=== AboutView.vue
+  HEADING     About Boss Magazine Ph
+  HEADING     About BOSS Magazine PH
+  HEADING     Colophon
+  LINK        Browse issues
+  LINK        Read articles →
+
+=== AccountSettings.vue
+  HEADING     Your account
+  HEADING     Name
+  HEADING     Sign-in email
+  HEADING     Password
+  BUTTON      Discard changes
+  BUTTON      Save changes
+  LABEL       FIRST NAME
+  LABEL       LAST NAME
+  LABEL       EMAIL
+  LABEL       CURRENT PASSWORD
+
+=== ArchiveView.vue
+  BUTTON      Clear
+  PLACEHOLDER Search headlines, copy, or writers…
+  ARIA        Search the archive
+  ARIA        Filter by issue
+  ARIA        Filter by category
+  ARIA        Filter by year
+  TAB/OPTION  All issues
+  TAB/OPTION  Issue —
+  TAB/OPTION  All categories
+  TAB/OPTION  All years
+
+=== ArticleComposeView.vue
+  HEADING     Your brief
+  BUTTON      ←
+  BUTTON      Details
+  BUTTON      Save
+  BUTTON      Submit for review
+  BUTTON      ×
+  BUTTON      B
+  BUTTON      I
+  BUTTON      H2
+  BUTTON      H3
+  BUTTON      •
+  BUTTON      1.
+  BUTTON      "
+  BUTTON      Withdraw this article
+  BUTTON      { save(); detailsOpen = false }"> Save details
+  BUTTON      Confirm withdrawal
+  LABEL       CATEGORY Uncategorised Business Tech Life Innovation Leadership
+  LABEL       HERO IMAGE
+  LABEL       CAPTION OR CREDIT
+  LABEL       REASON
+  PLACEHOLDER Headline
+  PLACEHOLDER Standfirst — one sentence beneath the headline
+  PLACEHOLDER Photographer, location, or context
+  PLACEHOLDER Why is this being withdrawn?
+  ARIA        Back to dashboard
+  ARIA        Headline
+  ARIA        Standfirst
+  ARIA        Remove hero image
+  ARIA        Formatting
+  ARIA        Bold
+  ARIA        Italic
+  ARIA        Heading
+  ARIA        Subheading
+  ARIA        Bulleted list
+  ARIA        Numbered list
+  ARIA        Quotation
+  ARIA        Article context
+  TAB/OPTION  Uncategorised
+  TAB/OPTION  Business
+  TAB/OPTION  Tech
+  TAB/OPTION  Life
+  TAB/OPTION  Innovation
+  TAB/OPTION  Leadership
+
+=== ArticleReviewView.vue
+  HEADING     Override the pre-screening verdict
+  BUTTON      ×
+  BUTTON      + Add another note
+  BUTTON      Cancel
+  BUTTON      Pull back
+  BUTTON      Pull back into review
+  BUTTON      Send to Writer
+  BUTTON      Confirm Withdrawal
+  BUTTON      Withdraw
+  BUTTON      Override AI and Approve
+  BUTTON      Request Revisions
+  BUTTON      Approve
+  LINK        ← Back to dashboard
+  LABEL       EDITORIAL JUSTIFICATION
+  PLACEHOLDER Section
+  PLACEHOLDER Specific instruction for the writer…
+  PLACEHOLDER Why is this being withdrawn?
+  PLACEHOLDER Why is this coming back?
+  PLACEHOLDER Why should this run despite the score?
+  ARIA        Review context
+  ARIA        Remove note
+  TAB/OPTION  GRAMMAR
+  TAB/OPTION  TONE
+  TAB/OPTION  STRUCTURE
+  TAB/OPTION  FACTUAL
+  TAB/OPTION  LOW
+  TAB/OPTION  MEDIUM
+  TAB/OPTION  HIGH
+
+=== CalendarView.vue
+  BUTTON      ‹
+  BUTTON      ›
+  BUTTON      Today
+  LABEL       Show settled
+  ARIA        Previous month
+  ARIA        Next month
+  ARIA        `${MONTHS[month - 1]} ${year}`
+
+=== DesignerArticleView.vue
+  HEADING     ARTICLE FOR LAYOUT
+  LINK        Back to workspace
+
+=== DesignerDashboard.vue
+  HEADING     article
+  HEADING     At a glance
+  BUTTON      + Upload layout
+  BUTTON      Upload a new version
+  BUTTON      Upload a layout
+  BUTTON      Submit for editor review
+  LABEL       ISSUE Select an issue… Issue —
+  LABEL       VERSION
+  LABEL       LAYOUT PDF
+  LABEL       COVER IMAGE
+  LABEL       NOTES TO EDITOR
+  PLACEHOLDER v1.0
+  PLACEHOLDER Anything the editor should know about this version
+  ARIA        Designer views
+  ARIA        `Open ${d.file_name}`
+  ARIA        `Uploading, ${progress} per cent complete`
+  TAB/OPTION  Select an issue…
+  TAB/OPTION  Issue —
+
+=== EditorDashboard.vue
+  HEADING     At a glance
+  BUTTON      + Write article
+  BUTTON      + Assign article
+  BUTTON      Show me
+  BUTTON      Show everything
+  PLACEHOLDER Search by title or writer
+  ARIA        Article groups
+  ARIA        Search articles
+  ARIA        `Pre-screening score ${a.latest_score}`
+
+=== IssueArchive.vue
+  HEADING     All Issues
+  LINK        № Issue · articles
+  ARIA        Published issues
+
+=== IssueDetailView.vue
+  HEADING     ISSUE #
+  HEADING     Articles in this issue
+  HEADING     Magazine layout
+  BUTTON      Close this issue
+  BUTTON      Reopen
+  BUTTON      Cancel
+  BUTTON      Reopen issue
+  BUTTON      Archive this issue
+  LINK        Back to pipeline
+  LABEL       WHY IS THIS BEING REOPENED?
+  PLACEHOLDER A late feature was confirmed for this issue…
+
+=== IssueReader.vue
+  HEADING     In this issue
+  BUTTON      Download the edition
+  LINK        Sign in →
+  LINK        · Subscriber · min read
+
+=== IssuesOverview.vue
+  HEADING     In preparation
+  HEADING     Published
+  BUTTON      Issue
+
+=== LegalView.vue
+  HEADING     Legal
+  HEADING     On this page
+  ARIA        Legal documents
+  ARIA        On this page
+
+=== NotificationSettings.vue
+  HEADING     Email
+  BUTTON      Save preferences
+  LABEL       Show notifications in the app Turning this off silences everything below.
+
+=== PlatformSettings.vue
+  HEADING     Maintenance mode
+  HEADING     Site
+  HEADING     Integrations
+  LABEL       MESSAGE SHOWN TO READERS
+  LABEL       SITE NAME
+  LABEL       ACCENT COLOUR
+  LABEL       TAGLINE
+  LABEL       ARTICLES PER PAGE
+  PLACEHOLDER Shown beneath the masthead
+
+=== PublisherDashboard.vue
+  HEADING     At a glance
+  HEADING     Ready now
+  BUTTON      + New issue
+  BUTTON      Read it
+  BUTTON      Sign off
+  BUTTON      Create an issue
+  BUTTON      Publish
+  BUTTON      Create issue
+  LABEL       ISSUE NUMBER
+  LABEL       TITLE
+  LABEL       TARGET RELEASE DATE
+  LABEL       PLANNED ARTICLE COUNT
+  PLACEHOLDER 14
+  PLACEHOLDER The April Issue
+  ARIA        Publishing groups
+
+=== ReaderArticle.vue
+  LINK        ← All articles
+  ARIA        Reading progress
+
+=== ReaderHome.vue
+  HEADING     Latest
+  LINK        · Subscriber · · min read Read the story →
+  LINK        · Subscriber By · min
+  ARIA        Filter articles by category
+
+=== ReaderLoginView.vue
+  LINK        ← Back to BOSS
+  LINK        Create an account
+  LABEL       EMAIL
+  LABEL       PASSWORD
+  ARIA        showPassword ? 'Hide password' : 'Show password'
+
+=== ReaderRegisterView.vue
+  HEADING     BOSS
+  LINK        ← Back to BOSS
+  LINK        Terms of Service
+  LINK        Privacy Policy
+  LINK        Sign in
+  LABEL       FIRST NAME
+  LABEL       LAST NAME
+  LABEL       EMAIL
+  LABEL       PASSWORD
+  LABEL       I have read and accept the Terms of Service and Privacy Policy .
+  LABEL       Email me when a new issue is published. Optional — you can change this at any time.
+
+=== ReportsView.vue
+  HEADING     Component averages
+  HEADING     Most flagged
+  HEADING     Writer output
+  HEADING     Issue readiness
+  HEADING     Digital editions
+  BUTTON      Export CSV
+  TAB/OPTION  Last 30 days
+  TAB/OPTION  Last 90 days
+  TAB/OPTION  Last year
+
+=== SavedArticles.vue
+  HEADING     Saved articles
+  LINK        Browse articles
+  LINK        · Subscriber · · min read
+
+=== StaffLoginView.vue
+  HEADING     Sign in
+  BUTTON      Signing in&hellip; Sign in
+  LINK        Visit BOSS Magazine &rarr;
+  LABEL       Email address
+  LABEL       Password
+  PLACEHOLDER you@bossmedia.ph
+
+=== WriterDashboard.vue
+  HEADING     At a glance
+  HEADING     Next deadlines
+  BUTTON      + Draft article
+  BUTTON      ×
+  BUTTON      Draft an article
+  PLACEHOLDER Search your articles
+  ARIA        Dismiss
+  ARIA        Your articles
+  ARIA        Search your articles
+  ARIA        `Pre-screening score ${a.latest_score}`

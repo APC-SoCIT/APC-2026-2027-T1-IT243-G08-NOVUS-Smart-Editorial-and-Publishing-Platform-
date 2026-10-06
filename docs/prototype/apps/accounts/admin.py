@@ -69,3 +69,19 @@ class ReaderProfileAdmin(admin.ModelAdmin):
     list_display = ["user", "tier", "subscription_started_at"]
     list_filter = ["tier"]
     search_fields = ["user__email"]
+
+
+from .models import PasswordHistory  # noqa: E402
+
+
+@admin.register(PasswordHistory)
+class PasswordHistoryAdmin(admin.ModelAdmin):
+    """Read-only: the history is evidence, not something to edit."""
+    list_display = ["user", "created_at"]
+    readonly_fields = ["user", "password_hash", "created_at"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

@@ -22,6 +22,7 @@ import ReaderArticle from '../views/ReaderArticle.vue'
 import IssueArchive from '../views/IssueArchive.vue'
 import SavedArticles from '../views/SavedArticles.vue'
 import AccountSettings from '../views/AccountSettings.vue'
+import ChangePasswordView from '../views/ChangePasswordView.vue'
 import AboutView from '../views/AboutView.vue'
 import LegalView from '../views/LegalView.vue'
 import IssueReader from '../views/IssueReader.vue'
@@ -53,6 +54,7 @@ const routes = [
   { path: '/read/:id', component: ReaderArticle },
   { path: '/saved', component: SavedArticles, meta: { requiresAuth: true } },
   { path: '/account', component: AccountSettings, meta: { requiresAuth: true } },
+  { path: '/change-password', component: ChangePasswordView, meta: { requiresAuth: true } },
   { path: '/issues', component: IssueArchive },
   { path: '/about', component: AboutView },
   { path: '/legal/:doc', component: LegalView },
@@ -82,6 +84,16 @@ router.beforeEach(async (to) => {
   const role = auth.user?.role ?? auth.role
   if (role === 'ADMIN' || roles.includes(role)) return true
   return HOME[role] || '/read'
+})
+
+// Password policy: an account whose password has expired, or which an
+// administrator has flagged, goes to the change screen and nowhere else.
+// The API enforces the same rule; this keeps the user from hitting it.
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+  if (!auth.isAuthenticated || to.path === '/change-password') return true
+  if (!auth.user) { try { await auth.fetchUser() } catch { return true } }
+  return auth.user?.must_change_password ? '/change-password' : true
 })
 
 export default router

@@ -91,6 +91,7 @@ const err = (field) => {
 
     <div class="page" :class="{ boss: !isStaff }">
       <h1 v-if="!isStaff">Your account</h1>
+      <p class="pw-link"><router-link to="/change-password">Change your password</router-link></p>
 
       <p v-if="saved" class="ok" role="status">{{ saved }}</p>
       <p v-if="err('detail')" class="bad" role="alert">{{ err('detail') }}</p>
@@ -203,4 +204,6 @@ input[aria-invalid="true"] { border-color: var(--bad); }
 
 .actions { display: flex; gap: var(--s-3); justify-content: flex-end;
            margin-top: var(--s-5); }
+.pw-link { margin: 6px 0 0; font-size: 14px; }
+.pw-link a { color: #3d5ba9; font-weight: 600; }
 </style>

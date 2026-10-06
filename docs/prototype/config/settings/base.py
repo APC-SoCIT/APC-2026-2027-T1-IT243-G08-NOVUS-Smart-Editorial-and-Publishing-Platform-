@@ -83,11 +83,17 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "apps.accounts.validators.PasswordHistoryValidator"},
 ]
+
+# Password policy, following PCI DSS v4.0: a password expires 90 days after
+# it was set (8.3.9) and may not repeat any of the last four (8.3.7).
+PASSWORD_EXPIRY_DAYS = int(os.environ.get("PASSWORD_EXPIRY_DAYS", 90))
+PASSWORD_HISTORY_COUNT = int(os.environ.get("PASSWORD_HISTORY_COUNT", 4))
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.accounts.authentication.PasswordPolicyAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
@@ -100,6 +106,7 @@ REST_FRAMEWORK = {
         "login": "5/min",
         "register": "10/hour",
         "refresh": "30/min",
+        "password_change": "10/hour",
     },
 }
 

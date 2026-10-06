@@ -111,4 +111,14 @@ api.interceptors.response.use(
   },
 )
 
+// If the API reports that the password must be changed first, go there.
+api.interceptors.response.use((r) => r, (error) => {
+  if (error.response?.status === 403
+      && error.response.data?.code === 'password_change_required'
+      && window.location.pathname !== '/change-password') {
+    window.location.assign('/change-password')
+  }
+  return Promise.reject(error)
+})
+
 export default api

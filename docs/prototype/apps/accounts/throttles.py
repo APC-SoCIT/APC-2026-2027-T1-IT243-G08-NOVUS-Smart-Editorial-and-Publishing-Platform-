@@ -11,7 +11,7 @@ someone else's attempts, which is the usual trade.
 Counts live in Django's cache. With a single application process that is
 shared by every request; it resets when the service restarts.
 """
-from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle
+from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle, UserRateThrottle
 
 
 class LoginRateThrottle(SimpleRateThrottle):
@@ -30,3 +30,7 @@ class RegisterRateThrottle(AnonRateThrottle):
 
 class RefreshRateThrottle(AnonRateThrottle):
     scope = "refresh"
+
+
+class PasswordChangeRateThrottle(UserRateThrottle):
+    scope = "password_change"
