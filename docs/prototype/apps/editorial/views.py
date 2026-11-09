@@ -734,30 +734,42 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def reassign(self, request, pk=None):
-        """UC-1.1 A1: move an assignment to a different Writer, for reallocation
-        when the original Writer cannot deliver."""
+        """UC-1.1 A3: move an assignment to a different Writer, for reallocation
+        when the original Writer cannot deliver. Any draft so far goes with
+        it, so the new Writer does not start from nothing."""
         from apps.accounts.models import User
 
         article = self.get_object()
         if article.status not in (Article.Status.ASSIGNED, Article.Status.DRAFTING):
             return Response(
-                {"detail": "Only an unsubmitted article can be reassigned."},
+                {"detail": "Only an article that has not been submitted can be reassigned."},
                 status=status.HTTP_409_CONFLICT,
             )
-        try:
-            writer = User.objects.get(pk=request.data.get("writer"),
-                                      role=User.Role.WRITER)
-        except User.DoesNotExist:
-            return Response({"detail": "Writer not found."},
-                            status=status.HTTP_404_NOT_FOUND)
+        writer = User.objects.filter(pk=request.data.get("writer"), role=User.Role.WRITER,
+                                     is_active=True, is_suspended=False).first()
+        if writer is None:
+            return Response({"writer": ["Choose an active writer."]},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if writer.pk == article.writer_id:
+            return Response({"writer": ["The article is already with this writer."]},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        article.writer = writer
         if request.data.get("deadline"):
-            article.deadline = request.data["deadline"]
+            from rest_framework.fields import DateField
+            # Parsed, not stored as sent: a string in a date field breaks
+            # every later comparison with today.
+            article.deadline = DateField().run_validation(request.data["deadline"])
+
+        previous = article.writer
+        article.writer = writer
         article.save(update_fields=["writer", "deadline", "updated_at"])
         notify(writer, Notification.Kind.ASSIGNED,
                f'"{article.title}" has been reassigned to you.',
                f"/writer/compose/{article.id}")
+        # The previous writer would otherwise find it gone from their
+        # dashboard with no word why.
+        notify(previous, Notification.Kind.ASSIGNED,
+               f'"{article.title}" has been moved to another writer.', "/writer")
         return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["post"], url_path="pull-back")

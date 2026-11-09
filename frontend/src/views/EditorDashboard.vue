@@ -5,6 +5,7 @@ import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import StaffLayout from '../components/StaffLayout.vue'
 import AssignArticle from '../components/AssignArticle.vue'
+import ReassignArticle from '../components/ReassignArticle.vue'
 import SlideOver from '../components/SlideOver.vue'
 import DesignReview from '../components/DesignReview.vue'
 import UiBadge from '../components/ui/UiBadge.vue'
@@ -22,6 +23,8 @@ const tab = ref('attention')
 const search = ref('')
 const highlightOverdue = ref(false)
 const assignOpen = ref(false)
+const reassigning = ref(null)   // the article being moved to another writer
+const canReassign = (a) => ['ASSIGNED', 'DRAFTING'].includes(a.status)
 
 const match = (a) => {
   const q = search.value.trim().toLowerCase()
@@ -201,6 +204,10 @@ const EMPTY = {
               </div>
               <span v-if="a.returned_by_ai && a.latest_score !== null"
                     class="score bad">{{ a.latest_score }}</span>
+              <button v-if="canReassign(a)" class="reassign" type="button"
+                      @click.stop="reassigning = a" @keyup.enter.stop>
+                Reassign
+              </button>
             </li>
           </ul>
         </section>
@@ -264,6 +271,12 @@ const EMPTY = {
              subtitle="Give a writer a topic, an angle, and a deadline."
              @close="assignOpen = false">
     <AssignArticle @assigned="() => { assignOpen = false; load() }" />
+  </SlideOver>
+
+  <SlideOver :open="!!reassigning" title="Reassign an article"
+             @close="reassigning = null">
+    <ReassignArticle v-if="reassigning" :key="reassigning.id" :article="reassigning"
+                     @reassigned="() => { reassigning = null; load() }" />
   </SlideOver>
 </template>
 
@@ -342,6 +355,11 @@ const EMPTY = {
          font-variant-numeric: tabular-nums; border: 1px solid; flex-shrink: 0; }
 .score.good { border-color: var(--ok-line);  color: var(--ok);  background: var(--ok-bg); }
 .score.bad  { border-color: var(--bad-line); color: var(--bad); background: var(--bad-bg); }
+.reassign { margin-left: auto; padding: 6px 12px; font-size: 12px; font-weight: 600;
+            border: 1px solid var(--nv-line-strong); border-radius: var(--r-sm);
+            background: var(--nv-surface); color: var(--nv-text); cursor: pointer;
+            font-family: inherit; flex-shrink: 0; }
+.reassign:hover { border-color: var(--nv-navy-2); color: var(--nv-navy-2); }
 
 /* ---- rail ---- */
 .glance { background: var(--nv-surface); border: 1px solid var(--nv-line);
