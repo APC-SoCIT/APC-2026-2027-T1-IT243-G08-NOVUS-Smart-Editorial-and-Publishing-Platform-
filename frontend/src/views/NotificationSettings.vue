@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
 import StaffLayout from '../components/StaffLayout.vue'
 import UiButton from '../components/ui/UiButton.vue'
@@ -55,6 +55,7 @@ onMounted(async () => {
   loading.value = false
 })
 
+const anyChannel = computed(() => prefs.value?.in_app || prefs.value?.email)
 const muted = (k) => prefs.value?.muted_kinds.includes(k)
 
 function toggle(k) {
@@ -70,6 +71,7 @@ async function save() {
   try {
     await api.patch('/notifications/preferences/', {
       in_app: prefs.value.in_app,
+      email: prefs.value.email,
       muted_kinds: prefs.value.muted_kinds,
     })
     saved.value = 'Preferences saved.'
@@ -95,29 +97,28 @@ async function save() {
           <input type="checkbox" v-model="prefs.in_app" />
           <span>
             <b>Show notifications in the app</b>
-            <em>Turning this off silences everything below.</em>
+            <em>The bell at the top of every page.</em>
+          </span>
+        </label>
+        <label class="master second">
+          <input type="checkbox" v-model="prefs.email" />
+          <span>
+            <b>Also send them by email</b>
+            <em>To your sign-in address. Unticking a kind below stops it on both.</em>
           </span>
         </label>
       </section>
 
       <section v-for="g in GROUPS" :key="g.label" class="card"
-               :class="{ dim: !prefs.in_app }">
+               :class="{ dim: !anyChannel }">
         <h2>{{ g.label }}</h2>
         <p class="hint">{{ g.hint }}</p>
 
         <label v-for="k in g.kinds" :key="k.key" class="row">
           <input type="checkbox" :checked="!muted(k.key)"
-                 :disabled="!prefs.in_app" @change="toggle(k.key)" />
+                 :disabled="!anyChannel" @change="toggle(k.key)" />
           <span>{{ k.label }}</span>
         </label>
-      </section>
-
-      <section class="card note">
-        <h2>Email</h2>
-        <p class="hint">
-          Email delivery is planned but not yet available. Notifications appear
-          in the app only for now.
-        </p>
       </section>
 
       <UiButton variant="primary" :loading="saving" @click="save">
@@ -132,15 +133,15 @@ async function save() {
         border-radius: var(--r-md); padding: var(--s-5);
         margin-bottom: var(--s-3); }
 .card.dim { opacity: .55; }
-.card.note { background: var(--nv-bg); }
 
 h2 { font-size: 15px; margin: 0 0 4px; color: var(--nv-text); }
 .hint { font-size: 13px; color: var(--nv-text-faint); margin: 0 0 var(--s-4);
         line-height: 1.55; }
-.card.note .hint { margin: 0; }
 
 .master { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
 .master b { display: block; font-size: 15px; color: var(--nv-text); }
+.master.second { margin-top: var(--s-4); padding-top: var(--s-4);
+                 border-top: 1px solid var(--nv-line); }
 .master em { font-size: 13px; color: var(--nv-text-faint); font-style: normal; }
 
 .row { display: flex; gap: 12px; align-items: center; padding: 9px 0;

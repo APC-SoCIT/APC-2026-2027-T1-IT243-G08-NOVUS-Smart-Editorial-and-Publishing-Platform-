@@ -1,0 +1,11 @@
+Hi {{ user.first_name|default:"there" }},
+
+{{ message }}
+
+Open it here:
+{{ url }}
+
+You get these emails because you turned on email notices. To stop them, change your settings here:
+{{ settings_url }}
+
+BOSS Media Philippines Inc.

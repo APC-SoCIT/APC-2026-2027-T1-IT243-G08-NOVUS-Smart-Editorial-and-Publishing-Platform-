@@ -10,8 +10,8 @@ class Notification(TimeStampedModel):
 
     Raised by the events enumerated in the notification trigger register:
     assignment, submission, revision requests, approvals, design review,
-    publication, and deadline warnings. In-app only in this release; email
-    dispatch via Resend is Phase 2 (UC-2.6).
+    publication, and deadline warnings. Each is shown in the app and, for
+    anyone who has turned email on, also sent by email (see services.notify).
     """
 
     class Kind(models.TextChoices):
@@ -27,6 +27,7 @@ class Notification(TimeStampedModel):
         DEADLINE_NEAR = "DEADLINE_NEAR", "Deadline approaching"
         DEADLINE_PASSED = "DEADLINE_PASSED", "Deadline passed"
         MESSAGE = "MESSAGE", "New message"
+        NEW_ISSUE = "NEW_ISSUE", "New issue published"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -58,11 +59,16 @@ class NotificationPreference(TimeStampedModel):
         related_name="notification_preference",
     )
     in_app = models.BooleanField(default=True)
-    email = models.BooleanField(default=False)  # Phase 2
+    # Off until the person turns it on: email goes to their inbox, so it is
+    # theirs to ask for. A muted kind is muted on both channels.
+    email = models.BooleanField(default=False)
     muted_kinds = models.JSONField(default=list, blank=True)
 
     def wants(self, kind):
         return self.in_app and kind not in (self.muted_kinds or [])
+
+    def wants_email(self, kind):
+        return self.email and kind not in (self.muted_kinds or [])
 
 
 class EmailDispatch(TimeStampedModel):

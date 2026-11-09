@@ -17,6 +17,8 @@ from django.utils import timezone
 
 from apps.editorial.models import Article
 
+logger = logging.getLogger(__name__)
+
 
 class NotReady(Exception):
     """Raised when a publication target fails its readiness check. Carries the
@@ -25,6 +27,15 @@ class NotReady(Exception):
     def __init__(self, reasons):
         self.reasons = reasons if isinstance(reasons, list) else [reasons]
         super().__init__("; ".join(self.reasons))
+
+
+def subscribers():
+    """Readers with a subscription whose account can still sign in."""
+    from apps.accounts.models import ReaderProfile, User
+    return (User.objects
+            .filter(role=User.Role.READER, is_active=True, is_suspended=False,
+                    reader_profile__tier=ReaderProfile.Tier.SUBSCRIBER)
+            .select_related("notification_preference"))
 
 
 @transaction.atomic
@@ -72,6 +83,10 @@ def publish_issue(issue, publisher):
     notify_many([a.writer for a in issue.articles.all()],
                 Notification.Kind.PUBLISHED,
                 f"{issue} is now live.", "/read")
+    # UC-2.5 step 3: subscribers are told the new issue is out. Those who
+    # turned on email get it in their inbox once the release has committed.
+    notify_many(subscribers(), Notification.Kind.NEW_ISSUE,
+                f"{issue} is out. Read it now.", f"/issues/{issue.pk}")
     from apps.design.retention import purge_superseded_editions
     try:
         purge_superseded_editions(issue)

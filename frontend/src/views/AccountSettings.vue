@@ -15,6 +15,13 @@ const saving = ref(false)
 const saved = ref('')
 const errors = ref({})
 
+/* Subscribers can ask for an email when each new issue is out (UC-2.5).
+   Saved as soon as it is ticked, apart from the details form below. */
+const isSubscriber = ref(false)
+const issueEmails = ref(false)
+const issueSaving = ref(false)
+const issueNote = ref('')
+
 /* Readers get the magazine's chrome, staff get the workspace's. The same
    settings serve both — an account is an account — but dropping a reader into
    the editorial shell would be disorienting. */
@@ -37,7 +44,28 @@ onMounted(async () => {
     email: data.email,
   }
   original.value = { ...form.value }
+  isSubscriber.value = data.reader_profile?.tier === 'SUBSCRIBER'
+  if (isSubscriber.value) {
+    const { data: p } = await api.get('/notifications/preferences/')
+    issueEmails.value = p.email && !(p.muted_kinds || []).includes('NEW_ISSUE')
+  }
 })
+
+async function saveIssueEmails() {
+  issueSaving.value = true
+  issueNote.value = ''
+  try {
+    const { data: p } = await api.get('/notifications/preferences/')
+    const muted = (p.muted_kinds || []).filter((k) => k !== 'NEW_ISSUE')
+    await api.patch('/notifications/preferences/', { email: issueEmails.value, muted_kinds: muted })
+    issueNote.value = issueEmails.value
+      ? 'We will email you when a new issue is out.'
+      : 'You will no longer get new-issue emails.'
+  } catch {
+    issueEmails.value = !issueEmails.value
+    issueNote.value = 'Could not save. Try again.'
+  } finally { issueSaving.value = false }
+}
 
 async function save() {
   errors.value = {}
@@ -138,12 +166,15 @@ const err = (field) => {
         </p>
       </section>
 
-      <section class="card muted">
-        <h2>Password</h2>
-        <p class="hint">
-          Changing your own password is not yet available. Ask an administrator
-          to reset it for you.
-        </p>
+      <section v-if="isSubscriber" class="card">
+        <h2>New issues</h2>
+        <p class="hint">Sent to your sign-in email. You can turn this off at any time.</p>
+        <label class="check">
+          <input type="checkbox" v-model="issueEmails" :disabled="issueSaving"
+                 @change="saveIssueEmails" />
+          <span>Email me when a new issue is out</span>
+        </label>
+        <p v-if="issueNote" class="note" role="status">{{ issueNote }}</p>
       </section>
 
       <div class="actions">
@@ -193,6 +224,13 @@ input[aria-invalid="true"] { border-color: var(--bad); }
 .pw { margin-top: var(--s-2); padding-top: var(--s-4);
       border-top: 1px solid var(--nv-line); }
 .page.boss .pw { border-top-color: var(--boss-line); }
+
+.check { display: flex; gap: 10px; align-items: center; margin: 0;
+         font-size: 14px; letter-spacing: 0; cursor: pointer; }
+.check input { width: 17px; height: 17px; margin: 0; flex-shrink: 0; }
+.page.boss .check { color: var(--boss-text); }
+.page.boss .check input { accent-color: var(--boss-gold); }
+.note { font-size: 13px; margin: var(--s-3) 0 0; color: var(--ok); }
 
 .fielderr { font-size: 13px; color: var(--bad); margin: -8px 0 var(--s-3); }
 .ok { background: var(--ok-bg); border: 1px solid var(--ok-line); color: var(--ok);
