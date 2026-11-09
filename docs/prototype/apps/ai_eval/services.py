@@ -100,7 +100,16 @@ def evaluate_article(article) -> dict:
     if not settings.ANTHROPIC_API_KEY or "placeholder" in settings.ANTHROPIC_API_KEY:
         raise EvaluationUnavailable("No evaluation credential is configured.")
 
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    # NFR-02: an answer within 30 seconds, or manual review. The SDK's own
+    # default is ten minutes with two retries, which would hold the writer's
+    # request open long after the web server has given up on it. One attempt
+    # with a hard limit keeps the whole submission inside the bound; a
+    # timeout raises, and submit() routes the article to review unassessed.
+    client = anthropic.Anthropic(
+        api_key=settings.ANTHROPIC_API_KEY,
+        timeout=settings.AI_TIMEOUT_SECONDS,
+        max_retries=0,
+    )
     message = client.messages.create(
         model=settings.ANTHROPIC_EVAL_MODEL,
         max_tokens=2200,  # room for quick fixes

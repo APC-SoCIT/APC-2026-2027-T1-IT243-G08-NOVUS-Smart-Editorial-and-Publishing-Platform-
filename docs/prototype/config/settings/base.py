@@ -150,6 +150,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 ANTHROPIC_EVAL_MODEL = env("ANTHROPIC_EVAL_MODEL", default="claude-haiku-4-5-20251001")
+# NFR-02 allows 30 seconds from submission to an answer. The model call gets
+# most of it; the rest covers saving the draft and recording the result.
+AI_TIMEOUT_SECONDS = env.int("AI_TIMEOUT_SECONDS", default=25)
 
 
 import os
