@@ -2,11 +2,20 @@ from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import User
+from django.conf import settings
+from django.db import transaction
+from rest_framework import status
+
+from apps.notifications.email import send_email
+
+from .models import PasswordResetToken, User
 from .serializers import (
-    ChangePasswordSerializer, RegisterSerializer, UpdateProfileSerializer, UserSerializer,
+    INVALID_LINK, ChangePasswordSerializer, ForgotPasswordSerializer, RegisterSerializer,
+    ResetPasswordSerializer, UpdateProfileSerializer, UserSerializer,
 )
-from .throttles import PasswordChangeRateThrottle
+from .throttles import (
+    PasswordChangeRateThrottle, PasswordResetConfirmThrottle, PasswordResetRequestThrottle,
+)
 
 
 class RegisterView(generics.CreateAPIView):
@@ -72,3 +81,77 @@ class ChangePasswordView(APIView):
         user.must_reset_password = False
         user.save()
         return Response(UserSerializer(user).data)
+
+
+RESET_SENT = "If an account uses that address, we've sent a reset link."
+
+
+class ForgotPasswordView(APIView):
+    """UC-5.2.2 steps 1-2: ask for a reset link.
+
+    The answer is the same whether or not the address has an account, so the
+    page cannot be used to find out who is registered (NFR-12). Suspended and
+    deactivated accounts get no email: a new password would not let them in.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [PasswordResetRequestThrottle]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(
+            email__iexact=serializer.validated_data["email"], is_active=True, is_suspended=False).first()
+        if user is not None:
+            raw = PasswordResetToken.issue(user, ip=request.META.get("REMOTE_ADDR", ""))
+            minutes = getattr(settings, "PASSWORD_RESET_MINUTES", 60)
+            send_email(user, "password_reset", "Reset your password", {
+                "reset_url": f"{settings.FRONTEND_URL}/reset-password?token={raw}",
+                "minutes": minutes,
+            })
+        return Response({"detail": RESET_SENT})
+
+
+class ResetPasswordVerifyView(APIView):
+    """UC-5.2.2 step 4: check a link before showing the new-password form."""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [PasswordResetConfirmThrottle]
+
+    def post(self, request):
+        token = PasswordResetToken.find_valid(str(request.data.get("token", "")))
+        if token is None:
+            return Response(INVALID_LINK, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"valid": True})
+
+
+class ResetPasswordView(APIView):
+    """UC-5.2.2 step 5: set the new password and spend the link."""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [PasswordResetConfirmThrottle]
+
+    def post(self, request):
+        token = PasswordResetToken.find_valid(str(request.data.get("token", "")))
+        if token is None:
+            return Response(INVALID_LINK, status=status.HTTP_400_BAD_REQUEST)
+        user = token.user
+        serializer = ResetPasswordSerializer(data=request.data, context={"user": user})
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            # Lock the row so two submissions of one link cannot both succeed.
+            locked = (PasswordResetToken.objects.select_for_update()
+                      .filter(pk=token.pk, used_at__isnull=True).first())
+            if locked is None:
+                return Response(INVALID_LINK, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(serializer.validated_data["new_password"])
+            user.must_reset_password = False
+            user.save()
+            locked.redeem()
+        return Response({
+            "detail": "Password updated. Sign in with your new password.",
+            "staff": user.role != User.Role.READER,
+        })

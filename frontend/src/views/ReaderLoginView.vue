@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const email = ref('')
@@ -11,6 +11,8 @@ const loading = ref(false)
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+const resetDone = route.query.reset === '1'
 
 const emailValid = computed(() =>
   !email.value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value))
@@ -64,6 +66,9 @@ async function submit() {
         </div>
       </label>
 
+      <p class="forgot"><router-link to="/forgot-password">Forgot your password?</router-link></p>
+
+      <p v-if="resetDone && !error" class="ok" role="status">Password updated. Sign in with your new password.</p>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
 
       <button class="go" :disabled="loading" @click="submit">
@@ -115,6 +120,13 @@ input:focus { outline: none; border-color: var(--boss-gold); }
 .error { background: rgba(158,47,47,.14); border: 1px solid rgba(158,47,47,.4);
          color: #e09a9a; padding: 11px 14px; border-radius: var(--r-sm);
          font-size: var(--t-sm); margin: 0 0 var(--s-4); text-align: left; }
+
+.forgot { margin: calc(-1 * var(--s-2)) 0 var(--s-4); text-align: right; font-size: var(--t-xs); }
+.forgot a { color: var(--boss-gold); }
+.forgot a:hover { color: var(--boss-gold-bright); }
+.ok { background: rgba(47,158,96,.14); border: 1px solid rgba(47,158,96,.4);
+      color: #8fd4ac; padding: 11px 14px; border-radius: var(--r-sm);
+      font-size: var(--t-sm); margin: 0 0 var(--s-4); text-align: left; }
 
 .go { width: 100%; padding: 14px; border: 0; background: var(--boss-gold);
       color: var(--boss-bg); border-radius: var(--r-sm); font-weight: 700;

@@ -163,3 +163,59 @@ class PasswordHistory(TimeStampedModel):
         stale = [pk for n, (pk, at) in enumerate(rows) if n >= keep and at < year_ago]
         if stale:
             cls.objects.filter(id__in=stale).delete()
+
+
+class PasswordResetToken(TimeStampedModel):
+    """A single-use link for a user who has forgotten their password (UC-5.2.2).
+
+    Only a SHA-256 hash of the token is stored. The token itself exists only
+    in the email, so a copy of the database cannot be used to reset anyone's
+    password. A random 256-bit token needs no slow hash: there is nothing to
+    guess, unlike a password a person chose.
+
+    Asking for a new link retires every older one, so only the most recent
+    email works.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reset_tokens")
+    token_hash = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    requested_ip = models.CharField(max_length=45, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "expires_at"], name="active_tokens_for_user")]
+
+    def __str__(self):
+        state = "used" if self.used_at else ("expired" if self.expires_at <= timezone.now() else "active")
+        return f"PasswordResetToken<{self.user_id}> {state}"
+
+    @staticmethod
+    def hash(raw):
+        import hashlib
+        return hashlib.sha256(raw.encode()).hexdigest()
+
+    @classmethod
+    def issue(cls, user, ip=""):
+        """Create a token for this user and return the plaintext, once."""
+        import secrets
+        now = timezone.now()
+        cls.objects.filter(user=user, used_at__isnull=True).update(used_at=now)
+        raw = secrets.token_urlsafe(32)
+        minutes = getattr(settings, "PASSWORD_RESET_MINUTES", 60)
+        cls.objects.create(user=user, token_hash=cls.hash(raw),
+                           expires_at=now + timedelta(minutes=minutes), requested_ip=ip[:45])
+        return raw
+
+    @classmethod
+    def find_valid(cls, raw):
+        """The unused, unexpired token matching this plaintext, or None."""
+        if not raw or len(raw) > 128:
+            return None
+        return (cls.objects.select_related("user")
+                .filter(token_hash=cls.hash(raw), used_at__isnull=True, expires_at__gt=timezone.now())
+                .first())
+
+    def redeem(self):
+        """Mark this token, and any other open one for the user, as used."""
+        type(self).objects.filter(user=self.user, used_at__isnull=True).update(used_at=timezone.now())

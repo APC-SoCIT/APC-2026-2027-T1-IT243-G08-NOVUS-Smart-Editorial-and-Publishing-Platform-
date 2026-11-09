@@ -34,3 +34,13 @@ class RefreshRateThrottle(AnonRateThrottle):
 
 class PasswordChangeRateThrottle(UserRateThrottle):
     scope = "password_change"
+
+
+class PasswordResetRequestThrottle(LoginRateThrottle):
+    """Limits reset emails per address, so nobody can flood someone's inbox."""
+
+    scope = "password_reset"
+
+
+class PasswordResetConfirmThrottle(AnonRateThrottle):
+    scope = "password_reset_confirm"

@@ -118,3 +118,29 @@ class ChangePasswordSerializer(serializers.Serializer):
         except DjangoValidationError as exc:
             raise serializers.ValidationError({"new_password": list(exc.messages)})
         return attrs
+
+
+INVALID_LINK = {
+    "code": "invalid_link",
+    "detail": "This link has expired or has already been used. Ask for a new one.",
+}
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    """Set a new password from a reset link. The link stands in for the
+    current password; the new one runs every validator, including history.
+    The view checks the link first and passes its user in the context."""
+
+    token = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        try:
+            validate_password(attrs["new_password"], self.context["user"])
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"new_password": list(exc.messages)})
+        return attrs

@@ -23,6 +23,8 @@ import IssueArchive from '../views/IssueArchive.vue'
 import SavedArticles from '../views/SavedArticles.vue'
 import AccountSettings from '../views/AccountSettings.vue'
 import ChangePasswordView from '../views/ChangePasswordView.vue'
+import ForgotPasswordView from '../views/ForgotPasswordView.vue'
+import ResetPasswordView from '../views/ResetPasswordView.vue'
 import AboutView from '../views/AboutView.vue'
 import LegalView from '../views/LegalView.vue'
 import IssueReader from '../views/IssueReader.vue'
@@ -32,6 +34,9 @@ const routes = [
   { path: '/login', component: ReaderLoginView },
   { path: '/register', component: ReaderRegisterView },
   { path: '/staff/login', component: StaffLoginView },
+  // UC-5.2.2 Recover a Forgotten Password: reached before signing in.
+  { path: '/forgot-password', component: ForgotPasswordView },
+  { path: '/reset-password', component: ResetPasswordView },
   { path: '/writer', component: WriterDashboard, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
   { path: '/writer/compose', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
   { path: '/writer/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },

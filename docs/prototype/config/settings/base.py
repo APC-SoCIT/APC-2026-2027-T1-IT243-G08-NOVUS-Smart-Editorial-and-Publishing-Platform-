@@ -90,6 +90,21 @@ AUTH_PASSWORD_VALIDATORS = [
 # it was set (8.3.9) and may not repeat any of the last four (8.3.7).
 PASSWORD_EXPIRY_DAYS = int(os.environ.get("PASSWORD_EXPIRY_DAYS", 90))
 PASSWORD_HISTORY_COUNT = int(os.environ.get("PASSWORD_HISTORY_COUNT", 4))
+# UC-5.2.2: how long a password-reset link works.
+PASSWORD_RESET_MINUTES = int(os.environ.get("PASSWORD_RESET_MINUTES", 60))
+
+# Where links in emails point: the Vue app, not this API.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
+# Email. With a Resend key, mail goes out through Resend's HTTPS API (see
+# apps/notifications/backends.py). Without one, emails are printed to the
+# console, so password recovery can be tried locally without sending mail.
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+EMAIL_BACKEND = (
+    "apps.notifications.backends.ResendEmailBackend" if RESEND_API_KEY
+    else "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "BOSS Magazine PH <onboarding@resend.dev>")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -107,6 +122,8 @@ REST_FRAMEWORK = {
         "register": "10/hour",
         "refresh": "30/min",
         "password_change": "10/hour",
+        "password_reset": "5/hour",
+        "password_reset_confirm": "30/hour",
     },
 }
 

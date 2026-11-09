@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { ArrowRight, Clock, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck } from 'lucide-vue-next'
 import ConstellationBackground from '../components/ConstellationBackground.vue'
@@ -17,6 +17,8 @@ const year = new Date().getFullYear()
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+const resetDone = route.query.reset === '1'
 
 const DEST = {
   WRITER: '/writer',
@@ -93,6 +95,7 @@ async function submit() {
         <h1>Sign in</h1>
         <p class="sub">Use the account issued to you by your editor.</p>
 
+        <p v-if="resetDone && !error" class="ok" role="status">Password updated. Sign in with your new password.</p>
         <p v-if="error" id="login-error" class="alert" role="alert">{{ error }}</p>
 
         <label for="email">Email address</label>
@@ -119,6 +122,7 @@ async function submit() {
           </button>
         </div>
         <p v-if="capsOn" id="caps" class="hint">Caps Lock is on.</p>
+        <p class="forgot"><router-link :to="{ path: '/forgot-password', query: { staff: '1' } }">Forgot your password?</router-link></p>
 
         <button class="submit" type="submit" :disabled="loading || throttled">
           <template v-if="loading">Signing in&hellip;</template>
@@ -221,6 +225,11 @@ label { display: block; margin: 0 0 7px; font-size: 11.5px; font-weight: 700;
 .tile svg { width: 17px; height: 17px; }
 .notes li.warn .tile { background: rgba(178, 106, 0, .12); color: #B26A00; }
 
+.ok { margin: 0 0 18px; padding: 10px 12px; border-radius: 8px; font-size: 13.5px;
+      background: #e8f6ee; color: #1c6b45; }
+.forgot { margin: 8px 0 0; text-align: right; font-size: 13px; }
+.forgot a { color: #3D5BA9; font-weight: 600; text-decoration: none; }
+.forgot a:hover { text-decoration: underline; }
 .alt { margin: 26px 0 0; text-align: center; font-size: 13.5px; color: var(--nv-text-muted, #56627A); }
 .alt a { color: #3D5BA9; font-weight: 600; text-decoration: none; }
 .alt a:hover { text-decoration: underline; }

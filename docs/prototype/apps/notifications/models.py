@@ -63,3 +63,44 @@ class NotificationPreference(TimeStampedModel):
 
     def wants(self, kind):
         return self.in_app and kind not in (self.muted_kinds or [])
+
+
+class EmailDispatch(TimeStampedModel):
+    """One outbound email and what happened to it.
+
+    Kept apart from Notification so that a failed delivery never loses what
+    the user was to be told: the in-app notice stands either way. The address
+    is stored as sent, because a user who later changes their email should
+    not rewrite the record of where an earlier message went.
+    """
+
+    class Status(models.TextChoices):
+        QUEUED = "QUEUED", "Queued"
+        SENT = "SENT", "Sent"
+        DELIVERED = "DELIVERED", "Delivered"
+        BOUNCED = "BOUNCED", "Bounced"
+        FAILED = "FAILED", "Failed"
+
+    notification = models.ForeignKey(
+        Notification, null=True, blank=True, on_delete=models.SET_NULL, related_name="emails")
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="email_dispatches")
+    to_address = models.EmailField(max_length=254)
+    subject = models.CharField(max_length=255)
+    template = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
+    provider_message_id = models.CharField(max_length=100, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_error = models.CharField(max_length=255, blank=True)
+    queued_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "queued_at"], name="dispatch_queue"),
+            models.Index(fields=["recipient", "created_at"], name="recipient_email_history"),
+        ]
+
+    def __str__(self):
+        return f"{self.template} -> {self.to_address} [{self.status}]"
