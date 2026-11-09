@@ -1,17 +1,21 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
+ 
+from .sessions import SessionTokenObtainSerializer, SessionTokenRefreshSerializer
+ 
 from .throttles import LoginRateThrottle, RefreshRateThrottle, RegisterRateThrottle
 from .views import (
     ChangePasswordView, ForgotPasswordView, MeView, RegisterView, ResetPasswordVerifyView,
     ResetPasswordView, WriterListView,
 )
-
+ 
 urlpatterns = [
     path("register/", RegisterView.as_view(throttle_classes=[RegisterRateThrottle]), name="register"),
     # UC-6.2 Authenticate User (Log In) — POST {email, password} -> {access, refresh}
-    path("token/", TokenObtainPairView.as_view(throttle_classes=[LoginRateThrottle]), name="token_obtain_pair"),
-    path("token/refresh/", TokenRefreshView.as_view(throttle_classes=[RefreshRateThrottle]), name="token_refresh"),
+    path("token/", TokenObtainPairView.as_view(
+        serializer_class=SessionTokenObtainSerializer, throttle_classes=[LoginRateThrottle]), name="token_obtain_pair"),
+    path("token/refresh/", TokenRefreshView.as_view(
+        serializer_class=SessionTokenRefreshSerializer, throttle_classes=[RefreshRateThrottle]), name="token_refresh"),
     path("me/", MeView.as_view(), name="me"),
     path("password/", ChangePasswordView.as_view(), name="change_password"),
     # UC-5.2.2 Recover a Forgotten Password

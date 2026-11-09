@@ -149,6 +149,9 @@ class ResetPasswordView(APIView):
                 return Response(INVALID_LINK, status=status.HTTP_400_BAD_REQUEST)
             user.set_password(serializer.validated_data["new_password"])
             user.must_reset_password = False
+            # Whoever forgot the password may not be the only one who knew
+            # it. Every device signed in with the old one is signed out.
+            user.end_all_sessions()
             user.save()
             locked.redeem()
         return Response({

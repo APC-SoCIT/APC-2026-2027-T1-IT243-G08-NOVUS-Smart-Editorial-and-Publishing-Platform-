@@ -105,7 +105,9 @@ api.interceptors.response.use(
       // The refresh token is spent or expired: the session really is over.
       // Public pages must still work, so clear rather than redirect — a
       // lapsed reader loses their subscriber access, not the magazine.
+      // main.js hears the event and, on a signed-in page, goes to sign-in.
       clearSession()
+      window.dispatchEvent(new Event('novus:session-ended'))
       return Promise.reject(error)
     }
   },

@@ -71,6 +71,11 @@ class User(AbstractUser):
     # days after this. Expiry sets must_reset_password, which locks the
     # account until the password is changed.
     password_changed_at = models.DateTimeField(null=True, blank=True)
+    # Every sign-in token carries the number current when it was issued.
+    # Raising it ends every session at once, on every device: a token from
+    # before the change no longer matches. Used after a password reset,
+    # where whoever forgot the password may not be the only one holding it.
+    session_version = models.PositiveIntegerField(default=0)
 
     objects = UserManager()
 
@@ -100,6 +105,10 @@ class User(AbstractUser):
             return False
         days = getattr(settings, "PASSWORD_EXPIRY_DAYS", 90)
         return timezone.now() - self.password_changed_at > timedelta(days=days)
+
+    def end_all_sessions(self):
+        """Sign the account out everywhere. Saved by the caller."""
+        self.session_version += 1
 
     @property
     def must_change_password(self):

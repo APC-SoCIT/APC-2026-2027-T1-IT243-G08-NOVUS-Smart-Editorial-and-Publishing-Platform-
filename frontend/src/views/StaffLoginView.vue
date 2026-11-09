@@ -19,6 +19,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const resetDone = route.query.reset === '1'
+const sessionEnded = route.query.ended === '1'
 
 const DEST = {
   WRITER: '/writer',
@@ -96,6 +97,7 @@ async function submit() {
         <p class="sub">Use the account issued to you by your editor.</p>
 
         <p v-if="resetDone && !error" class="ok" role="status">Password updated. Sign in with your new password.</p>
+        <p v-else-if="sessionEnded && !error" class="ok" role="status">You have been signed out. Sign in again to continue.</p>
         <p v-if="error" id="login-error" class="alert" role="alert">{{ error }}</p>
 
         <label for="email">Email address</label>
