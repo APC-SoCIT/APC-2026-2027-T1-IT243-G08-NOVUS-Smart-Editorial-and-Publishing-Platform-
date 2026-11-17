@@ -110,6 +110,7 @@ function exportCsv() {
 }
 
 const pct = (n, total) => total ? Math.round((n / total) * 100) : 0
+const peso = (c) => '₱' + ((c || 0) / 100).toLocaleString('en-PH')
 const label = (s) => (s || '').replace(/_/g, ' ').toLowerCase()
 </script>
 
@@ -252,7 +253,12 @@ const label = (s) => (s || '').replace(/_/g, ' ').toLowerCase()
 
     <!-- revenue -->
     <template v-else>
-      <div class="warnbox">{{ data.note }}</div>
+      <div v-if="data.note" class="warnbox">{{ data.note }}</div>
+      <div class="stats">
+        <div class="stat ok"><b>{{ peso(data.revenue_cents) }}</b><span>REVENUE</span></div>
+        <div class="stat"><b>{{ data.payments }}</b><span>PAYMENTS</span></div>
+        <div class="stat"><b>{{ data.failed_payments }}</b><span>NOT COMPLETED</span></div>
+      </div>
       <div class="stats">
         <div class="stat ok"><b>{{ data.subscribers }}</b><span>SUBSCRIBERS</span></div>
         <div class="stat"><b>{{ data.free_readers }}</b><span>FREE READERS</span></div>

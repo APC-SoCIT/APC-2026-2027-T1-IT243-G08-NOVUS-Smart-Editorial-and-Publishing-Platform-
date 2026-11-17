@@ -157,15 +157,21 @@ class EvaluationReportView(APIView):
         })
 
 
+class CanSeeRevenue(permissions.BasePermission):
+    """UC-3.1 E1: revenue figures are for the publisher and administrators."""
+    message = "Revenue figures are for the publisher and administrators only."
+
+    def has_permission(self, request, view):
+        u = request.user
+        return bool(u and u.is_authenticated
+                    and u.role in (User.Role.PUBLISHER, User.Role.ADMIN))
+
+
 class RevenueReportView(APIView):
-    """UC-3.1 Generate Revenue Report.
+    """UC-3.1 Generate Revenue Report: subscribers, and the payments PayMongo
+    confirmed in the period."""
 
-    Subscription counts are real; monetary totals are not, because payment
-    processing is Phase 2 (Module 9). The response says so explicitly rather
-    than reporting a zero that could be mistaken for a measurement.
-    """
-
-    permission_classes = [IsStaffRole]
+    permission_classes = [CanSeeRevenue]
 
     def get(self, request):
         since, days = _window(request)
@@ -187,11 +193,28 @@ class RevenueReportView(APIView):
                 1 for i in Issue.objects.filter(status=Issue.Status.PUBLISHED)
                 if i.approved_design
             ),
-            "revenue_available": False,
-            "note": ("Transaction totals require payment processing, which is "
-                     "scoped for Phase 2 (Module 9). Subscription counts above "
-                     "are actual."),
+            **_revenue(since),
         })
+
+
+def _revenue(since):
+    """Payments PayMongo confirmed in the window. Failed attempts are
+    counted separately and add nothing to revenue."""
+    from django.db.models import Count, Sum
+    from apps.payments.models import Transaction
+
+    window = Transaction.objects.filter(kind=Transaction.Kind.PAYMENT, occurred_at__gte=since)
+    paid = window.filter(status=Transaction.Status.SUCCEEDED)
+    by_plan = {row["plan"]: {"payments": row["n"], "revenue_cents": row["total"]}
+               for row in paid.values("plan").annotate(n=Count("id"), total=Sum("amount_cents"))}
+    return {
+        "revenue_available": True,
+        "revenue_cents": paid.aggregate(t=Sum("amount_cents"))["t"] or 0,
+        "payments": paid.count(),
+        "failed_payments": window.filter(status=Transaction.Status.FAILED).count(),
+        "by_plan": by_plan,
+        "note": "",
+    }
 
 
 class ProductionReportView(APIView):

@@ -41,10 +41,15 @@ class PlatformSettingSerializer(serializers.ModelSerializer):
                              "which the hosting filesystem erases on redeploy")},
             {"name": "PayMongo",
              "purpose": "Subscription payments",
-             "configured": False,
-             "detail": "Phase 2 — subscription tiers granted manually"},
+             "configured": bool(dj.PAYMONGO_SECRET_KEY and dj.PAYMONGO_WEBHOOK_SECRET),
+             "detail": (("Live mode" if dj.PAYMONGO_SECRET_KEY.startswith("sk_live_")
+                         else "Test mode: nothing is charged")
+                        if dj.PAYMONGO_SECRET_KEY and dj.PAYMONGO_WEBHOOK_SECRET
+                        else "Not configured: set PAYMONGO_SECRET_KEY and "
+                             "PAYMONGO_WEBHOOK_SECRET")},
             {"name": "Resend",
              "purpose": "Transactional email",
-             "configured": False,
-             "detail": "Phase 2 — notifications are in-app only"},
+             "configured": bool(dj.RESEND_API_KEY),
+             "detail": (f"Sending as {dj.DEFAULT_FROM_EMAIL}" if dj.RESEND_API_KEY
+                        else "Not configured: emails are printed to the server log")},
         ]

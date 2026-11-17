@@ -5,6 +5,11 @@ UC-4.3 Subscribe to BOSS Magazine.
   POST checkout/              open a PayMongo checkout for a plan (step 2.1)
   GET  checkout/<reference>/  what became of it, for the return page (step 4.1)
   POST webhook/               PayMongo's signed notification (steps 3.1 to 3.4)
+
+UC-4.4 Manage a Subscription.
+
+  GET  subscription/          plan, paid-up date, payment method and history
+  POST subscription/cancel/   end it at the close of the paid period
 """
 import json
 import logging
@@ -21,7 +26,7 @@ from rest_framework.views import APIView
 
 from apps.content.entitlement import is_entitled
 
-from . import paymongo, services
+from . import manage, paymongo, services
 from .models import Transaction
 from .plans import PLANS
 
@@ -119,3 +124,20 @@ class PayMongoWebhookView(View):
             log.exception("Unexpected checkout notification shape")
             return JsonResponse({"detail": "Unexpected event shape."}, status=400)
         return JsonResponse({"received": True, "outcome": outcome})
+
+
+class SubscriptionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(manage.summary(request.user))
+
+
+class CancelSubscriptionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if manage.cancel(request.user) is None:
+            return Response({"detail": "There is no active subscription to cancel."},
+                            status=status.HTTP_409_CONFLICT)
+        return Response(manage.summary(request.user))

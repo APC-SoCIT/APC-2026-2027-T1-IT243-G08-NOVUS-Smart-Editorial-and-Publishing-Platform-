@@ -120,6 +120,7 @@ const err = (field) => {
     <div class="page" :class="{ boss: !isStaff }">
       <h1 v-if="!isStaff">Your account</h1>
       <p class="pw-link"><router-link to="/change-password">Change your password</router-link></p>
+      <p v-if="!isStaff" class="pw-link"><router-link to="/subscription">Subscription</router-link></p>
 
       <p v-if="saved" class="ok" role="status">{{ saved }}</p>
       <p v-if="err('detail')" class="bad" role="alert">{{ err('detail') }}</p>

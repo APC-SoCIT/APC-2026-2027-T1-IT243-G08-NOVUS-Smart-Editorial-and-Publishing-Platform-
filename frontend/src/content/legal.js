@@ -52,7 +52,7 @@ export const DOCS = {
         heading: 'What we do not collect',
         list: [
           'We do not use advertising cookies, third-party trackers, or analytics that profile you across other websites.',
-          'We do not collect payment card details. When subscription payments are introduced, card data will be handled entirely by our payment processor and will never reach our servers.',
+          'Payments: you pay on PayMongo\'s secure checkout page, so your card number and e-wallet sign-in never reach us. We keep a record of each payment: the plan, amount, date and the kind of payment method used (for example, GCash).',
           'We do not sell, rent, or trade personal information to anyone.',
         ],
       },
@@ -84,7 +84,7 @@ export const DOCS = {
           'A managed PostgreSQL database provider, which stores our records.',
           'An artificial intelligence provider, which receives article text for evaluation. It does not receive reader information.',
           'An object storage provider, which holds uploaded images and magazine layouts.',
-          'A payment processor and an email delivery provider, once those features are enabled.',
+          'PayMongo, which processes subscription payments, and Resend, which delivers our emails. Each receives only what it needs: your name and email address, and for PayMongo the plan you are paying for.',
         ],
       },
       {
@@ -293,13 +293,6 @@ export const DOCS = {
     summary: 'When a subscription can be refunded, and how to ask for one.',
     sections: [
       REVIEW_NOTE,
-      {
-        type: 'notice',
-        body: `Online subscription payments are not yet available. This policy
-          describes how refunds will operate once they are introduced, and is
-          published in advance so that terms are clear before any money changes
-          hands.`,
-      },
       {
         heading: 'Cooling-off period',
         body: `You may cancel a new subscription within seven days of purchase

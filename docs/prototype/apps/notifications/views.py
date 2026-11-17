@@ -39,6 +39,9 @@ class DeadlineCheckView(APIView):
 
         out = io.StringIO()
         call_command("check_deadlines", stdout=out)
+        # The same daily call ends lapsed subscriptions and sends renewal
+        # reminders (UC-4.4 step 4.1), so there is one schedule to keep.
+        call_command("subscription_upkeep", stdout=out)
         return Response({"ran": True, "output": out.getvalue().strip()})
 
 
