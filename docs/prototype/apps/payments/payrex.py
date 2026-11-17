@@ -11,6 +11,7 @@ HTTP basic authentication.
 """
 import hashlib
 import hmac
+from urllib.parse import urlencode
 
 import httpx
 from django.conf import settings
@@ -53,9 +54,14 @@ def form(fields):
 
 
 def _post(path, fields):
+    # Encoded here, in order, because httpx only takes form data as a dict,
+    # which cannot hold the same key twice (payment_methods[]=gcash, =maya).
     try:
-        response = httpx.post(f"{API}{path}", data=form(fields),
-                              auth=(settings.PAYREX_SECRET_KEY, ""), timeout=15)
+        response = httpx.post(
+            f"{API}{path}", content=urlencode(form(fields)),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            auth=(settings.PAYREX_SECRET_KEY, ""), timeout=15,
+        )
     except httpx.HTTPError as exc:
         raise PayRexError(f"PayRex could not be reached: {exc}") from exc
     if response.status_code >= 400:

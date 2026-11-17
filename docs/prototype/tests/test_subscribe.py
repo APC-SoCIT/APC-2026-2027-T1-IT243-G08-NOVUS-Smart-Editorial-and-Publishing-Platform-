@@ -53,16 +53,49 @@ def pay(reader, plan=MONTHLY, **kw):
 
 
 class FakePayRex:
+    """Stands in for PayRex's server, behind a real httpx request, so the
+    request is built and encoded exactly as it would be for PayRex."""
+
     def __init__(self, fail=False):
         self.sent, self.fail = [], fail
 
-    def __call__(self, url, data=None, auth=None, timeout=None):
-        self.sent.append((url, data, auth))
+    def __call__(self, request):
+        from urllib.parse import parse_qsl
+        body = parse_qsl(request.read().decode(), keep_blank_values=True)
+        self.sent.append((str(request.url), body, request.headers))
         if self.fail:
             return httpx.Response(400, json={"errors": [{"detail": "bad"}]})
         return httpx.Response(200, json={"id": "cs_123", "resource": "checkout_session",
                                          "url": "https://checkout.payrexhq.com/c/cs_123",
                                          "status": "active"})
+
+
+def use_fake(monkeypatch, fake):
+    """Route httpx.post through a real client whose network is the fake."""
+    real_post = httpx.post
+
+    def post(url, **kw):
+        with httpx.Client(transport=httpx.MockTransport(fake)) as client:
+            return client.post(url, **kw)
+    monkeypatch.setattr("apps.payments.payrex.httpx.post", post)
+    assert real_post is not post
+    return fake
+
+
+def test_the_webhook_command_sends_a_valid_request(settings, monkeypatch, capsys):
+    from django.core.management import call_command
+    settings.PAYREX_SECRET_KEY = "sk_test_novus"
+    sent = []
+
+    def fake(request):
+        from urllib.parse import parse_qsl
+        sent.append(parse_qsl(request.read().decode()))
+        return httpx.Response(200, json={"id": "wh_1", "secret_key": "whsk_new"})
+    use_fake(monkeypatch, fake)
+    call_command("payrex_webhook", "https://novus.example/api/payments/webhook/")
+    assert ("events[]", "payment_intent.succeeded") in sent[0]
+    assert ("url", "https://novus.example/api/payments/webhook/") in sent[0]
+    assert "PAYREX_WEBHOOK_SECRET=whsk_new" in capsys.readouterr().out
 
 
 @pytest.mark.django_db
@@ -73,13 +106,15 @@ class TestPlansAndCheckout:
         assert r["available"] is True
 
     def test_continue_opens_a_payrex_checkout(self, auth_client, reader, monkeypatch):  # step 2.1
-        fake = FakePayRex()
-        monkeypatch.setattr("apps.payments.payrex.httpx.post", fake)
+        fake = use_fake(monkeypatch, FakePayRex())
         r = auth_client(reader).post("/api/payments/checkout/", {"plan": "ANNUAL"}, format="json")
         assert r.status_code == 200
         assert r.data["checkout_url"] == "https://checkout.payrexhq.com/c/cs_123"
-        url, form, auth = fake.sent[0]
-        assert url == "https://api.payrexhq.com/checkout_sessions" and auth == ("sk_test_novus", "")
+        url, form, headers = fake.sent[0]
+        assert url == "https://api.payrexhq.com/checkout_sessions"
+        assert headers["content-type"] == "application/x-www-form-urlencoded"
+        import base64
+        assert headers["authorization"] == "Basic " + base64.b64encode(b"sk_test_novus:").decode()
         ref = r.data["reference"]
         for field in [("currency", "PHP"), ("line_items[][amount]", "199000"),
                       ("line_items[][quantity]", "1"), ("payment_methods[]", "gcash"),
@@ -97,7 +132,7 @@ class TestPlansAndCheckout:
             ("li[][name]", "x"), ("li[][amount]", "2")]
 
     def test_an_abandoned_checkout_records_nothing(self, auth_client, reader, monkeypatch):  # A1
-        monkeypatch.setattr("apps.payments.payrex.httpx.post", FakePayRex())
+        use_fake(monkeypatch, FakePayRex())
         auth_client(reader).post("/api/payments/checkout/", {"plan": "MONTHLY"}, format="json")
         assert not Transaction.objects.exists() and not Subscription.objects.exists()
         assert not is_entitled(reader)
@@ -105,7 +140,7 @@ class TestPlansAndCheckout:
     def test_refusals(self, auth_client, reader, make_user, settings, monkeypatch):
         c = auth_client(reader)
         assert c.post("/api/payments/checkout/", {"plan": "WEEKLY"}, format="json").status_code == 400
-        monkeypatch.setattr("apps.payments.payrex.httpx.post", FakePayRex(fail=True))
+        use_fake(monkeypatch, FakePayRex(fail=True))
         assert c.post("/api/payments/checkout/", {"plan": "MONTHLY"}, format="json").status_code == 502
         settings.PAYREX_WEBHOOK_SECRET = ""      # no way to trust the confirmation
         assert c.post("/api/payments/checkout/", {"plan": "MONTHLY"}, format="json").status_code == 503
