@@ -39,14 +39,14 @@ class PlatformSettingSerializer(serializers.ModelSerializer):
              "detail": (dj.R2_BUCKET_NAME if dj.USE_R2
                         else "Not configured — files are on local storage, "
                              "which the hosting filesystem erases on redeploy")},
-            {"name": "PayMongo",
+            {"name": "PayRex",
              "purpose": "Subscription payments",
-             "configured": bool(dj.PAYMONGO_SECRET_KEY and dj.PAYMONGO_WEBHOOK_SECRET),
-             "detail": (("Live mode" if dj.PAYMONGO_SECRET_KEY.startswith("sk_live_")
+             "configured": bool(dj.PAYREX_SECRET_KEY and dj.PAYREX_WEBHOOK_SECRET),
+             "detail": (("Live mode" if dj.PAYREX_SECRET_KEY.startswith("sk_live")
                          else "Test mode: nothing is charged")
-                        if dj.PAYMONGO_SECRET_KEY and dj.PAYMONGO_WEBHOOK_SECRET
-                        else "Not configured: set PAYMONGO_SECRET_KEY and "
-                             "PAYMONGO_WEBHOOK_SECRET")},
+                        if dj.PAYREX_SECRET_KEY and dj.PAYREX_WEBHOOK_SECRET
+                        else "Not configured: set PAYREX_SECRET_KEY and "
+                             "PAYREX_WEBHOOK_SECRET")},
             {"name": "Resend",
              "purpose": "Transactional email",
              "configured": bool(dj.RESEND_API_KEY),

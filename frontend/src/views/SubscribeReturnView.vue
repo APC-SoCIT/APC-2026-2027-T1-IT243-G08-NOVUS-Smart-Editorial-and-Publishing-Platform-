@@ -1,6 +1,6 @@
 <script setup>
-/* UC-4.3 step 4: the reader is back from PayMongo. This page only reads what
-   PayMongo's confirmation recorded; arriving here grants nothing. The
+/* UC-4.3 step 4: the reader is back from PayRex. This page only reads what
+   PayRex's confirmation recorded; arriving here grants nothing. The
    confirmation usually lands within seconds, so the page waits for it. */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
@@ -42,7 +42,7 @@ onUnmounted(() => clearTimeout(timer))
       <template v-if="state === 'waiting'">
         <p class="eyebrow">One moment</p>
         <h1>Confirming your payment…</h1>
-        <p class="sub">PayMongo is telling us about your payment. This usually takes a few seconds.</p>
+        <p class="sub">PayRex is telling us about your payment. This usually takes a few seconds.</p>
       </template>
 
       <template v-else-if="state === 'paid'">
@@ -63,7 +63,7 @@ onUnmounted(() => clearTimeout(timer))
         <p class="eyebrow">Still confirming</p>
         <h1>This is taking longer than usual</h1>
         <p class="sub">
-          If you paid, your subscription starts as soon as PayMongo confirms it, and you
+          If you paid, your subscription starts as soon as PayRex confirms it, and you
           will get a notice. There is no need to pay again.
         </p>
         <router-link to="/read" class="cta">Back to reading</router-link>

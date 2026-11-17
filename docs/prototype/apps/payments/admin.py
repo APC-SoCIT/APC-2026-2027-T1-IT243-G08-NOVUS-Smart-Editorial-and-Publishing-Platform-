@@ -13,8 +13,8 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
-    """Read-only: a transaction is PayMongo's record, not ours to edit.
-    Refunds are issued in the PayMongo dashboard."""
+    """Read-only: a transaction is PayRex's record, not ours to edit.
+    Refunds are issued in the PayRex dashboard."""
 
     list_display = ["occurred_at", "reader", "plan", "amount_cents", "payment_method",
                     "status", "failure_code"]

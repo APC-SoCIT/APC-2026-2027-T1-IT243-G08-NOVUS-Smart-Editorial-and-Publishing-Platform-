@@ -15,7 +15,7 @@ simplifying choice for the prototype, it's called out explicitly below.
 | Database | PostgreSQL | Neon (free tier) |
 | File storage | Cloudflare R2 (S3-compatible) | Free tier, wired in Phase 2 |
 | AI evaluation | Anthropic Claude API (Haiku) | Pay-as-you-go, cents per eval |
-| Payments | PayMongo | Sandbox, wired in Phase 2 |
+| Payments | PayRex | Hosted checkout, test mode |
 | Email | Resend | Free tier, wired in Phase 2 |
 | Auth | `djangorestframework-simplejwt` | — |
 
@@ -87,7 +87,7 @@ need to install Postgres locally at all).
    Public read. Covers UC-6.2, UC-1.2, UC-1.11, UC-1.5, UC-1.4, UC-1.6,
    UC-2.3 (simplified), UC-7.1.
 2. **Phase 2 — High priority modules**: UC-1.1 Submit Bundle, UC-1.8 Upload
-   Magazine Design (wire Cloudflare R2 here), UC-9.x Payments (wire PayMongo),
+   Magazine Design (wire Cloudflare R2 here), UC-4.3/4.4 Payments (PayRex),
    UC-5.x User Privileges, UC-6.1/6.3 Register/Subscribe.
 3. **Phase 3 — Medium/Low priority**: Reports (Module 3), Platform Settings
    (Module 4), remaining Content Interaction (Module 7/8) endpoints,

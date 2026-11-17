@@ -133,7 +133,7 @@ class ReaderProfile(models.Model):
     tier = models.CharField(max_length=20, choices=Tier.choices, default=Tier.FREE)
     subscription_started_at = models.DateTimeField(null=True, blank=True)
     subscription_renews_at = models.DateTimeField(null=True, blank=True)
-    # PayMongo customer/subscription reference — wired in Phase 2 (Module 9)
+    # Payment gateway customer reference; unused while subscriptions are prepaid
     payment_gateway_customer_id = models.CharField(max_length=100, blank=True)
 
     def __str__(self):

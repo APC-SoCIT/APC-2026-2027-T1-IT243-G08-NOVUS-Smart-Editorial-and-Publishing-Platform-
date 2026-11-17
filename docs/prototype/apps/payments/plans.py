@@ -2,9 +2,9 @@
 The subscription plans (UC-4.3).
 
 Subscriptions are prepaid: each payment buys a fixed period of access, and
-nothing is charged automatically. PayMongo's automatic renewal works with
-cards only, while most readers pay with GCash or Maya, which cannot be
-charged without the reader approving each payment. A reminder before the
+nothing is charged automatically. Automatic renewal works with cards only,
+while most readers pay with GCash or Maya, which cannot be charged without
+the reader approving each payment. A reminder before the
 period ends (see subscription_upkeep) and a one-click renewal take the place
 of an automatic charge.
 

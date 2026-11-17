@@ -10,7 +10,7 @@ class MaintenanceModeMiddleware:
     on and lock themselves out of switching it off.
     """
 
-    # Payment notifications are let through: PayMongo does not wait for
+    # Payment notifications are let through: PayRex does not wait for
     # maintenance to end, and a payment taken must still grant access.
     EXEMPT_PREFIXES = ("/admin", "/api/auth", "/api/platform", "/api/payments/webhook",
                        "/media", "/static")

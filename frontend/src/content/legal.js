@@ -52,7 +52,7 @@ export const DOCS = {
         heading: 'What we do not collect',
         list: [
           'We do not use advertising cookies, third-party trackers, or analytics that profile you across other websites.',
-          'Payments: you pay on PayMongo\'s secure checkout page, so your card number and e-wallet sign-in never reach us. We keep a record of each payment: the plan, amount, date and the kind of payment method used (for example, GCash).',
+          'Payments: you pay on PayRex\'s secure checkout page, so your card number and e-wallet sign-in never reach us. We keep a record of each payment: the plan, amount, date and the kind of payment method used (for example, GCash).',
           'We do not sell, rent, or trade personal information to anyone.',
         ],
       },
@@ -84,7 +84,7 @@ export const DOCS = {
           'A managed PostgreSQL database provider, which stores our records.',
           'An artificial intelligence provider, which receives article text for evaluation. It does not receive reader information.',
           'An object storage provider, which holds uploaded images and magazine layouts.',
-          'PayMongo, which processes subscription payments, and Resend, which delivers our emails. Each receives only what it needs: your name and email address, and for PayMongo the plan you are paying for.',
+          'PayRex, which processes subscription payments, and Resend, which delivers our emails. Each receives only what it needs: your name and email address, and for PayRex the plan you are paying for.',
         ],
       },
       {

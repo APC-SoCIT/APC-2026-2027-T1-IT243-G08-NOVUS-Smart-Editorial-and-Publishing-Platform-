@@ -1,7 +1,7 @@
 """UC-4.3 Subscribe to BOSS Magazine.
 
-PayMongo is never called: its checkout API is replaced by a stand-in, and
-its notifications are built and signed here exactly as PayMongo signs them."""
+PayRex is never called: its checkout API is replaced by a stand-in, and its
+notifications are built and signed here exactly as PayRex signs them."""
 import json
 from datetime import timedelta
 
@@ -14,16 +14,16 @@ from django.utils import timezone
 from apps.accounts.models import ReaderProfile, User
 from apps.content.entitlement import is_entitled
 from apps.notifications.models import Notification
-from apps.payments import paymongo
+from apps.payments import payrex
 from apps.payments.management.commands.simulate_payment import paid_event
 from apps.payments.models import Subscription, Transaction
 from apps.payments.plans import ANNUAL, MONTHLY
 
 
 @pytest.fixture(autouse=True)
-def paymongo_keys(settings):
-    settings.PAYMONGO_SECRET_KEY = "sk_test_novus"
-    settings.PAYMONGO_WEBHOOK_SECRET = "whsk_test_novus"
+def payrex_keys(settings):
+    settings.PAYREX_SECRET_KEY = "sk_test_novus"
+    settings.PAYREX_WEBHOOK_SECRET = "whsk_test_novus"
     settings.FRONTEND_URL = "https://novus.test"
     cache.clear()
 
@@ -41,8 +41,8 @@ def admin(make_user):
 def deliver(event, signature=None):
     body = json.dumps(event).encode()
     return Client().post("/api/payments/webhook/", body, content_type="application/json",
-                         HTTP_PAYMONGO_SIGNATURE=signature if signature is not None
-                         else paymongo.sign(body))
+                         HTTP_PAYREX_SIGNATURE=signature if signature is not None
+                         else payrex.sign(body))
 
 
 def pay(reader, plan=MONTHLY, **kw):
@@ -52,16 +52,17 @@ def pay(reader, plan=MONTHLY, **kw):
     return r.json()["outcome"]
 
 
-class FakePayMongo:
+class FakePayRex:
     def __init__(self, fail=False):
         self.sent, self.fail = [], fail
 
-    def __call__(self, url, json=None, auth=None, timeout=None):
-        self.sent.append((url, json, auth))
+    def __call__(self, url, data=None, auth=None, timeout=None):
+        self.sent.append((url, data, auth))
         if self.fail:
             return httpx.Response(400, json={"errors": [{"detail": "bad"}]})
-        return httpx.Response(200, json={"data": {"id": "cs_123", "attributes": {
-            "checkout_url": "https://checkout.paymongo.com/cs_123"}}})
+        return httpx.Response(200, json={"id": "cs_123", "resource": "checkout_session",
+                                         "url": "https://checkout.payrexhq.com/c/cs_123",
+                                         "status": "active"})
 
 
 @pytest.mark.django_db
@@ -71,24 +72,32 @@ class TestPlansAndCheckout:
         assert [(p["code"], p["price"]) for p in r["plans"]] == [("MONTHLY", "₱199"), ("ANNUAL", "₱1,990")]
         assert r["available"] is True
 
-    def test_continue_opens_a_paymongo_checkout(self, auth_client, reader, monkeypatch):  # step 2.1
-        fake = FakePayMongo()
-        monkeypatch.setattr("apps.payments.paymongo.httpx.post", fake)
+    def test_continue_opens_a_payrex_checkout(self, auth_client, reader, monkeypatch):  # step 2.1
+        fake = FakePayRex()
+        monkeypatch.setattr("apps.payments.payrex.httpx.post", fake)
         r = auth_client(reader).post("/api/payments/checkout/", {"plan": "ANNUAL"}, format="json")
         assert r.status_code == 200
-        assert r.data["checkout_url"] == "https://checkout.paymongo.com/cs_123"
-        url, body, auth = fake.sent[0]
-        a = body["data"]["attributes"]
-        assert url.endswith("/v1/checkout_sessions") and auth == ("sk_test_novus", "")
-        assert a["line_items"][0]["amount"] == 199_000 and a["line_items"][0]["currency"] == "PHP"
-        assert "gcash" in a["payment_method_types"]
-        assert a["metadata"] == {"reader_id": str(reader.pk), "plan": "ANNUAL",
-                                 "reference": r.data["reference"]}
-        assert a["success_url"] == f"https://novus.test/subscribe/return?ref={r.data['reference']}"
-        assert a["cancel_url"] == "https://novus.test/subscribe?cancelled=1"
+        assert r.data["checkout_url"] == "https://checkout.payrexhq.com/c/cs_123"
+        url, form, auth = fake.sent[0]
+        assert url == "https://api.payrexhq.com/checkout_sessions" and auth == ("sk_test_novus", "")
+        ref = r.data["reference"]
+        for field in [("currency", "PHP"), ("line_items[][amount]", "199000"),
+                      ("line_items[][quantity]", "1"), ("payment_methods[]", "gcash"),
+                      ("payment_methods[]", "maya"), ("metadata[reader_id]", str(reader.pk)),
+                      ("metadata[plan]", "ANNUAL"), ("metadata[reference]", ref),
+                      ("customer_reference_id", ref),
+                      ("success_url", f"https://novus.test/subscribe/return?ref={ref}"),
+                      ("cancel_url", "https://novus.test/subscribe?cancelled=1")]:
+            assert field in form, field
+
+    def test_nested_values_are_sent_the_way_payrex_reads_them(self):
+        assert payrex.form({"a": 1, "m": {"k": "v"}, "pm": ["gcash", "card"],
+                            "li": [{"name": "x", "amount": 2}]}) == [
+            ("a", "1"), ("m[k]", "v"), ("pm[]", "gcash"), ("pm[]", "card"),
+            ("li[][name]", "x"), ("li[][amount]", "2")]
 
     def test_an_abandoned_checkout_records_nothing(self, auth_client, reader, monkeypatch):  # A1
-        monkeypatch.setattr("apps.payments.paymongo.httpx.post", FakePayMongo())
+        monkeypatch.setattr("apps.payments.payrex.httpx.post", FakePayRex())
         auth_client(reader).post("/api/payments/checkout/", {"plan": "MONTHLY"}, format="json")
         assert not Transaction.objects.exists() and not Subscription.objects.exists()
         assert not is_entitled(reader)
@@ -96,9 +105,9 @@ class TestPlansAndCheckout:
     def test_refusals(self, auth_client, reader, make_user, settings, monkeypatch):
         c = auth_client(reader)
         assert c.post("/api/payments/checkout/", {"plan": "WEEKLY"}, format="json").status_code == 400
-        monkeypatch.setattr("apps.payments.paymongo.httpx.post", FakePayMongo(fail=True))
+        monkeypatch.setattr("apps.payments.payrex.httpx.post", FakePayRex(fail=True))
         assert c.post("/api/payments/checkout/", {"plan": "MONTHLY"}, format="json").status_code == 502
-        settings.PAYMONGO_WEBHOOK_SECRET = ""      # no way to trust the confirmation
+        settings.PAYREX_WEBHOOK_SECRET = ""      # no way to trust the confirmation
         assert c.post("/api/payments/checkout/", {"plan": "MONTHLY"}, format="json").status_code == 503
         assert Client().get("/api/payments/plans/").json()["available"] is False
         editor = make_user("ed@boss.ph", User.Role.EDITOR)
@@ -112,6 +121,7 @@ class TestPaymentNotification:
         assert pay(reader, MONTHLY, pay_id="pay_1") == "granted"
         tx = Transaction.objects.get()
         assert (tx.status, tx.amount_cents, tx.payment_method) == ("SUCCEEDED", 19_900, "gcash")
+        assert tx.provider_transaction_id == "pay_1"
         sub = tx.subscription
         assert sub.status == "ACTIVE"
         assert abs((sub.current_period_end - timezone.now()) - timedelta(days=30)) < timedelta(minutes=1)
@@ -142,31 +152,39 @@ class TestPaymentNotification:
         alerts = Notification.objects.filter(recipient=admin, kind="PAYMENT_ALERT")
         assert alerts.count() == 1                # throttled, not one per request
 
+    def test_a_live_signature_is_checked_too(self, reader):
+        import hashlib
+        import hmac
+        body = json.dumps(paid_event(reader, MONTHLY, "NVS-1")).encode()
+        digest = hmac.new(b"whsk_test_novus", b"99." + body, hashlib.sha256).hexdigest()
+        r = Client().post("/api/payments/webhook/", body, content_type="application/json",
+                          HTTP_PAYREX_SIGNATURE=f"t=99,te=,li={digest}")
+        assert r.status_code == 200
+
     def test_a_tampered_body_fails_the_signature(self, reader):
         body = json.dumps(paid_event(reader, MONTHLY, "NVS-1")).encode()
-        sig = paymongo.sign(body)
+        sig = payrex.sign(body)
         tampered = body.replace(b'"MONTHLY"', b'"ANNUAL"')
         r = Client().post("/api/payments/webhook/", tampered, content_type="application/json",
-                          HTTP_PAYMONGO_SIGNATURE=sig)
+                          HTTP_PAYREX_SIGNATURE=sig)
         assert r.status_code == 400 and not Transaction.objects.exists()
 
-    def test_the_paid_attempt_is_the_one_recorded(self, reader):
-        event = paid_event(reader, MONTHLY, "NVS-1", pay_id="pay_ok")
-        payments = event["data"]["attributes"]["data"]["attributes"]["payments"]
-        payments.insert(0, {"id": "pay_declined", "type": "payment",
-                            "attributes": {"amount": 19_900, "currency": "PHP", "status": "failed"}})
-        assert deliver(event).json()["outcome"] == "granted"
-        assert Transaction.objects.get().provider_transaction_id == "pay_ok"
-
-    def test_a_missing_amount_is_taken_from_the_checkout(self, reader):
+    def test_the_amount_received_is_what_counts(self, reader, admin):
         event = paid_event(reader, MONTHLY, "NVS-1")
-        cs = event["data"]["attributes"]["data"]["attributes"]
-        del cs["payments"][0]["attributes"]["amount"]
-        cs["line_items"] = [{"amount": 19_900, "quantity": 1, "currency": "PHP"}]
-        assert deliver(event).json()["outcome"] == "granted"
+        event["data"]["resource"]["amount_received"] = 2_000
+        assert deliver(event).json()["outcome"] == "not_granted"
+        assert Transaction.objects.get().failure_code == "amount_mismatch"
+        assert not is_entitled(reader)
 
-    def test_a_declined_payment_grants_nothing(self, reader):                   # E2
-        assert pay(reader, MONTHLY, status="failed") == "not_granted"
+    def test_the_method_is_recorded_when_payrex_says(self, reader):
+        event = paid_event(reader, MONTHLY, "NVS-1", method="maya")
+        event["data"]["resource"]["payment_methods"] = ["gcash", "maya", "card", "qrph"]
+        event["data"]["resource"]["latest_payment"] = {"payment_method": {"type": "maya"}}
+        deliver(event)
+        assert Transaction.objects.get().payment_method == "maya"
+
+    def test_an_unfinished_payment_grants_nothing(self, reader):                 # E2
+        assert pay(reader, MONTHLY, status="awaiting_payment_method") == "not_granted"
         assert Transaction.objects.get().status == "FAILED"
         assert not Subscription.objects.exists() and not is_entitled(reader)
 
@@ -184,7 +202,7 @@ class TestPaymentNotification:
 
     def test_other_events_are_acknowledged_and_ignored(self, reader):
         event = paid_event(reader, MONTHLY, "NVS-1")
-        event["data"]["attributes"]["type"] = "payment.refunded"
+        event["type"] = "refund.created"
         r = deliver(event)
         assert r.status_code == 200 and r.json()["outcome"] == "ignored"
 
@@ -243,7 +261,7 @@ class TestReturnPage:
         assert r["status"] == "paid" and r["entitled"] is True
 
     def test_it_reports_a_decline(self, auth_client, reader):
-        pay(reader, MONTHLY, reference="NVS-8", status="failed")
+        pay(reader, MONTHLY, reference="NVS-8", status="canceled")
         assert auth_client(reader).get("/api/payments/checkout/NVS-8/").data["status"] == "failed"
 
     def test_another_reader_cannot_see_it(self, auth_client, reader, make_user):

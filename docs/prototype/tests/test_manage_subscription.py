@@ -17,9 +17,9 @@ from tests.test_subscribe import pay
 
 
 @pytest.fixture(autouse=True)
-def paymongo_keys(settings):
-    settings.PAYMONGO_SECRET_KEY = "sk_test_novus"
-    settings.PAYMONGO_WEBHOOK_SECRET = "whsk_test_novus"
+def payrex_keys(settings):
+    settings.PAYREX_SECRET_KEY = "sk_test_novus"
+    settings.PAYREX_WEBHOOK_SECRET = "whsk_test_novus"
     cache.clear()
 
 
@@ -126,7 +126,7 @@ class TestRevenueReport:
     def test_the_publisher_sees_confirmed_revenue(self, auth_client, publisher, reader, make_user):
         pay(reader, ANNUAL)
         pay(make_user("ben@example.com", User.Role.READER), MONTHLY)
-        pay(make_user("cy@example.com", User.Role.READER), MONTHLY, status="failed")
+        pay(make_user("cy@example.com", User.Role.READER), MONTHLY, status="canceled")
         r = auth_client(publisher).get("/api/reports/revenue/?days=30").data
         assert r["revenue_cents"] == 199_000 + 19_900
         assert (r["payments"], r["failed_payments"]) == (2, 1)

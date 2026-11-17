@@ -1,7 +1,7 @@
 <script setup>
 /* UC-4.3 Subscribe to BOSS Magazine, steps 1 and 2: pick a plan, then pay on
-   PayMongo's own checkout page. Nothing is granted here; access comes from
-   PayMongo's signed confirmation to the server. */
+   PayRex's own checkout page. Nothing is granted here; access comes from
+   PayRex's signed confirmation to the server. */
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../services/api'
@@ -91,7 +91,7 @@ async function pay() {
       </div>
 
       <ul class="terms">
-        <li>Pay with GCash, Maya, a card or QR Ph on PayMongo's secure page. Your payment details never reach BOSS Magazine.</li>
+        <li>Pay with GCash, Maya, a card or QR Ph on PayRex's secure page. Your payment details never reach BOSS Magazine.</li>
         <li>Prepaid: nothing is charged automatically. We remind you before your access ends.</li>
         <li>Cancel any time; you keep access to the end of the period you paid for.
           See the <router-link to="/legal/refunds">Refund Policy</router-link>.</li>

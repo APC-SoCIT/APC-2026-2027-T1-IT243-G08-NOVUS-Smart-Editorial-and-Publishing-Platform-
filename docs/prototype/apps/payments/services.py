@@ -1,9 +1,9 @@
 """
-What a verified PayMongo notification does (UC-4.3 steps 3.2 to 3.4).
+What a verified PayRex notification does (UC-4.3 steps 3.2 to 3.4).
 
-record_checkout_payment() is the only place access is granted for money.
-It is safe to call twice with the same notification: the payment's PayMongo
-id is a unique key, so the second call finds it recorded and does nothing.
+record_payment() is the only place access is granted for money. It is safe
+to call twice with the same notification: the payment intent's PayRex id is
+a unique key, so the second call finds it recorded and does nothing.
 """
 import logging
 import secrets
@@ -45,45 +45,42 @@ def _when(timestamp):
         return timezone.now()
 
 
-def _method(session, payment):
-    used = session.get("payment_method_used") or ""
-    source = payment.get("source") or {}
-    return (used or source.get("type") or "")[:30]
+def _method(intent):
+    """The method the reader paid with, when the notification says. A
+    checkout that offered several methods may not say which was used."""
+    for holder in (intent.get("latest_payment"), intent):
+        method = (holder or {}).get("payment_method")
+        if isinstance(method, dict) and method.get("type"):
+            return method["type"][:30]
+    offered = intent.get("payment_methods") or []
+    return offered[0][:30] if len(offered) == 1 else ""
 
 
-def record_checkout_payment(event):
-    """Handle checkout_session.payment.paid. Returns a short outcome word."""
-    session_obj = event["data"]["attributes"]["data"]
-    session = session_obj.get("attributes") or {}
-    meta = session.get("metadata") or {}
-    payments = session.get("payments") or []
-    if not payments:
-        return "no_payment"
+def record_payment(event):
+    """Handle payment_intent.succeeded. Returns a short outcome word.
 
-    # A checkout keeps every attempt (a declined card, then GCash); at most
-    # one of them is paid.
-    payment = next((p for p in payments if (p.get("attributes") or {}).get("status") == "paid"),
-                   payments[-1])
-    pay = payment.get("attributes") or {}
-    pay_id = payment.get("id", "")
+    The checkout's metadata (reader, plan, reference) is copied by PayRex
+    onto the payment intent, so the intent alone says whom to grant.
+    """
+    intent = event["data"]["resource"]
+    meta = intent.get("metadata") or {}
+    pay_id = intent.get("id", "")
     if Transaction.objects.filter(provider_transaction_id=pay_id).exists():
         return "duplicate"
 
     reader = User.objects.filter(pk=meta.get("reader_id"), role=User.Role.READER).first()
     plan = PLANS.get(meta.get("plan"))
     if reader is None or plan is None or not pay_id:
-        alert_admins("unmatched", f"A PayMongo payment ({pay_id or 'no id'}) could not be "
+        alert_admins("unmatched", f"A PayRex payment ({pay_id or 'no id'}) could not be "
                                   "matched to a reader and plan. Nothing was granted.")
         return "unmatched"
 
-    amount = pay.get("amount")
-    if amount is None:      # some PayMongo test events leave it out
-        amount = sum(int(li.get("amount", 0)) * int(li.get("quantity", 1))
-                     for li in session.get("line_items") or [])
-    currency = (pay.get("currency") or CURRENCY).upper()
+    received = intent.get("amount_received")
+    amount = intent.get("amount") if received is None else received
+    currency = (intent.get("currency") or CURRENCY).upper()
     failure = ""
-    if pay.get("status") != "paid":                       # UC-4.3 E2
-        failure = (pay.get("failed_code") or pay.get("status") or "not_paid")[:50]
+    if intent.get("status") != "succeeded":                  # UC-4.3 E2
+        failure = (intent.get("status") or "not_paid")[:50]
     elif amount != plan.amount or currency != CURRENCY:
         failure = "amount_mismatch"
 
@@ -92,11 +89,12 @@ def record_checkout_payment(event):
         with transaction.atomic():
             tx = Transaction.objects.create(
                 reader=reader, provider_transaction_id=pay_id,
-                reference=(meta.get("reference") or session.get("reference_number") or "")[:40],
+                reference=(meta.get("reference") or "")[:40],
                 status=Transaction.Status.FAILED if failure else Transaction.Status.SUCCEEDED,
                 plan=plan.code, amount_cents=amount or 0, currency=currency[:3],
-                payment_method=_method(session, pay), failure_code=failure,
-                raw_payload=event, occurred_at=_when(pay.get("paid_at")) if not failure else now,
+                payment_method=_method(intent), failure_code=failure,
+                raw_payload=event,
+                occurred_at=_when(intent.get("updated_at")) if not failure else now,
             )
             if not failure:
                 tx.subscription = grant(reader, plan, now)
@@ -106,7 +104,7 @@ def record_checkout_payment(event):
         return "duplicate"
 
     if failure == "amount_mismatch":
-        alert_admins("amount", f"PayMongo payment {pay_id} was for {amount} {currency}, "
+        alert_admins("amount", f"PayRex payment {pay_id} was for {amount} {currency}, "
                                f"not the {plan.name} price. Nothing was granted.")
     if failure:
         return "not_granted"

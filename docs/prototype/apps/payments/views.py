@@ -2,9 +2,9 @@
 UC-4.3 Subscribe to BOSS Magazine.
 
   GET  plans/                 the plans and prices (step 1.1)
-  POST checkout/              open a PayMongo checkout for a plan (step 2.1)
+  POST checkout/              open a PayRex checkout for a plan (step 2.1)
   GET  checkout/<reference>/  what became of it, for the return page (step 4.1)
-  POST webhook/               PayMongo's signed notification (steps 3.1 to 3.4)
+  POST webhook/               PayRex's signed notification (steps 3.1 to 3.4)
 
 UC-4.4 Manage a Subscription.
 
@@ -26,7 +26,7 @@ from rest_framework.views import APIView
 
 from apps.content.entitlement import is_entitled
 
-from . import manage, paymongo, services
+from . import manage, payrex, services
 from .models import Transaction
 from .plans import PLANS
 
@@ -43,7 +43,7 @@ class PlanListView(APIView):
 
     def get(self, request):
         return Response({"plans": [p.as_dict() for p in PLANS.values()],
-                         "available": paymongo.configured()})
+                         "available": payrex.configured()})
 
 
 class CheckoutView(APIView):
@@ -59,19 +59,19 @@ class CheckoutView(APIView):
         if plan is None:
             return Response({"plan": ["Choose Monthly or Annual."]},
                             status=status.HTTP_400_BAD_REQUEST)
-        if not paymongo.configured():
+        if not payrex.configured():
             return Response({"detail": "Online payment is not set up yet."},
                             status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         reference = services.new_reference(user)
         base = settings.FRONTEND_URL
         try:
-            _session, url = paymongo.create_checkout(
+            _session, url = payrex.create_checkout(
                 reader=user, plan=plan, reference=reference,
                 success_url=f"{base}/subscribe/return?ref={reference}",
                 cancel_url=f"{base}/subscribe?cancelled=1",
             )
-        except paymongo.PayMongoError:
+        except payrex.PayRexError:
             log.exception("Checkout could not be opened for user %s", user.pk)
             return Response({"detail": "Payment could not be started. Try again in a moment."},
                             status=status.HTTP_502_BAD_GATEWAY)
@@ -99,29 +99,29 @@ class CheckoutStatusView(APIView):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class PayMongoWebhookView(View):
-    """PayMongo calls this after a payment. Nothing here trusts the request
+class PaymentWebhookView(View):
+    """PayRex calls this after a payment. Nothing here trusts the request
     until its signature has been checked against the raw body."""
 
     def post(self, request):
         body = request.body
-        if not paymongo.signature_ok(request.headers.get("Paymongo-Signature", ""), body):
+        if not payrex.signature_ok(request.headers.get("Payrex-Signature", ""), body):
             services.alert_admins(
                 "signature", "A payment notification with a missing or wrong signature "
-                             "was refused. If this repeats, check PAYMONGO_WEBHOOK_SECRET.")
+                             "was refused. If this repeats, check PAYREX_WEBHOOK_SECRET.")
             return JsonResponse({"detail": "Signature not recognised."}, status=400)
         try:
             event = json.loads(body)
-            kind = event["data"]["attributes"]["type"]
+            kind = event["type"]
         except (ValueError, KeyError, TypeError):
-            return JsonResponse({"detail": "Not a PayMongo event."}, status=400)
+            return JsonResponse({"detail": "Not a PayRex event."}, status=400)
 
-        if kind != "checkout_session.payment.paid":
+        if kind != payrex.PAID_EVENT:
             return JsonResponse({"received": True, "outcome": "ignored"})
         try:
-            outcome = services.record_checkout_payment(event)
+            outcome = services.record_payment(event)
         except (KeyError, TypeError):
-            log.exception("Unexpected checkout notification shape")
+            log.exception("Unexpected payment notification shape")
             return JsonResponse({"detail": "Unexpected event shape."}, status=400)
         return JsonResponse({"received": True, "outcome": outcome})
 

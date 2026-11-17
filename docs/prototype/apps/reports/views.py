@@ -168,7 +168,7 @@ class CanSeeRevenue(permissions.BasePermission):
 
 
 class RevenueReportView(APIView):
-    """UC-3.1 Generate Revenue Report: subscribers, and the payments PayMongo
+    """UC-3.1 Generate Revenue Report: subscribers, and the payments PayRex
     confirmed in the period."""
 
     permission_classes = [CanSeeRevenue]
@@ -198,7 +198,7 @@ class RevenueReportView(APIView):
 
 
 def _revenue(since):
-    """Payments PayMongo confirmed in the window. Failed attempts are
+    """Payments PayRex confirmed in the window. Failed attempts are
     counted separately and add nothing to revenue."""
     from django.db.models import Count, Sum
     from apps.payments.models import Transaction

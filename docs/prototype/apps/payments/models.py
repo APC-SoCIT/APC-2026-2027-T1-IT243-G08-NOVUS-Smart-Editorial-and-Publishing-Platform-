@@ -1,10 +1,10 @@
 """
 Subscriptions and the payments that pay for them (UC-4.3, UC-4.4).
 
-PayMongo's signed notification is the authority on whether a payment
+PayRex's signed notification is the authority on whether a payment
 happened, not the reader's return to the site: a browser redirect can be
 lost, repeated or forged. Access is granted only when a notification has
-been verified (see views.PayMongoWebhookView).
+been verified (see views.PaymentWebhookView).
 """
 from django.conf import settings
 from django.db import models
@@ -34,7 +34,7 @@ class Subscription(TimeStampedModel):
     plan = models.CharField(max_length=30, choices=Plan.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
 
-    provider = models.CharField(max_length=30, default="paymongo")
+    provider = models.CharField(max_length=30, default="payrex")
     provider_subscription_id = models.CharField(max_length=100, unique=True)
 
     current_period_start = models.DateTimeField()
@@ -53,7 +53,7 @@ class Subscription(TimeStampedModel):
 
 
 class Transaction(TimeStampedModel):
-    """One payment event confirmed by PayMongo.
+    """One payment confirmed by PayRex.
 
     provider_transaction_id is unique, which is what stops a repeated
     notification from being recorded, or granting access, twice.

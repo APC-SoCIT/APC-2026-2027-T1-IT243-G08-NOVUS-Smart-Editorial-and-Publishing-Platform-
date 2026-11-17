@@ -155,12 +155,12 @@ ANTHROPIC_EVAL_MODEL = env("ANTHROPIC_EVAL_MODEL", default="claude-haiku-4-5-202
 # most of it; the rest covers saving the draft and recording the result.
 AI_TIMEOUT_SECONDS = env.int("AI_TIMEOUT_SECONDS", default=25)
 
-# PayMongo (UC-4.3). Test keys start sk_test_; nothing is charged with them.
-# The webhook secret signs every payment notification (see payments/paymongo.py).
-PAYMONGO_SECRET_KEY = env("PAYMONGO_SECRET_KEY", default="")
-PAYMONGO_WEBHOOK_SECRET = env("PAYMONGO_WEBHOOK_SECRET", default="")
-PAYMONGO_PAYMENT_METHODS = env.list("PAYMONGO_PAYMENT_METHODS",
-                                    default=["gcash", "paymaya", "card", "qrph"])
+# PayRex (UC-4.3). Test keys start sk_test_; nothing is charged with them.
+# The webhook secret signs every payment notification (see payments/payrex.py).
+PAYREX_SECRET_KEY = env("PAYREX_SECRET_KEY", default="")
+PAYREX_WEBHOOK_SECRET = env("PAYREX_WEBHOOK_SECRET", default="")
+PAYREX_PAYMENT_METHODS = env.list("PAYREX_PAYMENT_METHODS",
+                                  default=["gcash", "maya", "card", "qrph"])
 
 
 import os
