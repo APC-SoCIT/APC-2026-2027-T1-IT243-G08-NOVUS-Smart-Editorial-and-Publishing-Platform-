@@ -30,11 +30,14 @@ class NotReady(Exception):
 
 
 def subscribers():
-    """Readers with a subscription whose account can still sign in."""
+    """Readers with a current subscription whose account can still sign in."""
+    from django.db.models import Q
     from apps.accounts.models import ReaderProfile, User
     return (User.objects
             .filter(role=User.Role.READER, is_active=True, is_suspended=False,
                     reader_profile__tier=ReaderProfile.Tier.SUBSCRIBER)
+            .filter(Q(reader_profile__subscription_renews_at__isnull=True)
+                    | Q(reader_profile__subscription_renews_at__gt=timezone.now()))
             .select_related("notification_preference"))
 
 

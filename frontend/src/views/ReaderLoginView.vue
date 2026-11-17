@@ -33,7 +33,10 @@ async function submit() {
       error.value = 'Editorial accounts sign in at the staff portal.'
       return
     }
-    router.push('/read')
+    // Back to where sign-in was asked for (the plans page, say), but only
+    // to a page of this site.
+    const next = route.query.next
+    router.push(typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/read')
   } catch {
     error.value = 'Those credentials were not recognised.'
   } finally { loading.value = false }

@@ -10,7 +10,10 @@ class MaintenanceModeMiddleware:
     on and lock themselves out of switching it off.
     """
 
-    EXEMPT_PREFIXES = ("/admin", "/api/auth", "/api/platform", "/media", "/static")
+    # Payment notifications are let through: PayMongo does not wait for
+    # maintenance to end, and a payment taken must still grant access.
+    EXEMPT_PREFIXES = ("/admin", "/api/auth", "/api/platform", "/api/payments/webhook",
+                       "/media", "/static")
 
     def __init__(self, get_response):
         self.get_response = get_response

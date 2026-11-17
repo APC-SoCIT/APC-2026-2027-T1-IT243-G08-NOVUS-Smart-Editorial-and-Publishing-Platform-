@@ -5,6 +5,7 @@ The check lived in three places and was about to live in four. Centralising it
 means the paywall cannot come to mean different things on the article page, the
 issue page and the download endpoint.
 """
+from django.utils import timezone
 
 
 def is_entitled(user):
@@ -31,4 +32,9 @@ def is_entitled(user):
         return True
 
     profile = getattr(user, "reader_profile", None)
-    return bool(profile and profile.tier == profile.Tier.SUBSCRIBER)
+    if not profile or profile.tier != profile.Tier.SUBSCRIBER:
+        return False
+    # A paid subscription ends on its paid-up date even if the daily upkeep
+    # has not run yet. One granted by an administrator has no date.
+    ends = profile.subscription_renews_at
+    return ends is None or ends > timezone.now()

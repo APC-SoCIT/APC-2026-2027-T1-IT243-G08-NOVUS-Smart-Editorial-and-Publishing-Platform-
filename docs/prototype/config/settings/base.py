@@ -124,6 +124,7 @@ REST_FRAMEWORK = {
         "password_change": "10/hour",
         "password_reset": "5/hour",
         "password_reset_confirm": "30/hour",
+        "checkout": "10/hour",
     },
 }
 
@@ -153,6 +154,13 @@ ANTHROPIC_EVAL_MODEL = env("ANTHROPIC_EVAL_MODEL", default="claude-haiku-4-5-202
 # NFR-02 allows 30 seconds from submission to an answer. The model call gets
 # most of it; the rest covers saving the draft and recording the result.
 AI_TIMEOUT_SECONDS = env.int("AI_TIMEOUT_SECONDS", default=25)
+
+# PayMongo (UC-4.3). Test keys start sk_test_; nothing is charged with them.
+# The webhook secret signs every payment notification (see payments/paymongo.py).
+PAYMONGO_SECRET_KEY = env("PAYMONGO_SECRET_KEY", default="")
+PAYMONGO_WEBHOOK_SECRET = env("PAYMONGO_WEBHOOK_SECRET", default="")
+PAYMONGO_PAYMENT_METHODS = env.list("PAYMONGO_PAYMENT_METHODS",
+                                    default=["gcash", "paymaya", "card", "qrph"])
 
 
 import os

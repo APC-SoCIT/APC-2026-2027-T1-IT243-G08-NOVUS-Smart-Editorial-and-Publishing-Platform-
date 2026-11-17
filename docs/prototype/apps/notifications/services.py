@@ -15,6 +15,7 @@ from .models import Notification, NotificationPreference
 
 SUBJECTS = {
     Notification.Kind.NEW_ISSUE: "A new issue of BOSS Magazine is out",
+    Notification.Kind.SUBSCRIPTION: "Your BOSS Magazine subscription",
 }
 
 

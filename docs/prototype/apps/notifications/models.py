@@ -28,6 +28,8 @@ class Notification(TimeStampedModel):
         DEADLINE_PASSED = "DEADLINE_PASSED", "Deadline passed"
         MESSAGE = "MESSAGE", "New message"
         NEW_ISSUE = "NEW_ISSUE", "New issue published"
+        SUBSCRIPTION = "SUBSCRIPTION", "Subscription"
+        PAYMENT_ALERT = "PAYMENT_ALERT", "Payment alert"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,

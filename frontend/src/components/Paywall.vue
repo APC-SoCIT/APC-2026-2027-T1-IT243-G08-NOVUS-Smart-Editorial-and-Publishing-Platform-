@@ -21,11 +21,8 @@ const auth = useAuthStore()
         <li>The complete back catalogue</li>
       </ul>
 
-      <button class="cta" disabled>Subscribe — coming soon</button>
-      <p class="phase">
-        Online payment is not yet available. Contact the editorial team to have
-        a subscription activated on your account.
-      </p>
+      <router-link to="/subscribe" class="cta">Subscribe</router-link>
+      <p class="phase">From ₱199 a month. Pay with GCash, Maya, a card or QR Ph.</p>
 
       <p v-if="!auth.isAuthenticated" class="alt">
         Already a subscriber?
@@ -58,7 +55,7 @@ h3 { font-family: var(--font-serif); font-size: var(--t-xl);
             font-size: var(--t-sm); color: var(--boss-text); }
 .perks li::before { content: '\2713'; position: absolute; left: 0;
                     color: var(--boss-gold); font-weight: 700; }
-.cta { border: 0; background: var(--boss-gold); color: var(--boss-bg);
+.cta { display: inline-block; text-decoration: none; border: 0; background: var(--boss-gold); color: var(--boss-bg);
        padding: var(--s-3) var(--s-7); font-size: var(--t-sm); font-weight: 700;
        letter-spacing: var(--track-caps); text-transform: uppercase;
        cursor: pointer; transition: background var(--dur-base) var(--ease-out); }

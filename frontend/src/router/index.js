@@ -17,6 +17,8 @@ import PublisherDashboard from '../views/PublisherDashboard.vue'
 import IssueDetailView from '../views/IssueDetailView.vue'
 import DesignerDashboard from '../views/DesignerDashboard.vue'
 import DesignerArticleView from '../views/DesignerArticleView.vue'
+import SubscribeView from '../views/SubscribeView.vue'
+import SubscribeReturnView from '../views/SubscribeReturnView.vue'
 import ReaderHome from '../views/ReaderHome.vue'
 import ReaderArticle from '../views/ReaderArticle.vue'
 import IssueArchive from '../views/IssueArchive.vue'
@@ -65,6 +67,8 @@ const routes = [
   { path: '/legal/:doc', component: LegalView },
   { path: '/legal', redirect: '/legal/privacy' },
   { path: '/issues/:id', component: IssueReader },
+  { path: '/subscribe', component: SubscribeView },
+  { path: '/subscribe/return', component: SubscribeReturnView, meta: { requiresAuth: true } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

@@ -5,8 +5,10 @@ import api from '../services/api'
 import BossShell from '../components/BossShell.vue'
 import FlipbookReader from '../components/FlipbookReader.vue'
 import { useIntro, useReveal } from '../composables/useReveal'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
 const issue = ref(null)
 const loading = ref(true)
 const missing = ref(false)
@@ -112,11 +114,9 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH',
 
             <div v-else class="locked" data-intro>
               <span class="badge">Subscribers only</span>
-              <p>
-                The digital edition is available to subscribers. Contact the
-                editorial team to have a subscription activated on your account.
-              </p>
-              <router-link to="/login" class="sign">Sign in →</router-link>
+              <p>The digital edition is available to subscribers.</p>
+              <router-link to="/subscribe" class="sign">Subscribe →</router-link>
+              <router-link v-if="!auth.isAuthenticated" to="/login" class="sign">Sign in →</router-link>
             </div>
           </template>
 
@@ -220,7 +220,7 @@ h1 { font-family: var(--font-serif); font-size: var(--t-3xl); font-weight: 500;
 .locked p { font-size: var(--t-sm); line-height: var(--lh-body);
             color: var(--boss-text-muted); margin: 0 0 var(--s-3); }
 .sign { font-size: var(--t-xs); letter-spacing: var(--track-caps);
-        text-transform: uppercase; color: var(--boss-gold); }
+        text-transform: uppercase; color: var(--boss-gold); margin-right: var(--s-5); }
 .nodigital { font-family: var(--font-ui); font-size: var(--t-sm);
              color: var(--boss-text-faint); }
 
