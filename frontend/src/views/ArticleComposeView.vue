@@ -39,6 +39,7 @@ const saving = ref(false)
 const savedAt = ref(null)
 const submitting = ref(false)
 const error = ref('')
+const reasons = ref([])
 const scanning = ref(false)
 const scanResult = ref(null)
 
@@ -125,7 +126,7 @@ async function save(quiet = false) {
     if (!quiet) error.value = 'Give the article a headline before saving.'
     return false
   }
-  error.value = ''
+  if (!quiet) { error.value = ''; reasons.value = [] }
   saving.value = true
   try {
     const { data: body, config } = payload()
@@ -179,10 +180,7 @@ async function decideFix(fix, decision) {
 
 async function submit() {
   if (!(await save())) return
-  if (words.value < 50) {
-    error.value = 'This looks too short to submit. Aim for at least 50 words.'
-    return
-  }
+  reasons.value = []
   submitting.value = true
   scanning.value = true
   scanResult.value = null
@@ -192,6 +190,7 @@ async function submit() {
   } catch (e) {
     scanning.value = false
     error.value = e.response?.data?.detail || 'Submission failed.'
+    reasons.value = e.response?.data?.reasons || []
   } finally { submitting.value = false }
 }
 
@@ -276,7 +275,12 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
 
     <!-- ============ notices ============ -->
     <div class="notices">
-      <p v-if="error" class="err" role="alert">{{ error }}</p>
+      <div v-if="error" class="err" role="alert">
+        {{ error }}
+        <ul v-if="reasons.length" class="err-list">
+          <li v-for="r in reasons" :key="r">{{ r }}</li>
+        </ul>
+      </div>
 
       <div v-if="!canEdit" class="locked" role="status">
         This article is <b>{{ status.replace(/_/g, ' ').toLowerCase() }}</b>
@@ -432,6 +436,8 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
 .rail { position: sticky; top: 76px; display: flex; flex-direction: column;
         gap: var(--s-4); max-height: calc(100vh - 96px); overflow-y: auto;
         padding-right: 2px; }
+.err-list { margin: 8px 0 0; padding-left: 20px; }
+.err-list li + li { margin-top: 4px; }
 .err { background: var(--bad-bg); border: 1px solid var(--bad-line);
        color: var(--bad); padding: 12px 16px; border-radius: var(--r-sm);
        font-size: 14px; margin: 0 0 var(--s-4); }
