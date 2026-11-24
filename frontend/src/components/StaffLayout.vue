@@ -55,6 +55,11 @@ const NAV = {
 
 const nav = computed(() => NAV[auth.role] || [])
 
+// UC-5.3: user accounts are administered on the Django site, which Render
+// serves beside the API. Only known when the API has its own address.
+const API_BASE = import.meta.env.VITE_API_BASE || ''
+const adminSite = /^https?:/.test(API_BASE) ? API_BASE.replace(/\/api\/?$/, '') + '/admin/' : ''
+
 /* The brand mark returns to the workspace, not to the public site. A logo
    that navigates out of the product someone is working in is disorienting —
    the reader portal is a different application wearing a different name. */
@@ -95,6 +100,13 @@ function signOut() {
           {{ n.label }}
         </router-link>
       </nav>
+
+      <a v-if="auth.role === 'ADMIN' && adminSite" :href="adminSite"
+         target="_blank" rel="noopener" class="viewsite">
+        User accounts
+        <span aria-hidden="true">↗</span>
+        <span class="sr-only">(opens the administration site in a new tab)</span>
+      </a>
 
       <a href="/read" target="_blank" rel="noopener" class="viewsite">
         View public site

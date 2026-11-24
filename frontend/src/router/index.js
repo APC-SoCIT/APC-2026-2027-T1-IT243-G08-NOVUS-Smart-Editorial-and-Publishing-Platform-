@@ -31,6 +31,7 @@ import ResetPasswordView from '../views/ResetPasswordView.vue'
 import AboutView from '../views/AboutView.vue'
 import LegalView from '../views/LegalView.vue'
 import IssueReader from '../views/IssueReader.vue'
+import NotFoundView from '../views/NotFoundView.vue'
 
 const routes = [
   { path: '/', redirect: '/read' },
@@ -48,7 +49,7 @@ const routes = [
   { path: '/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
   { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true, roles: ['EDITOR'] } },
   { path: '/calendar', component: CalendarView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR', 'PUBLISHER'] } },
-  { path: '/notifications', component: NotificationSettings, meta: { requiresAuth: true } },
+  { path: '/notifications', component: NotificationSettings, meta: { requiresAuth: true, staff: true } },
   { path: '/issues-overview', component: IssuesOverview, meta: { requiresAuth: true, roles: ['EDITOR', 'GRAPHIC_DESIGNER', 'PUBLISHER'] } },
   { path: '/archive', component: ArchiveView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR', 'PUBLISHER', 'GRAPHIC_DESIGNER'] } },
   { path: '/reports', component: ReportsView, meta: { requiresAuth: true, roles: ['EDITOR', 'PUBLISHER'] } },
@@ -71,13 +72,20 @@ const routes = [
   { path: '/subscribe', component: SubscribeView },
   { path: '/subscribe/return', component: SubscribeReturnView, meta: { requiresAuth: true } },
   { path: '/subscription', component: SubscriptionView, meta: { requiresAuth: true } },
+  // Last, so it only catches addresses no route above claims.
+  { path: '/:pathMatch(.*)*', component: NotFoundView },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (to.meta.requiresAuth && !auth.isAuthenticated) return '/staff/login'
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    // Workspace pages go to the staff sign-in; reader pages (saved, account,
+    // subscription) go to the reader sign-in and come back afterwards.
+    if (to.meta.roles || to.meta.staff) return '/staff/login'
+    return { path: '/login', query: { next: to.fullPath } }
+  }
   return true
 })
 

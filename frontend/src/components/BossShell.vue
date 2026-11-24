@@ -34,12 +34,18 @@ onMounted(() => {
 })
 onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
-const NAV = [
+// Subscribe is offered to visitors and free readers only: subscribers
+// already have access, and staff do not buy the magazine.
+const isStaff = computed(() => !!auth.role && auth.role !== 'READER')
+const canSubscribe = computed(() => !isStaff.value && tier.value !== 'SUBSCRIBER')
+
+const NAV = computed(() => [
   { to: '/read', label: 'Home' },
   { to: '/issues', label: 'Magazines' },
   { to: '/read?view=all', label: 'Articles' },
   { to: '/about', label: 'About' },
-]
+  ...(canSubscribe.value ? [{ to: '/subscribe', label: 'Subscribe' }] : []),
+])
 
 const isOn = (to) => route.path === to.split('?')[0]
 </script>
@@ -107,13 +113,15 @@ const isOn = (to) => route.path === to.split('?')[0]
           <router-link to="/read">Articles</router-link>
           <router-link to="/issues">Issues</router-link>
           <router-link to="/about">About</router-link>
+          <router-link v-if="canSubscribe" to="/subscribe">Subscribe</router-link>
         </nav>
 
         <nav aria-label="Account">
           <h3>Account</h3>
           <router-link v-if="!auth.isAuthenticated" to="/login">Sign in</router-link>
           <router-link v-else-if="auth.role && auth.role !== 'READER'" :to="{ WRITER: '/writer', EDITOR: '/editor', PUBLISHER: '/publisher', GRAPHIC_DESIGNER: '/designer', ADMIN: '/editor' }[auth.role]">Back to workspace</router-link>
-          <router-link to="/register">Create account</router-link>
+          <router-link v-if="!auth.isAuthenticated" to="/register">Create account</router-link>
+          <router-link v-if="auth.isAuthenticated && !isStaff" to="/subscription">Your subscription</router-link>
         </nav>
 
         <nav aria-label="Legal">
