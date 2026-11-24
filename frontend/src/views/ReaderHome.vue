@@ -27,7 +27,10 @@ const rest = computed(() => shown.value.filter(a => a.id !== lead.value?.id))
 onMounted(async () => {
   try {
     const { data } = await api.get('/content/articles/')
-    articles.value = data.results ?? data
+    const list = data?.results ?? data
+    articles.value = Array.isArray(list) ? list : []
+  } catch (e) {
+    console.error(e)
   } finally { loading.value = false }
 })
 

@@ -37,6 +37,13 @@ function absolutiseMedia(value) {
 }
 
 api.interceptors.response.use((response) => {
+  // An HTML page instead of JSON means the request never reached Django:
+  // VITE_API_BASE is unset, so Vercel answered with index.html.
+  const type = String(response.headers?.['content-type'] || '')
+  if (type.includes('text/html')) {
+    return Promise.reject(new Error(
+      `API returned HTML for ${response.config?.url}. Check VITE_API_BASE.`))
+  }
   response.data = absolutiseMedia(response.data)
   return response
 })

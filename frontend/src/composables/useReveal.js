@@ -41,6 +41,8 @@ export function useReveal(selector = '[data-reveal]', options = {}) {
 export function useIntro(selector, options = {}) {
   onMounted(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    // Pages that load their content after mount have nothing to animate yet.
+    if (!document.querySelector(selector)) return
     gsap.from(selector, {
       opacity: 0,
       y: options.y ?? 18,
