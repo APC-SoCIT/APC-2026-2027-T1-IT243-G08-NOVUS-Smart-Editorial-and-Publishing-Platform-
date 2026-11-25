@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import api from '../services/api'
 import StaffLayout from '../components/StaffLayout.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { confirm } from '../composables/useConfirm'
 
 const form = ref(null)
 const integrations = ref([])
@@ -11,12 +12,31 @@ const saving = ref(false)
 const error = ref('')
 const saved = ref('')
 const confirmMaintenance = ref(false)
+// The values readers see now, to tell a real change from a field left as it was.
+const last = ref({})
+const LABELS = { site_name: 'site name', tagline: 'tagline', accent_colour: 'accent colour',
+                 articles_per_page: 'articles per page', maintenance_message: 'maintenance message' }
+
+/* Site fields save when you leave them; a change asks first, because
+   readers see it at once. Cancel puts the old value back. */
+async function saveField(key) {
+  if (form.value[key] === last.value[key]) return
+  const ok = await confirm({
+    title: `Change the ${LABELS[key]}?`,
+    message: `From “${last.value[key] ?? ''}” to “${form.value[key] ?? ''}”.`,
+    points: ['Readers see the change straight away.'],
+    confirmLabel: 'Save change',
+  })
+  if (!ok) { form.value[key] = last.value[key]; return }
+  await save()
+}
 
 async function load() {
   const { data } = await api.get('/platform/settings/')
   integrations.value = data.integrations
   form.value = { ...data }
   delete form.value.integrations
+  last.value = { ...form.value }
   loading.value = false
 }
 onMounted(load)
@@ -29,6 +49,7 @@ async function save(extra = {}) {
     delete payload.updated_at
     const { data } = await api.patch('/platform/settings/', payload)
     integrations.value = data.integrations
+    last.value = { ...form.value }
     saved.value = 'Settings saved.'
     setTimeout(() => (saved.value = ''), 2500)
   } catch (e) {
@@ -36,10 +57,14 @@ async function save(extra = {}) {
   } finally { saving.value = false }
 }
 
-function toggleMaintenance() {
+async function toggleMaintenance() {
   if (!form.value.maintenance_mode) {
     confirmMaintenance.value = true      // turning it ON needs confirming
-  } else {
+  } else if (await confirm({
+    title: 'Bring the site back online?',
+    message: 'Readers can use the magazine again straight away.',
+    confirmLabel: 'Bring back online',
+  })) {
     form.value.maintenance_mode = false
     save()
   }
@@ -75,7 +100,7 @@ function doEnable() {
           </button>
         </div>
         <label>MESSAGE SHOWN TO READERS
-          <input v-model="form.maintenance_message" @blur="save()" />
+          <input v-model="form.maintenance_message" @blur="saveField('maintenance_message')" />
         </label>
       </div>
 
@@ -83,22 +108,22 @@ function doEnable() {
         <h4>Site</h4>
         <div class="row">
           <label class="grow">SITE NAME
-            <input v-model="form.site_name" @blur="save()" />
+            <input v-model="form.site_name" @blur="saveField('site_name')" />
           </label>
           <label>ACCENT COLOUR
             <div class="colour">
-              <input v-model="form.accent_colour" type="color" @change="save()" />
+              <input v-model="form.accent_colour" type="color" @change="saveField('accent_colour')" />
               <span>{{ form.accent_colour }}</span>
             </div>
           </label>
         </div>
         <label>TAGLINE
           <input v-model="form.tagline" placeholder="Shown beneath the masthead"
-                 @blur="save()" />
+                 @blur="saveField('tagline')" />
         </label>
         <label class="narrow">ARTICLES PER PAGE
           <input v-model.number="form.articles_per_page" type="number" min="4" max="48"
-                 @blur="save()" />
+                 @blur="saveField('articles_per_page')" />
         </label>
       </div>
 

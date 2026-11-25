@@ -14,6 +14,7 @@ import SlideOver from '../components/SlideOver.vue'
 import UiButton from '../components/ui/UiButton.vue'
 import UiCombobox from '../components/ui/UiCombobox.vue'
 import { useCategories } from '../composables/useCategories'
+import { confirm } from '../composables/useConfirm'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
@@ -184,6 +185,13 @@ async function decideFix(fix, decision) {
 }
 
 async function submit() {
+  if (!(await confirm({
+    title: 'Submit for review?',
+    message: `“${title.value || 'Untitled'}” goes to the AI check and then to the editor.`,
+    points: ['You cannot edit it while it is under review.',
+             'If it needs work it comes back to you with notes.'],
+    confirmLabel: 'Submit',
+  }))) return
   if (!(await save())) return
   reasons.value = []
   submitting.value = true
@@ -236,6 +244,12 @@ async function withdraw() {
     error.value = 'Give a reason for withdrawing.'
     return
   }
+  if (!(await confirm({
+    title: 'Withdraw this article?',
+    message: `“${title.value || 'Untitled'}” leaves the pipeline and any issue it is in.`,
+    points: ['This cannot be undone from here.'],
+    confirmLabel: 'Withdraw', tone: 'danger',
+  }))) return
   withdrawing.value = true
   try {
     await api.post(`/editorial/articles/${articleId.value}/withdraw/`,

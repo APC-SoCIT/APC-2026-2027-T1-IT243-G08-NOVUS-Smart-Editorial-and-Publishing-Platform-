@@ -108,7 +108,7 @@ const canConfirm = computed(() =>
 <style scoped>
 .scrim { position: fixed; inset: 0; background: rgba(13,21,38,.6);
          backdrop-filter: blur(2px); display: flex; align-items: center;
-         justify-content: center; z-index: 90; font-family: system-ui; }
+         justify-content: center; z-index: 95; font-family: system-ui; }
 .box { background: var(--nv-surface); border-radius: 12px; padding: 26px 28px; width: 420px;
        max-width: calc(100vw - 40px); box-shadow: 0 18px 50px rgba(0,0,0,.26);
        border-top: 4px solid #1a2744; }

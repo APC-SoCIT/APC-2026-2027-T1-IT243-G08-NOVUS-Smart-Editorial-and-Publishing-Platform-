@@ -10,6 +10,7 @@ import UiEmpty from '../components/ui/UiEmpty.vue'
 import UiSkeleton from '../components/ui/UiSkeleton.vue'
 import UiButton from '../components/ui/UiButton.vue'
 import UiCombobox from '../components/ui/UiCombobox.vue'
+import { confirm } from '../composables/useConfirm'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -87,6 +88,13 @@ async function upload() {
     error.value = 'The edition must be a PDF. Export from InDesign first.'
     return
   }
+  const target = issueOptions.value.find((o) => o.value === issueId.value)
+  if (!(await confirm({
+    title: 'Submit this layout for review?',
+    message: `${file.value.name} goes to the editor as ${version.value} of ${target?.label || 'the issue'}.`,
+    points: ['The editor approves it or sends it back with notes.'],
+    confirmLabel: 'Submit layout',
+  }))) return
 
   uploading.value = true
   progress.value = 0

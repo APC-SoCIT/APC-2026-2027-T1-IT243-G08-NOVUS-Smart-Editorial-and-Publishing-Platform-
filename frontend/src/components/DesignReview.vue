@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import api from '../services/api'
+import { confirm } from '../composables/useConfirm'
 
 const designs = ref([])
 const loading = ref(true)
@@ -22,8 +23,16 @@ async function load() {
 }
 onMounted(load)
 
+const layoutName = (d) => `${d.issue_title || `Issue ${d.issue}`} · ${d.version}`
+
 async function approve(d) {
   error.value = ''
+  if (!(await confirm({
+    title: 'Approve this layout?',
+    message: `${layoutName(d)} by ${d.designer_name} becomes the approved edition.`,
+    points: ['The designer is notified.', 'Subscribers read this file once the issue is published.'],
+    confirmLabel: 'Approve layout',
+  }))) return
   busy.value = d.id
   try { await api.post(`/design/designs/${d.id}/approve/`); await load() }
   catch (e) { error.value = e.response?.data?.detail || 'Approval failed.' }
@@ -42,6 +51,12 @@ async function sendRevision(d) {
     error.value = 'Describe the corrections needed.'
     return
   }
+  if (!(await confirm({
+    title: 'Send this layout back?',
+    message: `${layoutName(d)} returns to ${d.designer_name} with your notes.`,
+    points: ['They must upload a corrected version before it can be approved.'],
+    confirmLabel: 'Send back', tone: 'warn',
+  }))) return
   busy.value = d.id
   try {
     await api.post(`/design/designs/${d.id}/request-revision/`,

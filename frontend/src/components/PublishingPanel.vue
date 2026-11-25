@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import api from '../services/api'
 import UiButton from './ui/UiButton.vue'
 import UiCombobox from './ui/UiCombobox.vue'
+import { confirm } from '../composables/useConfirm'
 
 const props = defineProps({
   article: { type: Object, required: true },
@@ -34,6 +35,23 @@ watch(() => props.article, (a) => {
 
 async function saveIssue() {
   error.value = ''; saved.value = ''
+  if ((selected.value || null) === (props.article.issue ?? null)) {
+    saved.value = 'No change.'
+    return
+  }
+  const target = issueOptions.value.find((o) => o.value === selected.value)
+  if (!(await confirm(selected.value ? {
+    title: 'Schedule into this issue?',
+    message: `“${props.article.title}” goes into ${target?.label || 'the issue'}.`,
+    points: ['It publishes when the issue is published.',
+             'It becomes subscribers-only unless you set it to Free.'],
+    confirmLabel: 'Schedule',
+  } : {
+    title: 'Take it out of its issue?',
+    message: `“${props.article.title}” becomes a standalone article.`,
+    points: ['The publisher can then release it on its own.'],
+    confirmLabel: 'Make standalone', tone: 'warn',
+  }))) return
   busy.value = true
   try {
     const { data } = await api.post(
@@ -51,6 +69,16 @@ async function saveIssue() {
 
 async function saveAccess(value) {
   error.value = ''; saved.value = ''
+  if (value === premium.value) return
+  if (!(await confirm(value ? {
+    title: 'Make it subscribers-only?',
+    message: `Free readers will see an extract of “${props.article.title}”, then the paywall.`,
+    confirmLabel: 'Subscribers only',
+  } : {
+    title: 'Make it free to read?',
+    message: `Anyone will be able to read “${props.article.title}” in full.`,
+    confirmLabel: 'Make free',
+  }))) return
   premium.value = value
   busy.value = true
   try {

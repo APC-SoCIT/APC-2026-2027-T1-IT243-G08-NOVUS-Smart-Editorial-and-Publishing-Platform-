@@ -11,6 +11,7 @@ import ImageManager from '../components/ImageManager.vue'
 import StaffLayout from '../components/StaffLayout.vue'
 import UiBadge from '../components/ui/UiBadge.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { confirm } from '../composables/useConfirm'
 
 const route = useRoute()
 const router = useRouter()
@@ -86,21 +87,45 @@ async function act(fn, stay = false) {
 const approve = () => act(() => api.post(`/editorial/articles/${id}/approve/`))
 const doApprove = () => { confirmApprove.value = false; approve() }
 
-const withdraw = () => act(() => {
-  if (withdrawReason.value.trim().length < 5)
-    throw { response: { data: { detail: 'Give a reason for withdrawing.' } } }
-  return api.post(`/editorial/articles/${id}/withdraw/`, { reason: withdrawReason.value })
-})
+const withdraw = async () => {
+  if (withdrawReason.value.trim().length >= 5 && !(await confirm({
+    title: 'Withdraw this article?',
+    message: `“${article.value.title}” leaves the pipeline and any issue it is in.`,
+    points: [`${article.value.writer_name} is notified.`, 'This cannot be undone from here.'],
+    confirmLabel: 'Withdraw', tone: 'danger',
+  }))) return
+  return act(() => {
+    if (withdrawReason.value.trim().length < 5)
+      throw { response: { data: { detail: 'Give a reason for withdrawing.' } } }
+    return api.post(`/editorial/articles/${id}/withdraw/`, { reason: withdrawReason.value })
+  })
+}
 
-const sendRevision = () => act(() => {
-  const payload = notes.value.filter(n => n.instruction.trim())
-  if (!payload.length) throw { response: { data: { detail: 'Add at least one note.' } } }
-  return api.post(`/editorial/articles/${id}/request-revision/`, { notes: payload })
-})
+const sendRevision = async () => {
+  const count = notes.value.filter(n => n.instruction.trim()).length
+  if (count && !(await confirm({
+    title: 'Send it back for revision?',
+    message: `“${article.value.title}” returns to ${article.value.writer_name} with ${count} note${count === 1 ? '' : 's'}.`,
+    confirmLabel: 'Send to writer', tone: 'warn',
+  }))) return
+  return act(() => {
+    const payload = notes.value.filter(n => n.instruction.trim())
+    if (!payload.length) throw { response: { data: { detail: 'Add at least one note.' } } }
+    return api.post(`/editorial/articles/${id}/request-revision/`, { notes: payload })
+  })
+}
 
 // Staying on the page after an override lets the editor see the decision take
 // effect, and then set the issue and access without navigating back in.
-const submitOverride = () => act(async () => {
+const submitOverride = async () => {
+  if (overrideReason.value.trim().length >= 10 && !(await confirm({
+    title: 'Override the AI assessment?',
+    message: 'Your justification is recorded on the article with your name.',
+    confirmLabel: 'Override', tone: 'warn',
+  }))) return
+  return submitOverrideNow()
+}
+const submitOverrideNow = () => act(async () => {
   if (overrideReason.value.trim().length < 10)
     throw { response: { data: { detail: 'A justification of at least 10 characters is required.' } } }
   await api.post(`/editorial/articles/${id}/override/`, { reason: overrideReason.value })
@@ -108,7 +133,16 @@ const submitOverride = () => act(async () => {
   overrideReason.value = ''
 }, true)
 
-const pullBack = () => act(async () => {
+const pullBack = async () => {
+  if (pullBackReason.value.trim().length >= 5 && !(await confirm({
+    title: 'Pull this decision back?',
+    message: `“${article.value.title}” returns to review.`,
+    points: ['The reason is recorded on the article.'],
+    confirmLabel: 'Pull back', tone: 'warn',
+  }))) return
+  return pullBackNow()
+}
+const pullBackNow = () => act(async () => {
   if (pullBackReason.value.trim().length < 5)
     throw { response: { data: { detail: 'Give a reason for pulling this back.' } } }
   await api.post(`/editorial/articles/${id}/pull-back/`, { reason: pullBackReason.value })

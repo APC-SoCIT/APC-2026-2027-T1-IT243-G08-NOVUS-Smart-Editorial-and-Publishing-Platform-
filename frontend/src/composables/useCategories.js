@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import { confirm } from './useConfirm'
 
 const list = ref([])
 let loading = null
@@ -35,7 +36,18 @@ export function useCategories() {
   const canCreate = computed(() => ['EDITOR', 'ADMIN'].includes(auth.role))
 
   async function create(name) {
-    const { data } = await api.post('/editorial/categories/', { name })
+    const clean = name.trim().replace(/\s+/g, ' ')
+    const ok = await confirm({
+      title: `Create the category “${clean}”?`,
+      message: 'It is added to the category list for the whole team.',
+      points: [
+        'Writers and editors can file articles under it straight away.',
+        'Only an administrator can rename or archive it later.',
+      ],
+      confirmLabel: 'Create category',
+    })
+    if (!ok) return null
+    const { data } = await api.post('/editorial/categories/', { name: clean })
     if (!list.value.some((c) => c.id === data.id)) {
       list.value = [...list.value, data].sort((a, b) => a.name.localeCompare(b.name))
     }

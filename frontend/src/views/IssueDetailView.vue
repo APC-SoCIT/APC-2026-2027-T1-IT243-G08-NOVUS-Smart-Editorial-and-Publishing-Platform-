@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { confirm } from '../composables/useConfirm'
 
 const route = useRoute()
 const router = useRouter()
@@ -47,6 +48,12 @@ async function reopen() {
     error.value = 'Give a reason for reopening this issue.'
     return
   }
+  if (!(await confirm({
+    title: `Reopen Issue #${issue.value.number}?`,
+    message: 'Its table of contents can be changed again.',
+    points: ['The reason is recorded with the issue.'],
+    confirmLabel: 'Reopen', tone: 'warn',
+  }))) return
   busy.value = true
   try {
     await api.post(`/publication/issues/${route.params.id}/reopen/`,

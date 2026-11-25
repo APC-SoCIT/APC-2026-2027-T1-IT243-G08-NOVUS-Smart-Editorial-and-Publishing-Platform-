@@ -16,6 +16,9 @@ let lastFocused = null
    behind is unusable without a mouse. */
 function onKeydown(e) {
   if (!props.open) return
+  // A confirmation open on top owns the keyboard: Escape cancels it, not
+  // this panel and whatever was typed in it.
+  if (document.querySelector('[aria-modal="true"]')) return
   if (e.key === 'Escape') { emit('close'); return }
   if (e.key !== 'Tab' || !panel.value) return
 
