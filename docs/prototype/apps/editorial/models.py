@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 
 from apps.common.models import TimeStampedModel
 
@@ -211,3 +212,32 @@ class ArticleVersion(TimeStampedModel):
     def word_count(self):
         from django.utils.html import strip_tags
         return len(strip_tags(self.body or "").split())
+
+
+class Category(TimeStampedModel):
+    """A section of the magazine (Business, Tech, …), kept as a managed list
+    rather than fixed choices so editors can add one when the magazine grows.
+
+    Articles keep the category's name as text. Renaming a category here
+    renames it on its articles too (see categories.rename), and archiving
+    hides it from the pickers without touching articles already filed
+    under it.
+    """
+
+    name = models.CharField(max_length=40)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="categories_created",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name_plural = "categories"
+        constraints = [
+            # "Tech" and "tech" are the same section.
+            models.UniqueConstraint(Lower("name"), name="category_name_unique_ci"),
+        ]
+
+    def __str__(self):
+        return self.name

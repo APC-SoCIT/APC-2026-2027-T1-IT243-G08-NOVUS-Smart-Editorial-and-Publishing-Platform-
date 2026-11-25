@@ -18,13 +18,15 @@ from apps.notifications.models import Notification
 from apps.notifications.services import notify
 from apps.publishing.services import NotReady, publish_article
 
-from .models import Article, ArticleImage, ArticleVersion, RevisionNote
+from . import categories
+from .models import Article, ArticleImage, ArticleVersion, Category, RevisionNote
 
 logger = logging.getLogger(__name__)
 from .serializers import (
     ArticleCreateSerializer,
     ArticleImageSerializer,
     AssignArticleSerializer,
+    CategorySerializer,
     ArticleDetailSerializer,
     ArticleListSerializer,
     OverrideSerializer,
@@ -1000,3 +1002,57 @@ class ArticleImageViewSet(viewsets.ModelViewSet):
         if not allowed:
             raise PermissionDenied("You cannot remove images from this article.")
         instance.delete()
+
+
+class CategoryViewSet(viewsets.GenericViewSet):
+    """Managed categories.
+
+      GET  categories/   the active list, for every category picker
+                         (?all=1 adds archived ones, for administrators)
+      POST categories/   an editor creates one from the picker
+
+    Renaming and archiving are done by an administrator on the admin site,
+    where a rename also moves the articles filed under the old name.
+    """
+
+    serializer_class = CategorySerializer
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [role_permission("EDITOR")()]
+        # Staff only: readers filter by the categories on published articles.
+        return [role_permission("WRITER", "EDITOR", "PUBLISHER", "GRAPHIC_DESIGNER")()]
+
+    def list(self, request):
+        from django.db.models import Count
+        qs = Category.objects.all()
+        if not (request.query_params.get("all") == "1" and request.user.role == "ADMIN"):
+            qs = qs.filter(is_active=True)
+        counts = dict(Article.objects.exclude(category="").values_list("category")
+                      .annotate(n=Count("id")).values_list("category", "n"))
+        for c in qs:
+            c.article_count = counts.get(c.name, 0)
+        return Response(CategorySerializer(qs, many=True).data)
+
+    def create(self, request):
+        name = categories.normalise(request.data.get("name"))
+        existing = categories.find(name)
+        if existing and existing.is_active:
+            # Typed a name that already exists: hand back that one, so the
+            # picker selects it instead of showing an error.
+            existing.article_count = Article.objects.filter(category=existing.name).count()
+            return Response(CategorySerializer(existing).data, status=status.HTTP_200_OK)
+        if existing:
+            return Response(
+                {"name": [f'"{existing.name}" is archived. Ask an administrator to restore it.']},
+                status=status.HTTP_409_CONFLICT)
+        serializer = CategorySerializer(data={"name": name})
+        serializer.is_valid(raise_exception=True)
+        try:
+            with transaction.atomic():
+                cat = serializer.save(created_by=request.user)
+        except IntegrityError:
+            # Two editors typed the same new name at once; the first wins.
+            cat = categories.find(name)
+        cat.article_count = 0
+        return Response(CategorySerializer(cat).data, status=status.HTTP_201_CREATED)

@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '../services/api'
 import UiButton from './ui/UiButton.vue'
+import UiCombobox from './ui/UiCombobox.vue'
 
 const props = defineProps({
   article: { type: Object, required: true },
@@ -22,6 +23,9 @@ onMounted(async () => {
     // would produce a refusal rather than an assignment.
     .filter(i => !i.is_closed)
 })
+
+const issueOptions = computed(() =>
+  issues.value.map((i) => ({ value: i.id, label: `Issue ${i.number} — ${i.title}` })))
 
 watch(() => props.article, (a) => {
   selected.value = a.issue ?? ''
@@ -69,12 +73,9 @@ async function saveAccess(value) {
     <div class="field">
       <label for="issue-select">ISSUE</label>
       <div class="row">
-        <select id="issue-select" v-model="selected" :disabled="busy">
-          <option value="">Not in an issue — publishes on its own</option>
-          <option v-for="i in issues" :key="i.id" :value="i.id">
-            Issue {{ i.number }} — {{ i.title }}
-          </option>
-        </select>
+        <UiCombobox id="issue-select" v-model="selected" :options="issueOptions"
+                    empty-label="Not in an issue — publishes on its own"
+                    placeholder="Type an issue number or title…" :disabled="busy" />
         <UiButton size="sm" :loading="busy" @click="saveIssue">Save</UiButton>
       </div>
       <p class="hint">

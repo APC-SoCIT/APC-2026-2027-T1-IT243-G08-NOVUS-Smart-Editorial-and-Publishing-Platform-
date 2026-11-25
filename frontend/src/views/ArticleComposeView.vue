@@ -12,6 +12,8 @@ import MessageThread from '../components/MessageThread.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import SlideOver from '../components/SlideOver.vue'
 import UiButton from '../components/ui/UiButton.vue'
+import UiCombobox from '../components/ui/UiCombobox.vue'
+import { useCategories } from '../composables/useCategories'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
@@ -64,6 +66,9 @@ const words = computed(() => {
   return text ? text.split(/\s+/).length : 0
 })
 const minutes = computed(() => Math.max(1, Math.round(words.value / 200)))
+
+const { load: loadCategories, optionsWith, canCreate, create: createCategory } = useCategories()
+loadCategories()
 
 const canEdit = computed(() =>
   ['ASSIGNED', 'DRAFTING', 'REVISION_REQUESTED'].includes(status.value))
@@ -370,11 +375,10 @@ const back = () => router.push(auth.role === 'EDITOR' ? '/editor' : '/writer')
                subtitle="Category, photography, and how this appears to readers."
                @close="detailsOpen = false">
       <label>CATEGORY
-        <select v-model="category" :disabled="!canEdit" @change="dirty = true">
-          <option value="">Uncategorised</option>
-          <option>Business</option><option>Tech</option><option>Life</option>
-          <option>Innovation</option><option>Leadership</option>
-        </select>
+        <UiCombobox v-model="category" :options="optionsWith(category)"
+                    empty-label="Uncategorised" placeholder="Type or pick…"
+                    :disabled="!canEdit" :create="canCreate ? createCategory : null"
+                    @change="dirty = true" />
       </label>
 
       <label>HERO IMAGE

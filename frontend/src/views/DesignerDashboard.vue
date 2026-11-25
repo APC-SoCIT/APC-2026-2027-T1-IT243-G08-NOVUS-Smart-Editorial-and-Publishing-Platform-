@@ -9,6 +9,7 @@ import UiBadge from '../components/ui/UiBadge.vue'
 import UiEmpty from '../components/ui/UiEmpty.vue'
 import UiSkeleton from '../components/ui/UiSkeleton.vue'
 import UiButton from '../components/ui/UiButton.vue'
+import UiCombobox from '../components/ui/UiCombobox.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -21,6 +22,8 @@ const tab = ref('copy')
 
 const uploadOpen = ref(false)
 const issueId = ref('')
+const issueOptions = computed(() =>
+  issues.value.map((i) => ({ value: i.id, label: `Issue ${i.number} — ${i.title}` })))
 const version = ref('v1.0')
 const notes = ref('')
 const file = ref(null)
@@ -281,12 +284,8 @@ const grouped = computed(() => {
              subtitle="Submit a magazine layout for editor review."
              @close="uploadOpen = false">
     <label>ISSUE
-      <select v-model="issueId">
-        <option value="">Select an issue…</option>
-        <option v-for="i in issues" :key="i.id" :value="i.id">
-          Issue {{ i.number }} — {{ i.title }}
-        </option>
-      </select>
+      <UiCombobox v-model="issueId" :options="issueOptions"
+                  placeholder="Type an issue number or title…" />
     </label>
 
     <label>VERSION

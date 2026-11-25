@@ -4,6 +4,7 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
 import ConfirmDialog from './ConfirmDialog.vue'
+import UiCombobox from './ui/UiCombobox.vue'
 
 const props = defineProps({ article: { type: Object, required: true } })
 const emit = defineEmits(['reassigned'])
@@ -19,6 +20,9 @@ onMounted(async () => {
   const { data } = await api.get('/auth/writers/')
   writers.value = data.filter((w) => w.id !== props.article.writer)
 })
+
+const writerOptions = computed(() =>
+  writers.value.map((w) => ({ value: w.id, label: `${w.first_name} ${w.last_name}` })))
 
 const newName = computed(() => {
   const w = writers.value.find((x) => x.id === writer.value)
@@ -56,12 +60,8 @@ async function submit() {
       <template v-if="article.status === 'DRAFTING'"> · draft started</template>
     </p>
     <label>NEW WRITER
-      <select v-model="writer">
-        <option value="">Select a writer…</option>
-        <option v-for="w in writers" :key="w.id" :value="w.id">
-          {{ w.first_name }} {{ w.last_name }}
-        </option>
-      </select>
+      <UiCombobox v-model="writer" :options="writerOptions"
+                  placeholder="Type a writer's name…" />
     </label>
     <label>DEADLINE
       <input v-model="deadline" type="date" />

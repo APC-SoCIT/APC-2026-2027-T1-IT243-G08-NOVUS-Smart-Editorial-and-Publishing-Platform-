@@ -12,7 +12,8 @@ class RelativeImageField(serializers.ImageField):
         # the CDN. Only the local-disk fallback needs the relative form.
         return value.url
 
-from .models import Article, ArticleImage, ArticleVersion, RevisionNote
+from . import categories
+from .models import Article, ArticleImage, ArticleVersion, Category, RevisionNote
 
 
 class ArticleImageSerializer(serializers.ModelSerializer):
@@ -65,6 +66,9 @@ class AssignArticleSerializer(serializers.ModelSerializer):
         if value.role != value.Role.WRITER:
             raise serializers.ValidationError("Articles can only be assigned to a Writer.")
         return value
+
+    def validate_category(self, value):
+        return categories.clean_article_category(value)
 
     def create(self, validated_data):
         validated_data["assigned_by"] = self.context["request"].user
@@ -165,9 +169,27 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
             "is_featured": {"required": False},
         }
 
+    def validate_category(self, value):
+        current = self.instance.category if self.instance else ""
+        return categories.clean_article_category(value, current)
+
     def create(self, validated_data):
         validated_data["writer"] = self.context["request"].user
         return super().create(validated_data)
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    """The managed list behind every category picker."""
+
+    article_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Category
+        fields = ["id", "name", "is_active", "article_count"]
+        read_only_fields = ["id", "is_active", "article_count"]
+
+    def validate_name(self, value):
+        return categories.validate_new_name(value)
 
 
 class RequestRevisionSerializer(serializers.Serializer):

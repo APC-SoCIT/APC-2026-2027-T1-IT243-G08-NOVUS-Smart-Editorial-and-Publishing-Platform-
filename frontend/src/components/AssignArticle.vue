@@ -1,7 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
 import ConfirmDialog from './ConfirmDialog.vue'
+import UiCombobox from './ui/UiCombobox.vue'
+import { useCategories } from '../composables/useCategories'
 
 const emit = defineEmits(['assigned'])
 
@@ -12,7 +14,12 @@ const confirming = ref(false)
 
 const form = ref({ title: '', brief: '', category: '', writer: '', deadline: '' })
 
+const { load: loadCategories, optionsWith, canCreate, create: createCategory } = useCategories()
+const writerOptions = computed(() =>
+  writers.value.map((w) => ({ value: w.id, label: `${w.first_name} ${w.last_name}` })))
+
 onMounted(async () => {
+  loadCategories()
   const { data } = await api.get('/auth/writers/')
   writers.value = data
 })
@@ -51,7 +58,7 @@ async function submit() {
     emit('assigned')
   } catch (e) {
     const d = e.response?.data
-    error.value = d?.writer?.[0] || d?.detail || 'Could not create the assignment.'
+    error.value = d?.writer?.[0] || d?.category?.[0] || d?.detail || 'Could not create the assignment.'
   } finally { busy.value = false }
 }
 </script>
@@ -67,19 +74,13 @@ async function submit() {
     </label>
     <div class="row">
       <label class="grow">WRITER
-        <select v-model="form.writer">
-          <option value="">Select a writer…</option>
-          <option v-for="w in writers" :key="w.id" :value="w.id">
-            {{ w.first_name }} {{ w.last_name }}
-          </option>
-        </select>
+        <UiCombobox v-model="form.writer" :options="writerOptions"
+                    placeholder="Type a writer's name…" />
       </label>
-      <label>CATEGORY
-        <select v-model="form.category">
-          <option value="">—</option>
-          <option>Business</option><option>Tech</option><option>Life</option>
-          <option>Innovation</option><option>Leadership</option>
-        </select>
+      <label class="grow">CATEGORY
+        <UiCombobox v-model="form.category" :options="optionsWith()"
+                    empty-label="No category" placeholder="Type or pick…"
+                    :create="canCreate ? createCategory : null" />
       </label>
       <label>DEADLINE
         <input v-model="form.deadline" type="date" />
