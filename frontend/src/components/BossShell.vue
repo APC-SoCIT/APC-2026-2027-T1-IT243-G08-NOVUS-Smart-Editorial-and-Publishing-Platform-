@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { maintenance } from '../services/api'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -95,7 +96,12 @@ const isOn = (to) => route.path === to.split('?')[0]
     </nav>
 
     <main id="main" tabindex="-1">
-      <slot />
+      <section v-if="maintenance.on" class="held" role="status">
+        <p class="eyebrow">Briefly unavailable</p>
+        <h1>{{ maintenance.message || 'BOSS Magazine is briefly unavailable while we make an update.' }}</h1>
+        <p>Please come back shortly.</p>
+      </section>
+      <slot v-else />
     </main>
 
     <footer>
@@ -204,6 +210,12 @@ header nav a.on::after { content: ''; position: absolute; left: 0; right: 0;
             color: var(--boss-text-muted); }
 
 main { flex: 1; }
+.held { max-width: 720px; margin: 0 auto; padding: var(--s-9) var(--s-7); min-height: 50vh; }
+.held .eyebrow { margin: 0 0 var(--s-3); font-size: var(--t-xs); font-weight: 700;
+                 letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--boss-gold); }
+.held h1 { margin: 0 0 var(--s-4); font-family: var(--font-serif); font-size: var(--t-2xl);
+           line-height: 1.15; color: var(--boss-text); }
+.held p { color: var(--boss-text-muted); }
 main:focus { outline: none; }
 
 footer { border-top: 1px solid var(--boss-line); margin-top: var(--s-9);

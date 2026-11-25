@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { reactive } from 'vue'
 
 // Development goes through the Vite proxy; production calls Render
 // directly, since Vercel serves the frontend from another origin.
@@ -119,6 +120,18 @@ api.interceptors.response.use(
     }
   },
 )
+
+/* Maintenance mode (UC-4.1 E1): the API answers reader requests with 503
+   and the administrator's message. Kept here so the magazine can show it
+   in place of its pages, instead of looking empty. */
+export const maintenance = reactive({ on: false, message: '' })
+api.interceptors.response.use((r) => r, (error) => {
+  if (error.response?.status === 503 && error.response.data?.maintenance) {
+    maintenance.on = true
+    maintenance.message = error.response.data.detail || ''
+  }
+  return Promise.reject(error)
+})
 
 // If the API reports that the password must be changed first, go there.
 api.interceptors.response.use((r) => r, (error) => {
