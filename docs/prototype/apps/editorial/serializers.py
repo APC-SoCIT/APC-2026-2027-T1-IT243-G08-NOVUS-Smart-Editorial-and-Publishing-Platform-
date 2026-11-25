@@ -54,17 +54,27 @@ class RevisionNoteSerializer(serializers.ModelSerializer):
         return obj.editor.get_full_name() if obj.editor else None
 
 
+def writer_name(article):
+    """The writer's name, or None for an open headline nobody has yet."""
+    return article.writer.get_full_name() if article.writer_id else None
+
+
 class AssignArticleSerializer(serializers.ModelSerializer):
     """UC-1.1 Assign Article — an Editor creates the record and hands it to a
-    Writer with a topic, angle, and deadline."""
+    Writer with a topic, angle, and deadline. Without a writer it becomes an
+    open headline in the backlog, to be given to a writer later."""
 
     class Meta:
         model = Article
         fields = ["id", "title", "brief", "category", "writer", "deadline"]
+        extra_kwargs = {"writer": {"required": False, "allow_null": True}}
 
     def validate_writer(self, value):
-        if value.role != value.Role.WRITER:
-            raise serializers.ValidationError("Articles can only be assigned to a Writer.")
+        if value is None:
+            return value
+        if (value.role != value.Role.WRITER or not value.is_active
+                or getattr(value, "is_suspended", False)):
+            raise serializers.ValidationError("Articles can only be assigned to an active Writer.")
         return value
 
     def validate_category(self, value):
@@ -72,7 +82,8 @@ class AssignArticleSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data["assigned_by"] = self.context["request"].user
-        validated_data["status"] = Article.Status.ASSIGNED
+        validated_data["status"] = (Article.Status.ASSIGNED if validated_data.get("writer")
+                                    else Article.Status.OPEN)
         return super().create(validated_data)
 
 
@@ -85,7 +96,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
     """Slim shape for dashboard/list views (Writer Dashboard, Editor
     Dashboard 'Pending Reviews' widget)."""
 
-    writer_name = serializers.CharField(source="writer.get_full_name", read_only=True)
+    writer_name = serializers.SerializerMethodField()
     is_overdue = serializers.BooleanField(read_only=True)
     days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
     reading_time = serializers.IntegerField(read_only=True)
@@ -105,6 +116,9 @@ class ArticleListSerializer(serializers.ModelSerializer):
             "created_at", "updated_at",
         ]
 
+    def get_writer_name(self, obj):
+        return writer_name(obj)
+
     def get_latest_score(self, obj):
         latest = obj.evaluations.order_by("-created_at").first()
         return latest.overall_score if latest else None
@@ -122,7 +136,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     is_overdue = serializers.BooleanField(read_only=True)
     days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
     latest_evaluation = serializers.SerializerMethodField()
-    writer_name = serializers.CharField(source="writer.get_full_name", read_only=True)
+    writer_name = serializers.SerializerMethodField()
 
     hero_image = RelativeImageField(required=False, allow_null=True)
 
@@ -143,6 +157,9 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
             "id", "status", "writer", "editor", "published_at",
             "withdrawal_reason", "returned_by_ai", "created_at", "updated_at",
         ]
+
+    def get_writer_name(self, obj):
+        return writer_name(obj)
 
     def get_latest_evaluation(self, obj):
         """UC-1.5: the narrative brief is shown to the Editor as draft notes and

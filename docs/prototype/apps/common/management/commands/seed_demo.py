@@ -54,6 +54,14 @@ WRITERS = [
 # body copy with an argument in it. Short, but not lorem ipsum.
 # --------------------------------------------------------------------------
 
+# Planned headlines nobody has been given yet (the backlog).
+OPEN_HEADLINES = [
+    ("Coffee Chains Bet on Cebu", "Business",
+     "Who is opening where outside Manila, and why Cebu first."),
+    ("The Return of the Neighbourhood Tailor", "Life",
+     "Made-to-measure is back among young professionals. Find three shops."),
+]
+
 STORIES = [
     ("The Quiet Rise of Filipino Design Studios", "Business",
      "A decade ago most Filipino creative talent was exported. Today the studios are staying home.",
@@ -505,6 +513,13 @@ class Command(BaseCommand):
             lead.is_featured = True
             lead.is_premium = False   # the shop window should be readable
             lead.save(update_fields=["is_featured", "is_premium"])
+
+        # The backlog: headlines planned with no writer yet.
+        for title, category, brief in OPEN_HEADLINES:
+            Article.objects.create(title=title, category=category, brief=brief, body="",
+                                   status=Article.Status.OPEN, assigned_by=editor,
+                                   deadline=today + timedelta(days=random.randint(10, 21)))
+            made += 1
 
         self.stdout.write(f"  {made} articles")
 

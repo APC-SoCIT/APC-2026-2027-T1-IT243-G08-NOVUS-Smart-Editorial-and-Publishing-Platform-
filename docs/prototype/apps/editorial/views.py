@@ -150,7 +150,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             # has been assigned to an issue.
             return [role_permission("EDITOR", "PUBLISHER")()]
         if self.action in ("approve", "override", "assign_to_issue",
-                           "assign", "reassign", "set_access"):
+                           "assign", "reassign", "set_access", "assign_writer"):
             return [role_permission("EDITOR")()]
         if self.action in ("publish", "sign_off"):
             return [role_permission("PUBLISHER")()]
@@ -558,7 +558,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             "kind": "deadline",
             "date": a.deadline.isoformat(),
             "title": a.title,
-            "writer": a.writer.get_full_name(),
+            "writer": a.writer.get_full_name() if a.writer_id else "Unassigned",
             "status": a.status,
             "is_open": a.status in open_statuses,
             "is_overdue": a.status in open_statuses and a.deadline < today,
@@ -644,11 +644,40 @@ class ArticleViewSet(viewsets.ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         article = serializer.save()
+        # No writer: an open headline in the backlog. Nobody to tell yet.
         notify(article.writer, Notification.Kind.ASSIGNED,
                f'You have been assigned "{article.title}".',
                f"/writer/compose/{article.id}")
         return Response(ArticleDetailSerializer(article).data,
                         status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="assign-writer")
+    def assign_writer(self, request, pk=None):
+        """Give an open headline from the backlog to a writer. From here it
+        follows the normal assignment: Assigned, then drafting."""
+        from apps.accounts.models import User
+
+        article = self.get_object()
+        if article.status != Article.Status.OPEN:
+            return Response({"detail": "Only an open headline can be given to a writer this way."},
+                            status=status.HTTP_409_CONFLICT)
+        writer = User.objects.filter(pk=request.data.get("writer"), role=User.Role.WRITER,
+                                     is_active=True, is_suspended=False).first()
+        if writer is None:
+            return Response({"writer": ["Choose an active writer."]},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if request.data.get("deadline"):
+            from rest_framework.fields import DateField
+            article.deadline = DateField().run_validation(request.data["deadline"])
+
+        article.writer = writer
+        article.status = Article.Status.ASSIGNED
+        article.assigned_by = article.assigned_by or request.user
+        article.save(update_fields=["writer", "status", "deadline", "assigned_by", "updated_at"])
+        notify(writer, Notification.Kind.ASSIGNED,
+               f'You have been assigned "{article.title}".',
+               f"/writer/compose/{article.id}")
+        return Response(ArticleDetailSerializer(article).data)
 
     @action(detail=True, methods=["get"])
     def timeline(self, request, pk=None):
@@ -661,9 +690,12 @@ class ArticleViewSet(viewsets.ModelViewSet):
         events.append({
             "at": article.created_at,
             "kind": "created",
-            "title": "Assigned" if article.assigned_by else "Draft started",
-            "detail": (f"{article.assigned_by.get_full_name()} assigned this to "
-                       f"{article.writer.get_full_name()}"
+            "title": ("Added to the backlog" if not article.writer_id
+                      else "Assigned" if article.assigned_by else "Draft started"),
+            "detail": (f"{article.assigned_by.get_full_name()} added this headline"
+                       if not article.writer_id
+                       else f"{article.assigned_by.get_full_name()} assigned this to "
+                            f"{article.writer.get_full_name()}"
                        if article.assigned_by
                        else f"{article.writer.get_full_name()} started the draft"),
         })

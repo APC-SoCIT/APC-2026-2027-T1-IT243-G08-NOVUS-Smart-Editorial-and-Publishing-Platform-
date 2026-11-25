@@ -10,6 +10,8 @@ class Article(TimeStampedModel):
     states referenced across UC-1.2 through UC-1.7 and UC-1.11."""
 
     class Status(models.TextChoices):
+        # A headline in the backlog: planned, but no writer yet.
+        OPEN = "OPEN", "Open"
         ASSIGNED = "ASSIGNED", "Assigned"
         DRAFTING = "DRAFTING", "Drafting"
         AWAITING_EVALUATION = "AWAITING_EVALUATION", "Awaiting Evaluation"
@@ -26,8 +28,11 @@ class Article(TimeStampedModel):
     tags = models.CharField(max_length=255, blank=True)  # comma-separated for the MVP
     status = models.CharField(max_length=25, choices=Status.choices, default=Status.DRAFTING)
 
+    # Empty only while the article is an open headline in the backlog
+    # (see the constraint in Meta).
     writer = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="written_articles"
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="written_articles",
+        null=True, blank=True,
     )
     editor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -88,6 +93,17 @@ class Article(TimeStampedModel):
     # product and default to premium on assignment; standalone web pieces are
     # free and drive traffic. An Editor can override either way.
     is_premium = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            # Only an open headline may be without a writer (or one dropped
+            # from the backlog): once work starts, someone is responsible.
+            models.CheckConstraint(
+                condition=(models.Q(writer__isnull=False)
+                           | models.Q(status__in=["OPEN", "WITHDRAWN"])),
+                name="article_has_writer_unless_open",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.slug and self.title:

@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import StaffLayout from '../components/StaffLayout.vue'
 import AssignArticle from '../components/AssignArticle.vue'
 import ReassignArticle from '../components/ReassignArticle.vue'
+import GiveToWriter from '../components/GiveToWriter.vue'
 import SlideOver from '../components/SlideOver.vue'
 import DesignReview from '../components/DesignReview.vue'
 import UiBadge from '../components/ui/UiBadge.vue'
@@ -24,6 +25,7 @@ const search = ref('')
 const highlightOverdue = ref(false)
 const assignOpen = ref(false)
 const reassigning = ref(null)   // the article being moved to another writer
+const giving = ref(null)        // the open headline being given to a writer
 const canReassign = (a) => ['ASSIGNED', 'DRAFTING'].includes(a.status)
 
 const match = (a) => {
@@ -78,8 +80,13 @@ const grouped = computed(() => [
 const approved = computed(() => articles.value.filter(a =>
   a.status === 'APPROVED' && match(a)))
 
+/* The backlog: headlines planned with no writer yet. */
+const openHeadlines = computed(() => articles.value.filter(a =>
+  a.status === 'OPEN' && match(a)))
+
 const TABS = computed(() => [
   { key: 'attention', label: 'Needs you',     count: attention.value.length },
+  { key: 'open',      label: 'Open headlines', count: openHeadlines.value.length },
   { key: 'working',   label: 'With writers',  count: working.value.length },
   { key: 'approved',  label: 'Approved',    count: approved.value.length },
   { key: 'mine',      label: 'My drafts',   count: mine.value.length },
@@ -88,7 +95,7 @@ const TABS = computed(() => [
 
 const current = computed(() => ({
   attention: attention.value, working: working.value,
-  approved: approved.value, mine: mine.value,
+  approved: approved.value, mine: mine.value, open: openHeadlines.value,
 }[tab.value] || []))
 
 async function load() {
@@ -116,7 +123,7 @@ function showOverdue() {
   search.value = ''
 }
 
-const open = (a) => router.push(`/editor/review/${a.id}`)
+const open = (a) => (a.status === 'OPEN' ? (giving.value = a) : router.push(`/editor/review/${a.id}`))
 const initials = (n) => (n || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
 
 const EMPTY = {
@@ -126,6 +133,8 @@ const EMPTY = {
     body: 'Assign a topic and it will appear here until the writer submits it.' },
   mine: { icon: '✎', title: 'You have no drafts',
     body: 'Articles you write yourself appear here. They go to the publisher for sign-off rather than back to you.' },
+  open: { icon: '+', title: 'No open headlines',
+    body: 'Use + Assign article and leave Writer empty to plan a headline before choosing who writes it.' },
   approved: { icon: '□', title: 'Nothing approved yet',
     body: 'Approved articles wait here until you assign them to an issue.' },
 }
@@ -216,14 +225,14 @@ const EMPTY = {
       <ul v-else class="rows">
         <li v-for="a in current" :key="a.id" class="row" tabindex="0"
             role="button" @click="open(a)" @keyup.enter="open(a)">
-          <span class="who" aria-hidden="true">{{ initials(a.writer_name) }}</span>
+          <span class="who" aria-hidden="true">{{ a.writer_name ? initials(a.writer_name) : '+' }}</span>
 
           <div class="meta">
             <span class="t">{{ a.title }}</span>
             <span class="sub">
-              {{ a.writer_name }}
+              {{ a.writer_name || 'Unassigned' }}
               <template v-if="a.category"> · {{ a.category }}</template>
-              <template v-if="a.deadline && tab === 'working'">
+              <template v-if="a.deadline && ['working', 'open'].includes(tab)">
                 · <span :class="{ late: a.is_overdue }">
                     {{ a.is_overdue ? `${Math.abs(a.days_to_deadline)} days late`
                                     : `due in ${a.days_to_deadline} days` }}
@@ -232,7 +241,8 @@ const EMPTY = {
             </span>
           </div>
 
-          <UiBadge v-if="a.returned_by_ai" tone="warn">Returned</UiBadge>
+          <UiBadge v-if="tab === 'open'" status="OPEN">Needs a writer</UiBadge>
+          <UiBadge v-else-if="a.returned_by_ai" tone="warn">Returned</UiBadge>
           <UiBadge v-else-if="tab === 'approved'"
                    :tone="a.issue ? 'info' : 'neutral'">
             {{ a.issue ? 'In an issue' : 'Standalone' }}
@@ -268,9 +278,16 @@ const EMPTY = {
   </StaffLayout>
 
   <SlideOver :open="assignOpen" title="Assign an article"
-             subtitle="Give a writer a topic, an angle, and a deadline."
+             subtitle="Give a writer a topic, an angle and a deadline, or leave Writer empty to add it to the backlog."
              @close="assignOpen = false">
     <AssignArticle @assigned="() => { assignOpen = false; load() }" />
+  </SlideOver>
+
+  <SlideOver :open="!!giving" title="Open headline"
+             subtitle="Give it to a writer, or drop it from the backlog."
+             @close="giving = null">
+    <GiveToWriter v-if="giving" :key="giving.id" :article="giving"
+                  @done="() => { giving = null; load() }" />
   </SlideOver>
 
   <SlideOver :open="!!reassigning" title="Reassign an article"

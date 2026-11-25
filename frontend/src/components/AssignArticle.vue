@@ -31,8 +31,8 @@ function reset() {
 
 function review() {
   error.value = ''
-  if (!form.value.title.trim() || !form.value.writer) {
-    error.value = 'A topic and a writer are required.'
+  if (!form.value.title.trim()) {
+    error.value = 'A topic or headline is required.'
     return
   }
   confirming.value = true
@@ -51,7 +51,7 @@ async function submit() {
       title: form.value.title,
       brief: form.value.brief,
       category: form.value.category,
-      writer: form.value.writer,
+      writer: form.value.writer || null,
       deadline: form.value.deadline || null,
     })
     reset()
@@ -75,7 +75,8 @@ async function submit() {
     <div class="row">
       <label class="grow">WRITER
         <UiCombobox v-model="form.writer" :options="writerOptions"
-                    placeholder="Type a writer's name…" />
+                    empty-label="No writer yet — add to the backlog"
+                    placeholder="Type a name, or leave for the backlog" />
       </label>
       <label class="grow">CATEGORY
         <UiCombobox v-model="form.category" :options="optionsWith()"
@@ -88,18 +89,23 @@ async function submit() {
     </div>
     <p v-if="error" class="err" role="alert">{{ error }}</p>
     <button class="primary" :disabled="busy" @click="review">
-      {{ busy ? 'Assigning…' : 'Assign to Writer' }}
+      {{ busy ? 'Saving…' : form.writer ? 'Assign to Writer' : 'Add to backlog' }}
     </button>
   </div>
 
   <ConfirmDialog
     :open="confirming"
-    title="Assign this article?"
-    :message="`“${form.title}” will be assigned to ${writerName()}.`"
-    confirm-label="Assign"
-    :points="[
+    :title="form.writer ? 'Assign this article?' : 'Add this headline to the backlog?'"
+    :message="form.writer
+      ? `“${form.title}” will be assigned to ${writerName()}.`
+      : `“${form.title}” waits under Open headlines until you give it to a writer.`"
+    :confirm-label="form.writer ? 'Assign' : 'Add to backlog'"
+    :points="form.writer ? [
       'They are notified immediately and it appears on their dashboard.',
       form.deadline ? `Deadline ${form.deadline}.` : 'No deadline set — it will not appear in overdue tracking.',
+    ] : [
+      'No writer is notified yet.',
+      'Any editor can assign it or drop it from the backlog.',
     ]"
     @confirm="submit"
     @cancel="confirming = false" />

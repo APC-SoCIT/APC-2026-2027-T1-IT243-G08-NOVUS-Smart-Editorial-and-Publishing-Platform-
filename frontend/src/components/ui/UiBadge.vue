@@ -10,7 +10,7 @@ const props = defineProps({
 })
 
 const STATUS_TONE = {
-  ASSIGNED: 'info', DRAFTING: 'neutral', AWAITING_EVALUATION: 'info',
+  OPEN: 'neutral', ASSIGNED: 'info', DRAFTING: 'neutral', AWAITING_EVALUATION: 'info',
   UNDER_REVIEW: 'info', REVISION_REQUESTED: 'warn', APPROVED: 'ok',
   PUBLISHED: 'ok', WITHDRAWN: 'bad',
   PENDING_REVIEW: 'info', REVISION: 'warn', SUPERSEDED: 'neutral',
