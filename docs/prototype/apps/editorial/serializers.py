@@ -97,6 +97,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
     Dashboard 'Pending Reviews' widget)."""
 
     writer_name = serializers.SerializerMethodField()
+    issue_label = serializers.SerializerMethodField()
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
     days_to_deadline = serializers.IntegerField(read_only=True, allow_null=True)
     reading_time = serializers.IntegerField(read_only=True)
@@ -109,7 +111,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
         model = Article
         fields = [
             "id", "title", "status", "category", "writer", "writer_name",
-            "editor", "latest_score", "returned_by_ai", "issue",
+            "editor", "latest_score", "returned_by_ai", "issue", "issue_label",
+            "status_label",
             "deadline", "is_overdue", "days_to_deadline", "brief",
             "hero_image", "excerpt", "slug", "reading_time",
             "is_featured", "image_count",
@@ -118,6 +121,9 @@ class ArticleListSerializer(serializers.ModelSerializer):
 
     def get_writer_name(self, obj):
         return writer_name(obj)
+
+    def get_issue_label(self, obj):
+        return f"Issue {obj.issue.number} — {obj.issue.title}" if obj.issue_id else None
 
     def get_latest_score(self, obj):
         latest = obj.evaluations.order_by("-created_at").first()

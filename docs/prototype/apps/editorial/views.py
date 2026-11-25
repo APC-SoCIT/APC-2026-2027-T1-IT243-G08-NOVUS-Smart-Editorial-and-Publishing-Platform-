@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 from django.db import IntegrityError, transaction
@@ -47,6 +48,13 @@ def notify_reviewers(article, message):
         notify(article.editor or article.assigned_by, Notification.Kind.SUBMITTED,
                message, f"/editor/review/{article.id}")
 
+class ArticlePagination(PageNumberPagination):
+    """20 a page by default; a list may ask for up to 100 (?page_size=)."""
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
 class ArticleViewSet(viewsets.ModelViewSet):
     """
     Module 1: Manage Editorial Pipeline.
@@ -58,12 +66,13 @@ class ArticleViewSet(viewsets.ModelViewSet):
     """
 
     http_method_names = ["get", "post", "patch", "head", "options"]
+    pagination_class = ArticlePagination
     # Hero images arrive as multipart alongside the text fields.
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         user = self.request.user
-        qs = (Article.objects.select_related("writer", "editor")
+        qs = (Article.objects.select_related("writer", "editor", "issue")
               .prefetch_related("evaluations", "revision_notes")
               .order_by("-updated_at"))
         if user.role == user.Role.WRITER:
@@ -96,31 +105,49 @@ class ArticleViewSet(viewsets.ModelViewSet):
             qs = qs.filter(
                 Q(title__icontains=term)
                 | Q(excerpt__icontains=term)
+                | Q(brief__icontains=term)
+                | Q(category__icontains=term)
                 | Q(writer__first_name__icontains=term)
                 | Q(writer__last_name__icontains=term)
             )
 
+        # "none" asks for the empty value: no category, no writer, no issue.
         if p.get("status"):
             qs = qs.filter(status__in=p["status"].split(","))
         if p.get("category"):
-            qs = qs.filter(category=p["category"])
+            qs = (qs.filter(category="") if p["category"] == "none"
+                  else qs.filter(category=p["category"]))
         if p.get("writer"):
-            qs = qs.filter(writer_id=p["writer"])
+            qs = (qs.filter(writer__isnull=True) if p["writer"] == "none"
+                  else qs.filter(writer_id=p["writer"]) if p["writer"].isdigit() else qs.none())
         if p.get("issue"):
-            qs = qs.filter(issue_id=p["issue"])
+            qs = (qs.filter(issue__isnull=True) if p["issue"] == "none"
+                  else qs.filter(issue_id=p["issue"]) if p["issue"].isdigit() else qs.none())
 
         if p.get("overdue") == "true":
             from django.utils import timezone
             qs = qs.filter(
                 deadline__lt=timezone.now().date(),
-                status__in=[Article.Status.ASSIGNED, Article.Status.DRAFTING,
-                            Article.Status.REVISION_REQUESTED],
+                status__in=[Article.Status.OPEN, Article.Status.ASSIGNED,
+                            Article.Status.DRAFTING, Article.Status.REVISION_REQUESTED],
             )
 
-        allowed = {"updated_at", "-updated_at", "deadline", "-deadline",
-                   "created_at", "-created_at", "title", "-title"}
+        # Sort keys the list offers, mapped to fields. Anything else keeps
+        # the default, most recently updated first.
+        SORTS = {"updated": "updated_at", "deadline": "deadline", "created": "created_at",
+                 "title": "title", "status": "status", "category": "category",
+                 "writer": "writer__first_name", "issue": "issue__number"}
+        key = (p.get("sort") or "").lstrip("-")
+        if key in SORTS:
+            field = SORTS[key]
+            desc = p["sort"].startswith("-")
+            from django.db.models import F
+            order = F(field).desc(nulls_last=True) if desc else F(field).asc(nulls_last=True)
+            return qs.order_by(order, "-id")
+        legacy = {"updated_at", "-updated_at", "deadline", "-deadline",
+                  "created_at", "-created_at", "title", "-title"}
         ordering = p.get("sort")
-        return qs.order_by(ordering) if ordering in allowed else qs
+        return qs.order_by(ordering) if ordering in legacy else qs
         # Editor / Publisher / Admin see the full pipeline; Reader/Subscriber
         # never hit this queryset — they're routed to apps.content instead.
         return qs
@@ -586,6 +613,26 @@ class ArticleViewSet(viewsets.ModelViewSet):
             "events": sorted(deadlines + releases, key=lambda e: e["date"]),
             "open_deadlines": sum(1 for d in deadlines if d["is_open"]),
             "overdue": sum(1 for d in deadlines if d["is_overdue"]),
+        })
+
+    @action(detail=False, methods=["get"])
+    def facets(self, request):
+        """Filter choices for the All articles list, drawn from the articles
+        this user may see, so a publisher gets writers without access to the
+        staff directory."""
+        qs = self.get_queryset().order_by()
+        writers = (qs.filter(writer__isnull=False)
+                   .values_list("writer_id", "writer__first_name", "writer__last_name")
+                   .distinct().order_by("writer__first_name", "writer__last_name"))
+        issues = (qs.filter(issue__isnull=False)
+                  .values_list("issue_id", "issue__number", "issue__title")
+                  .distinct().order_by("-issue__number"))
+        return Response({
+            "statuses": [{"value": v, "label": l} for v, l in Article.Status.choices],
+            "categories": sorted(set(qs.exclude(category="").values_list("category", flat=True))),
+            "writers": [{"id": i, "name": f"{f} {l}".strip()} for i, f, l in writers],
+            "issues": [{"id": i, "number": n, "title": t} for i, n, t in issues],
+            "has_unassigned": qs.filter(writer__isnull=True).exists(),
         })
 
     @action(detail=False, methods=["get"])

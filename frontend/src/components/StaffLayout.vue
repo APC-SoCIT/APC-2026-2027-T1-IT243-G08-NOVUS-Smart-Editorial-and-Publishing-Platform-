@@ -24,6 +24,7 @@ const NAV = {
   ],
   EDITOR: [
     { to: '/editor', label: 'Dashboard' },
+    { to: '/articles', label: 'All articles' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/issues-overview', label: 'Issues' },
     { to: '/archive', label: 'Archive' },
@@ -31,6 +32,7 @@ const NAV = {
   ],
   PUBLISHER: [
     { to: '/publisher', label: 'Pipeline' },
+    { to: '/articles', label: 'All articles' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/archive', label: 'Archive' },
     { to: '/reports', label: 'Reports' },
@@ -44,6 +46,7 @@ const NAV = {
   // carries every destination rather than a subset.
   ADMIN: [
     { to: '/editor', label: 'Editorial' },
+    { to: '/articles', label: 'All articles' },
     { to: '/publisher', label: 'Publishing' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/issues-overview', label: 'Issues' },

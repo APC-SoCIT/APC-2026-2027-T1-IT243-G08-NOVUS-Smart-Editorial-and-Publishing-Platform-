@@ -100,7 +100,10 @@ const current = computed(() => ({
 
 async function load() {
   const [a, p] = await Promise.all([
-    api.get('/editorial/articles/'),
+    // Active work only, up to 100: finished articles belong to All articles,
+    // and the default page of 20 left later ones off the tabs.
+    api.get('/editorial/articles/', { params: { page_size: 100,
+      status: 'OPEN,ASSIGNED,DRAFTING,REVISION_REQUESTED,UNDER_REVIEW,PENDING_SIGNOFF,APPROVED' } }),
     api.get('/editorial/articles/pipeline/'),
   ])
   articles.value = a.data.results ?? a.data

@@ -46,7 +46,8 @@ const TABS = computed(() => [
 async function load() {
   const [i, a] = await Promise.all([
     api.get('/publication/issues/'),
-    api.get('/editorial/articles/'),
+    api.get('/editorial/articles/', { params: { page_size: 100,
+      status: 'APPROVED,PENDING_SIGNOFF' } }),
   ])
   issues.value = i.data.results ?? i.data
   const all = a.data.results ?? a.data

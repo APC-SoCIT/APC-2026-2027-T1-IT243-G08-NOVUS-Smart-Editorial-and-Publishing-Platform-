@@ -32,6 +32,7 @@ import AboutView from '../views/AboutView.vue'
 import LegalView from '../views/LegalView.vue'
 import IssueReader from '../views/IssueReader.vue'
 import NotFoundView from '../views/NotFoundView.vue'
+import AllArticlesView from '../views/AllArticlesView.vue'
 
 const routes = [
   { path: '/', redirect: '/read' },
@@ -47,6 +48,7 @@ const routes = [
   // Editors write too. Same composer, a path that does not imply otherwise.
   { path: '/compose', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
   { path: '/compose/:id', component: ArticleComposeView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR'] } },
+  { path: '/articles', component: AllArticlesView, meta: { requiresAuth: true, roles: ['EDITOR', 'PUBLISHER'] } },
   { path: '/editor', component: EditorDashboard, meta: { requiresAuth: true, roles: ['EDITOR'] } },
   { path: '/calendar', component: CalendarView, meta: { requiresAuth: true, roles: ['WRITER', 'EDITOR', 'PUBLISHER'] } },
   { path: '/notifications', component: NotificationSettings, meta: { requiresAuth: true, staff: true } },

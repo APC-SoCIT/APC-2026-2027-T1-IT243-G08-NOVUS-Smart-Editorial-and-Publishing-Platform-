@@ -51,7 +51,7 @@ const TABS = computed(() => [
 async function load() {
   const [d, a, i] = await Promise.all([
     api.get('/design/designs/'),
-    api.get('/editorial/articles/'),
+    api.get('/editorial/articles/', { params: { page_size: 100 } }),
     api.get('/publication/issues/'),
   ])
   designs.value = d.data.results ?? d.data

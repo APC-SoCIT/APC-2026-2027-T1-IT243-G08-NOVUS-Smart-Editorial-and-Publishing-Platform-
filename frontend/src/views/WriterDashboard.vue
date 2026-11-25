@@ -49,7 +49,7 @@ const dueSoon = computed(() => todo.value.filter(a =>
   !a.is_overdue && a.days_to_deadline !== null && a.days_to_deadline <= 2))
 
 async function load() {
-  const { data } = await api.get('/editorial/articles/')
+  const { data } = await api.get('/editorial/articles/', { params: { page_size: 100 } })
   articles.value = data.results ?? data
 }
 
