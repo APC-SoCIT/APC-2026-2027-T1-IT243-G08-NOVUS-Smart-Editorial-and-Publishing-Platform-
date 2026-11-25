@@ -48,6 +48,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             "id", "email", "first_name", "last_name", "role",
             "is_suspended", "reader_profile", "must_change_password", "password_expires_at",
+            "signin_code_enabled",
         ]
         read_only_fields = ["role", "is_suspended"]
 
@@ -76,7 +77,7 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email", "current_password"]
+        fields = ["first_name", "last_name", "email", "current_password", "signin_code_enabled"]
 
     def validate(self, attrs):
         user = self.instance

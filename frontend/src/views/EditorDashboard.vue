@@ -265,6 +265,10 @@ const EMPTY = {
       <div class="glance">
         <h2>At a glance</h2>
         <dl>
+          <div :class="{ warn: pipeline?.by_status?.OPEN }">
+            <dt><button class="glink" @click="tab = 'open'">Open headlines (no writer)</button></dt>
+            <dd>{{ pipeline?.by_status?.OPEN ?? '–' }}</dd>
+          </div>
           <div><dt>Being written</dt><dd>{{ pipeline?.open ?? '–' }}</dd></div>
           <div :class="{ warn: pipeline?.due_soon }">
             <dt>Due within 2 days</dt><dd>{{ pipeline?.due_soon ?? '–' }}</dd>
@@ -301,6 +305,12 @@ const EMPTY = {
 </template>
 
 <style scoped>
+/* ---- at a glance: the open-headlines line opens its tab ---- */
+.glink { background: none; border: 0; padding: 0; font: inherit; color: inherit;
+         text-align: left; cursor: pointer; text-decoration: underline;
+         text-decoration-color: var(--nv-line-strong); text-underline-offset: 3px; }
+.glink:hover { color: var(--nv-text); }
+
 /* ---- alert ---- */
 .alert { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
          background: var(--bad-bg); border: 1px solid var(--bad-line);

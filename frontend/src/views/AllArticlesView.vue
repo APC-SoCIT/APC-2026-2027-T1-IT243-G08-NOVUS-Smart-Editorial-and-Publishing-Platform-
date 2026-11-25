@@ -57,7 +57,7 @@ const rows = ref([])
 const count = ref(0)
 const loading = ref(true)
 const error = ref('')
-const facets = ref({ writers: [], issues: [], has_unassigned: false })
+const facets = ref({ writers: [], issues: [], has_unassigned: false, counts: {} })
 const giving = ref(null)
 
 const canAssign = computed(() => ['EDITOR', 'ADMIN'].includes(auth.role))
@@ -77,6 +77,11 @@ const range = computed(() => {
   const from = (page.value - 1) * 20 + 1
   return `${from}–${Math.min(page.value * 20, count.value)} of ${count.value}`
 })
+
+/* Filter choices and the count on each quick view. */
+async function loadFacets() {
+  try { facets.value = (await api.get('/editorial/articles/facets/')).data } catch { /* filters stay empty */ }
+}
 
 async function load() {
   loading.value = true
@@ -122,7 +127,7 @@ watch(page, sync)
 onMounted(async () => {
   loadCategories()
   load()
-  try { facets.value = (await api.get('/editorial/articles/facets/')).data } catch { /* filters stay empty */ }
+  loadFacets()
 })
 
 function sortBy(key) {
@@ -154,7 +159,10 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString('en-PH', { month: 'short'
                subtitle="Every article, who it is with, and where it stands">
     <nav class="views" aria-label="Saved views">
       <button v-for="v in VIEWS" :key="v.key" :class="{ on: view === v.key }"
-              :aria-pressed="view === v.key" @click="view = v.key">{{ v.label }}</button>
+              :aria-pressed="view === v.key" @click="view = v.key">
+        {{ v.label }}
+        <span v-if="facets.counts[v.key] !== undefined" class="n">{{ facets.counts[v.key] }}</span>
+      </button>
     </nav>
 
     <div class="filters">
@@ -223,7 +231,7 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString('en-PH', { month: 'short'
              subtitle="Give it to a writer, or drop it from the backlog."
              @close="giving = null">
     <GiveToWriter v-if="giving" :key="giving.id" :article="giving"
-                  @done="() => { giving = null; load() }" />
+                  @done="() => { giving = null; load(); loadFacets() }" />
   </SlideOver>
 </template>
 
@@ -234,6 +242,9 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString('en-PH', { month: 'short'
                 padding: 7px 14px; font-size: 14px; cursor: pointer; }
 .views button.on { background: var(--nv-navy-2); border-color: var(--nv-navy-2);
                    color: #fff; font-weight: 600; }
+.views .n { margin-left: 6px; font-size: 12px; font-weight: 700; padding: 1px 7px;
+            border-radius: var(--r-full); background: var(--nv-line); color: var(--nv-text-muted); }
+.views button.on .n { background: rgba(255,255,255,.22); color: #fff; }
 .filters { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center;
            margin-bottom: var(--s-5); }
 .search { flex: 1 1 260px; padding: 10px 14px; font-size: 14px; font-family: inherit;

@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import StaffLayout from '../components/StaffLayout.vue'
 import BossShell from '../components/BossShell.vue'
 import UiButton from '../components/ui/UiButton.vue'
+import { confirm } from '../composables/useConfirm'
 
 const auth = useAuthStore()
 
@@ -21,6 +22,12 @@ const isSubscriber = ref(false)
 const issueEmails = ref(false)
 const issueSaving = ref(false)
 const issueNote = ref('')
+
+/* Sign-in code: staff always need one; readers choose. Saved on its own,
+   after a confirmation, like the new-issue emails. */
+const signinCode = ref(false)
+const codeSaving = ref(false)
+const codeNote = ref('')
 
 /* Readers get the magazine's chrome, staff get the workspace's. The same
    settings serve both — an account is an account — but dropping a reader into
@@ -44,6 +51,7 @@ onMounted(async () => {
     email: data.email,
   }
   original.value = { ...form.value }
+  signinCode.value = !!data.signin_code_enabled
   isSubscriber.value = data.reader_profile?.tier === 'SUBSCRIBER'
   if (isSubscriber.value) {
     const { data: p } = await api.get('/notifications/preferences/')
@@ -65,6 +73,32 @@ async function saveIssueEmails() {
     issueEmails.value = !issueEmails.value
     issueNote.value = 'Could not save. Try again.'
   } finally { issueSaving.value = false }
+}
+
+async function saveSigninCode() {
+  const turningOn = signinCode.value
+  const ok = await confirm(turningOn ? {
+    title: 'Ask for a code when you sign in?',
+    message: 'After your password, we will email you a 6-digit code to finish signing in.',
+    points: ['Someone who learns your password still cannot get in without your email.'],
+    confirmLabel: 'Turn on',
+  } : {
+    title: 'Stop asking for a sign-in code?',
+    message: 'Your password alone will sign you in.',
+    confirmLabel: 'Turn off', tone: 'warn',
+  })
+  if (!ok) { signinCode.value = !turningOn; return }
+  codeSaving.value = true
+  codeNote.value = ''
+  try {
+    await api.patch('/auth/me/', { signin_code_enabled: turningOn })
+    codeNote.value = turningOn
+      ? 'From your next sign-in, we will email you a code.'
+      : 'Sign-in codes are off.'
+  } catch {
+    signinCode.value = !turningOn
+    codeNote.value = 'Could not save. Try again.'
+  } finally { codeSaving.value = false }
 }
 
 async function save() {
@@ -165,6 +199,27 @@ const err = (field) => {
         <p v-if="err('current_password')" class="fielderr" role="alert">
           {{ err('current_password') }}
         </p>
+      </section>
+
+      <section class="card">
+        <h2>Sign-in code</h2>
+        <template v-if="isStaff">
+          <p class="hint">
+            Staff accounts always need a 6-digit code from your email after the
+            password. This cannot be turned off.
+          </p>
+        </template>
+        <template v-else>
+          <p class="hint">
+            For extra safety, we can email you a 6-digit code each time you sign in.
+          </p>
+          <label class="check">
+            <input type="checkbox" v-model="signinCode" :disabled="codeSaving"
+                   @change="saveSigninCode" />
+            <span>Ask for a code by email when I sign in</span>
+          </label>
+          <p v-if="codeNote" class="note" role="status">{{ codeNote }}</p>
+        </template>
       </section>
 
       <section v-if="isSubscriber" class="card">

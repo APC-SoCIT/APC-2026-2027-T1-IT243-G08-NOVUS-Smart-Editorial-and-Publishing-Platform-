@@ -1,0 +1,11 @@
+Hi {{ user.first_name|default:"there" }},
+
+Your {{ site_name }} sign-in code is:
+
+{{ code }}
+
+It expires in {{ minutes }} minutes and works once.
+
+If you did not just try to sign in, someone may know your password. Change it now, and do not share this code with anyone.
+
+BOSS Media Philippines Inc.

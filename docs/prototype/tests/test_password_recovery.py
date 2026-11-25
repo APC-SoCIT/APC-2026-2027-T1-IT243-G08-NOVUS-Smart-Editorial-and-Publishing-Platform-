@@ -67,7 +67,7 @@ class TestPasswordRecovery:
         again = reset(api_client, raw, "Another-pass-88")
         assert again.status_code == 400 and again.data["code"] == "invalid_link"
         signin = api_client.post("/api/auth/token/", {"email": "reset@boss.ph", "password": "Fresh-start-pass-77"})
-        assert signin.status_code == 200
+        assert signin.status_code == 202   # the new password is accepted; a writer's code step follows
 
     def test_expired_link_is_refused(self, api_client, make_user):           # TC-5.2.2-E1
         make_user("late@boss.ph", User.Role.READER)

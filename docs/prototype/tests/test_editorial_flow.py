@@ -56,13 +56,16 @@ def draft_payload(title, category="Tech", **extra):
 
 @pytest.mark.django_db
 class TestAuthenticateUser:
-    def test_tc_6_2_bf_login_returns_access_and_refresh_tokens(self, api_client, writer):
+    def test_tc_6_2_bf_login_returns_access_and_refresh_tokens(self, api_client, writer, sign_in):
+        # Staff: the password starts the code step, and the code gives tokens.
         response = api_client.post(
             "/api/auth/token/", {"email": "writer@boss.ph", "password": "pass1234"}
         )
-        assert response.status_code == status.HTTP_200_OK
-        assert "access" in response.data
-        assert "refresh" in response.data
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        assert "access" not in response.data
+        tokens = sign_in("writer@boss.ph")
+        assert "access" in tokens
+        assert "refresh" in tokens
 
     def test_e_auth_wrong_password_is_rejected(self, api_client, writer):
         response = api_client.post(
@@ -894,7 +897,7 @@ def test_sign_in_is_limited_per_account(api_client, make_user):
     r = api_client.post("/api/auth/token/", {"email": "target@boss.ph", "password": "pass1234"})
     assert r.status_code == 429
     r = api_client.post("/api/auth/token/", {"email": "bystander@boss.ph", "password": "pass1234"})
-    assert r.status_code == 200
+    assert r.status_code == 202   # password accepted; the code step follows
 
 
 @pytest.mark.django_db

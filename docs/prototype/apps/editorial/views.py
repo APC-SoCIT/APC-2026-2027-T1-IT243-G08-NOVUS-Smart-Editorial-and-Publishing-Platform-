@@ -633,7 +633,26 @@ class ArticleViewSet(viewsets.ModelViewSet):
             "writers": [{"id": i, "name": f"{f} {l}".strip()} for i, f, l in writers],
             "issues": [{"id": i, "number": n, "title": t} for i, n, t in issues],
             "has_unassigned": qs.filter(writer__isnull=True).exists(),
+            "counts": self._view_counts(qs),
         })
+
+    @staticmethod
+    def _view_counts(qs):
+        """How many articles each quick view on All articles holds, in one
+        query. Overdue matches the list's overdue filter."""
+        from django.db.models import Count, Q
+        S = Article.Status
+        late = [S.OPEN, S.ASSIGNED, S.DRAFTING, S.REVISION_REQUESTED]
+        return qs.aggregate(
+            all=Count("id"),
+            open=Count("id", filter=Q(status=S.OPEN)),
+            writing=Count("id", filter=Q(status__in=[S.ASSIGNED, S.DRAFTING, S.REVISION_REQUESTED])),
+            review=Count("id", filter=Q(status__in=[S.AWAITING_EVALUATION, S.UNDER_REVIEW,
+                                                    S.PENDING_SIGNOFF])),
+            overdue=Count("id", filter=Q(status__in=late, deadline__lt=timezone.now().date())),
+            approved=Count("id", filter=Q(status=S.APPROVED)),
+            published=Count("id", filter=Q(status=S.PUBLISHED)),
+        )
 
     @action(detail=False, methods=["get"])
     def pipeline(self, request):

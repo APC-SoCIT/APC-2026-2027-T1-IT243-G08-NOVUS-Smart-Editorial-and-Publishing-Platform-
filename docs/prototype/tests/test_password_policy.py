@@ -12,7 +12,11 @@ from apps.accounts.models import PasswordHistory, User
 
 
 def signin(client, email, password="pass1234"):
+    from tests.conftest import code_from_outbox
     r = client.post("/api/auth/token/", {"email": email, "password": password})
+    if r.status_code == 202:   # staff: the emailed code finishes the sign-in
+        r = client.post("/api/auth/token/code/",
+                        {"challenge": r.data["challenge"], "code": code_from_outbox()})
     assert r.status_code == 200, r.data
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
     return client

@@ -119,6 +119,7 @@ REST_FRAMEWORK = {
     # a global cap could refuse every reader at once.
     "DEFAULT_THROTTLE_RATES": {
         "login": "5/min",
+        "signin_code": "30/min",
         "register": "10/hour",
         "refresh": "30/min",
         "password_change": "10/hour",
@@ -127,6 +128,11 @@ REST_FRAMEWORK = {
         "checkout": "10/hour",
     },
 }
+
+# Sign-in verification code (apps/accounts/signin.py). On unless the
+# environment sets SIGNIN_CODE_REQUIRED=0: an emergency switch for when email
+# cannot be delivered, never the normal setting on the live site.
+SIGNIN_CODE_REQUIRED = os.environ.get("SIGNIN_CODE_REQUIRED", "1") != "0"
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),

@@ -63,6 +63,8 @@ class TestAllArticles:
         assert f["categories"] == ["Business", "Life"]
         assert len(f["writers"]) == 2 and f["has_unassigned"] is True
         assert {"value": "OPEN", "label": "Open"} in f["statuses"]
+        assert f["counts"] == {"all": 4, "open": 1, "writing": 1, "review": 1,
+                               "overdue": 1, "approved": 0, "published": 1}
 
     def test_a_writer_still_sees_only_their_own(self, auth_client, writer, pipeline):
         assert titles(auth_client(writer).get(LIST)) == ["Night markets"]

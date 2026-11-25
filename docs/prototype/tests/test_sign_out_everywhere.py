@@ -11,7 +11,11 @@ NEW = "N3w-Passphrase!"
  
  
 def sign_in(email, password):
+    from tests.conftest import code_from_outbox
     r = APIClient().post("/api/auth/token/", {"email": email, "password": password})
+    if r.status_code == 202:   # staff: the emailed code finishes the sign-in
+        r = APIClient().post("/api/auth/token/code/",
+                             {"challenge": r.data["challenge"], "code": code_from_outbox()})
     assert r.status_code == 200, r.data
     return r.data
  

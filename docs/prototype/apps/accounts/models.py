@@ -76,6 +76,8 @@ class User(AbstractUser):
     # before the change no longer matches. Used after a password reset,
     # where whoever forgot the password may not be the only one holding it.
     session_version = models.PositiveIntegerField(default=0)
+    # Readers may choose a sign-in code; staff always get one (signin.py).
+    signin_code_enabled = models.BooleanField(default=False)
 
     objects = UserManager()
 
@@ -228,3 +230,33 @@ class PasswordResetToken(TimeStampedModel):
     def redeem(self):
         """Mark this token, and any other open one for the user, as used."""
         type(self).objects.filter(user=self.user, used_at__isnull=True).update(used_at=timezone.now())
+
+
+class SignInChallenge(TimeStampedModel):
+    """The second step of signing in: a 6-digit code sent by email after the
+    password is accepted (adviser meeting, Nov 24).
+
+    Neither the challenge nor the code is stored as sent. The challenge is
+    kept as a SHA-256 hash, and the code as an HMAC keyed with the server's
+    secret, so a copy of the database cannot be used to finish anyone's
+    sign-in. Five wrong codes end the challenge.
+    """
+
+    MAX_ATTEMPTS = 5
+    MAX_SENDS = 3
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="signin_challenges")
+    challenge_hash = models.CharField(max_length=64, unique=True)
+    code_hmac = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    sends = models.PositiveSmallIntegerField(default=1)
+    last_sent_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "expires_at"], name="signin_challenges_by_user")]
+
+    def __str__(self):
+        return f"SignInChallenge<{self.user_id}> {'used' if self.used_at else 'open'}"
+

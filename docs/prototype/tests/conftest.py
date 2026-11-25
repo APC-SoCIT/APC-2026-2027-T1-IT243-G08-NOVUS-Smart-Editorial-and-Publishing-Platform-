@@ -98,3 +98,25 @@ def fresh_rate_limits():
     cache.clear()
     yield
     cache.clear()
+
+
+def code_from_outbox():
+    """The latest sign-in code emailed, read from the test mail outbox."""
+    import re
+    from django.core import mail
+    return re.search(r"\b(\d{6})\b", mail.outbox[-1].body).group(1)
+
+
+@pytest.fixture
+def sign_in():
+    """Sign in through both steps, password then emailed code, and return
+    the tokens. Readers without codes come straight back with tokens."""
+    def _sign_in(email, password="pass1234", client=None):
+        client = client or APIClient()
+        r = client.post("/api/auth/token/", {"email": email, "password": password})
+        if r.status_code == 202:
+            r = client.post("/api/auth/token/code/",
+                            {"challenge": r.data["challenge"], "code": code_from_outbox()})
+        assert r.status_code == 200, r.data
+        return r.data
+    return _sign_in

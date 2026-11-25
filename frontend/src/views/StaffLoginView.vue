@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { ArrowRight, Clock, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck } from 'lucide-vue-next'
 import ConstellationBackground from '../components/ConstellationBackground.vue'
 import NovusLogo from '../components/NovusLogo.vue'
+import SignInCode from '../components/SignInCode.vue'
 
 const email = ref('')
 const password = ref('')
@@ -13,6 +14,7 @@ const capsOn = ref(false)
 const error = ref('')
 const loading = ref(false)
 const attempts = ref(0)
+const pending = ref(null)   // { challenge, sentTo } while the emailed code is awaited
 const year = new Date().getFullYear()
 
 const auth = useAuthStore()
@@ -36,6 +38,23 @@ const emailValid = computed(() =>
 // than letting the user keep guessing into a wall.
 const throttled = computed(() => attempts.value >= 5)
 
+/* After the password, or the password and the code. */
+function finish() {
+  if (auth.role === 'READER') {
+    auth.logout()
+    pending.value = null
+    error.value = 'This is the editorial login. Readers sign in on the public site.'
+    return
+  }
+  router.push(DEST[auth.role] || '/writer')
+}
+
+function restart() {
+  pending.value = null
+  password.value = ''
+  error.value = ''
+}
+
 function checkCaps(e) {
   capsOn.value = e.getModifierState && e.getModifierState('CapsLock')
 }
@@ -55,14 +74,16 @@ async function submit() {
 
   loading.value = true
   try {
-    await auth.login(email.value, password.value)
-
-    if (auth.role === 'READER') {
-      auth.logout()
+    const result = await auth.login(email.value, password.value)
+    if (result.codeRequired && !result.staff) {
       error.value = 'This is the editorial login. Readers sign in on the public site.'
       return
     }
-    router.push(DEST[auth.role] || '/writer')
+    if (result.codeRequired) {
+      pending.value = { challenge: result.challenge, sentTo: result.sentTo }
+      return
+    }
+    finish()
   } catch (e) {
     attempts.value++
     const status = e.response?.status
@@ -91,7 +112,14 @@ async function submit() {
     </section>
 
     <main class="panel">
-      <form class="card" novalidate @submit.prevent="submit">
+      <div v-if="pending" class="card">
+        <p class="eyebrow">Editorial workspace</p>
+        <h1>Check your email</h1>
+        <SignInCode :challenge="pending.challenge" :sent-to="pending.sentTo" theme="staff"
+                    @verified="finish" @restart="restart" />
+      </div>
+
+      <form v-else class="card" novalidate @submit.prevent="submit">
         <p class="eyebrow">Editorial workspace</p>
         <h1>Sign in</h1>
         <p class="sub">Use the account issued to you by your editor.</p>

@@ -2,12 +2,14 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import SignInCode from '../components/SignInCode.vue'
 
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const error = ref('')
 const loading = ref(false)
+const pending = ref(null)   // { challenge, sentTo } while the emailed code is awaited
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -27,19 +29,40 @@ async function submit() {
   }
   loading.value = true
   try {
-    await auth.login(email.value, password.value)
-    if (auth.role !== 'READER') {
-      auth.logout()
+    const result = await auth.login(email.value, password.value)
+    if (result.codeRequired && result.staff) {
       error.value = 'Editorial accounts sign in at the staff portal.'
       return
     }
-    // Back to where sign-in was asked for (the plans page, say), but only
-    // to a page of this site.
-    const next = route.query.next
-    router.push(typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/read')
+    if (result.codeRequired) {
+      pending.value = { challenge: result.challenge, sentTo: result.sentTo }
+      return
+    }
+    finish()
   } catch {
     error.value = 'Those credentials were not recognised.'
   } finally { loading.value = false }
+}
+
+/* After the password, or the password and the code (readers who turned
+   sign-in codes on). */
+function finish() {
+  if (auth.role !== 'READER') {
+    auth.logout()
+    pending.value = null
+    error.value = 'Editorial accounts sign in at the staff portal.'
+    return
+  }
+  // Back to where sign-in was asked for (the plans page, say), but only
+  // to a page of this site.
+  const next = route.query.next
+  router.push(typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/read')
+}
+
+function restart() {
+  pending.value = null
+  password.value = ''
+  error.value = ''
 }
 </script>
 
@@ -49,6 +72,13 @@ async function submit() {
 
     <main class="card">
       <img src="/boss-logo.png" alt="BOSS Magazine PH" class="mark" />
+      <template v-if="pending">
+        <p class="tag">Check your email</p>
+        <SignInCode :challenge="pending.challenge" :sent-to="pending.sentTo" theme="reader"
+                    @verified="finish" @restart="restart" />
+      </template>
+
+      <template v-else>
       <p class="tag">Sign in to read premium stories and digital issues.</p>
 
       <label :class="{ bad: !emailValid }">
@@ -85,6 +115,7 @@ async function submit() {
       <div class="alt">
         <p>New here? <router-link to="/register">Create an account</router-link></p>
       </div>
+      </template>
     </main>
   </div>
 </template>

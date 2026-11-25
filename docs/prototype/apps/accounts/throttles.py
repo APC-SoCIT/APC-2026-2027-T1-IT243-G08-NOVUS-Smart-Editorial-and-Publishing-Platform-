@@ -24,6 +24,12 @@ class LoginRateThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": email}
 
 
+class SignInCodeThrottle(AnonRateThrottle):
+    """The code step. Each challenge also stops after five wrong codes."""
+
+    scope = "signin_code"
+
+
 class RegisterRateThrottle(AnonRateThrottle):
     scope = "register"
 
