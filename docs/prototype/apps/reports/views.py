@@ -25,7 +25,11 @@ class IsStaffRole(permissions.BasePermission):
 
     def has_permission(self, request, view):
         u = request.user
-        return bool(u and u.is_authenticated and u.role != User.Role.READER)
+        # The Reports page belongs to editors and publishers; a writer or a
+        # designer has no business with every colleague's figures.
+        return bool(u and u.is_authenticated and not getattr(u, "is_suspended", False)
+                    and (u.role in (User.Role.EDITOR, User.Role.PUBLISHER, User.Role.ADMIN)
+                         or u.is_superuser))
 
 
 def _window(request, default_days=90):
@@ -235,14 +239,18 @@ class ProductionReportView(APIView):
                 status=MagazineDesign.Status.REVISION_REQUESTED).count(),
             "superseded_versions": designs.filter(
                 status=MagazineDesign.Status.SUPERSEDED).count(),
-            "issues": list(
-                Issue.objects.annotate(
-                    articles=Count("articles"),
-                    approved=Count("articles",
-                                   filter=Q(articles__status__in=[
-                                       Article.Status.APPROVED,
-                                       Article.Status.PUBLISHED])),
-                ).values("id", "number", "title", "status", "articles", "approved")
+            # Annotated under other names: "articles" is already the
+            # relation, and reusing it raised an error on every request.
+            "issues": [
+                {"id": i["id"], "number": i["number"], "title": i["title"],
+                 "status": i["status"], "articles": i["n_articles"], "approved": i["n_approved"]}
+                for i in Issue.objects.annotate(
+                    n_articles=Count("articles"),
+                    n_approved=Count("articles",
+                                     filter=Q(articles__status__in=[
+                                         Article.Status.APPROVED,
+                                         Article.Status.PUBLISHED])),
+                ).values("id", "number", "title", "status", "n_articles", "n_approved")
                 .order_by("-number")[:10]
-            ),
+            ],
         })

@@ -19,13 +19,23 @@ class IsAdmin(permissions.BasePermission):
                     and (u.role == User.Role.ADMIN or u.is_superuser))
 
 
+PUBLIC_FIELDS = ("site_name", "tagline", "accent_colour", "articles_per_page",
+                 "maintenance_mode", "maintenance_message")
+
+
 class PlatformSettingView(APIView):
     """Module 4: read by anyone, changed only by an Admin."""
 
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        return Response(PlatformSettingSerializer(PlatformSetting.load()).data)
+        data = PlatformSettingSerializer(PlatformSetting.load()).data
+        u = request.user
+        if not (u and u.is_authenticated and (u.role == User.Role.ADMIN or u.is_superuser)):
+            # The public site needs the site's name and whether it is held
+            # for maintenance; which services run behind it is nobody else's.
+            data = {k: data[k] for k in PUBLIC_FIELDS}
+        return Response(data)
 
     def patch(self, request):
         setting = PlatformSetting.load()

@@ -13,8 +13,11 @@ class MessageViewSet(viewsets.ModelViewSet):
     """Article-scoped editorial correspondence."""
 
     serializer_class = MessageSerializer
-    permission_classes = [permissions.IsAuthenticated]
     http_method_names = ["get", "post", "head", "options"]
+
+    def get_permissions(self):
+        from apps.common.permissions import staff_permission
+        return [staff_permission()]
 
     def get_queryset(self):
         user = self.request.user

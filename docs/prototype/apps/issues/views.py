@@ -3,7 +3,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.common.permissions import role_permission
+from apps.common.permissions import role_permission, staff_permission
 from apps.notifications.models import Notification
 from apps.publishing.services import NotReady, publish_issue
 
@@ -34,7 +34,9 @@ class IssueViewSet(viewsets.ModelViewSet):
         if self.action in ("create", "partial_update", "schedule",
                            "publish", "archive", "close", "reopen"):
             return [role_permission("PUBLISHER")()]
-        return [permissions.IsAuthenticated()]
+        # Issues being planned are staff business; readers see published
+        # ones through apps.content.
+        return [staff_permission()]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

@@ -38,3 +38,14 @@ def role_permission(*roles):
     test cases pass for free.
     """
     return type("_RolePermission", (IsRole,), {"allowed_roles": roles})
+
+
+# Every workspace role. Readers and subscribers are not staff: nothing in
+# the editorial pipeline — drafts, assessments, layouts, issues being
+# planned, messages — is theirs to read (adviser meeting, Nov 24).
+STAFF = ("WRITER", "EDITOR", "PUBLISHER", "GRAPHIC_DESIGNER")
+
+
+def staff_permission():
+    """Any workspace role (the administrator passes every role check)."""
+    return role_permission(*STAFF)()

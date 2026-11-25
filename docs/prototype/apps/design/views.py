@@ -152,7 +152,8 @@ class MagazineDesignViewSet(viewsets.ModelViewSet):
             return [role_permission("GRAPHIC_DESIGNER")()]
         if self.action in ("approve", "request_revision"):
             return [role_permission("EDITOR")()]
-        return [permissions.IsAuthenticated()]
+        # The layouts are the paid edition before release: production staff only.
+        return [role_permission("EDITOR", "PUBLISHER", "GRAPHIC_DESIGNER")()]
 
     def perform_create(self, serializer):
         """A new version supersedes any earlier open version for the same

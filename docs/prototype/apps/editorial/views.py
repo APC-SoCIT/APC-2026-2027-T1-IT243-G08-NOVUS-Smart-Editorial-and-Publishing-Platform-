@@ -14,7 +14,7 @@ from apps.ai_eval.models import FixDecision
 from apps.ai_eval.models import ArticleEvaluation
 from apps.ai_eval.serializers import ArticleEvaluationSerializer
 from apps.ai_eval.services import evaluate_article
-from apps.common.permissions import role_permission
+from apps.common.permissions import role_permission, staff_permission
 from apps.notifications.models import Notification
 from apps.notifications.services import notify
 from apps.publishing.services import NotReady, publish_article
@@ -163,12 +163,18 @@ class ArticleViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             # Editors write too — leaders, columns, editorials. The
             # constraint is not who may write but who may sign it off.
-            return [permissions.IsAuthenticated()]
+            return [role_permission("WRITER", "EDITOR")()]
         if self.action == "partial_update":
             # editor_image_edit: an Editor may correct photography and
             # metadata on an article under review; a Writer may edit
             # their own draft. Both routes are scoped by get_queryset.
-            return [permissions.IsAuthenticated()]
+            return [role_permission("WRITER", "EDITOR")()]
+        if self.action in ("pipeline", "facets"):
+            # Every writer's workload and the whole list's filters are for
+            # the people who manage the pipeline.
+            return [role_permission("EDITOR", "PUBLISHER")()]
+        if self.action == "calendar":
+            return [role_permission("WRITER", "EDITOR", "PUBLISHER")()]
         if self.action == "request_revision":
             return [role_permission("EDITOR")()]
         if self.action == "pull_back":
@@ -181,7 +187,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return [role_permission("EDITOR")()]
         if self.action in ("publish", "sign_off"):
             return [role_permission("PUBLISHER")()]
-        return [permissions.IsAuthenticated()]
+        # Everything else (lists, details, timelines, the staff archive) is
+        # for staff; each role's queryset then narrows what it may see.
+        return [staff_permission()]
 
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
@@ -1066,10 +1074,19 @@ class ArticleImageViewSet(viewsets.ModelViewSet):
     serializer_class = ArticleImageSerializer
     parser_classes = [MultiPartParser, FormParser]
     http_method_names = ["get", "post", "delete", "head", "options"]
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        return [role_permission("WRITER", "EDITOR", "PUBLISHER", "GRAPHIC_DESIGNER")()]
 
     def get_queryset(self):
+        user = self.request.user
         qs = ArticleImage.objects.select_related("article")
+        # A writer sees the photographs on their own articles only; a
+        # designer, those on approved copy they are laying out.
+        if user.role == user.Role.WRITER:
+            qs = qs.filter(article__writer=user)
+        elif user.role == user.Role.GRAPHIC_DESIGNER:
+            qs = qs.filter(article__status__in=[Article.Status.APPROVED, Article.Status.PUBLISHED])
         article = self.request.query_params.get("article")
         return qs.filter(article_id=article) if article else qs
 
